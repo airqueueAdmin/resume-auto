@@ -2,7 +2,7 @@
 
 ## Status
 
-Implemented locally; the first run on the repository's CI host is pending.
+Implemented and verified locally and on the repository's CI host.
 
 Phase 11 remains in progress. This record does not claim that a remote CI run or a production
 deployment has succeeded.
@@ -74,6 +74,8 @@ Remote CI verification history:
   that `aquasecurity/trivy-action@v0.28.0` could not resolve its internal
   `aquasecurity/setup-trivy@v0.2.1` dependency. The workflow now uses Trivy Action v0.36.0 pinned to
   its immutable commit, which pins a valid setup-trivy revision.
+- Run 4 passed all non-skipped jobs: backend tests, frontend build and audit report, Compose
+  validation, and container builds with High/Critical Trivy reports.
 
 The vulnerability reports and dependency-review result require a remote CI runner and are therefore
 not marked as locally executed results.
@@ -93,7 +95,7 @@ not marked as locally executed results.
 - [x] Backend, frontend, Compose, and container-build checks are defined.
 - [x] Dependency and image vulnerability reporting is defined with an explicit severity policy.
 - [x] Equivalent local checks pass.
-- [ ] First remote CI run passes on the repository host.
+- [x] First remote CI run passes on the repository host (run 4, commit `845942c`).
 
 ## Next step
 
