@@ -64,7 +64,7 @@ docker image inspect ai-career-platform-backend ai-career-platform-frontend `
 ```
 
 The backend Dockerfile retries Maven dependency resolution and packaging up to five times,
-with a 5-to-25 second backoff, because a transient Maven Central `502 Bad Gateway` must not
+with a 5-to-20 second backoff, because a transient Maven Central `502 Bad Gateway` must not
 invalidate an otherwise reproducible image build.
 
 ## Backup and restore
