@@ -1,0 +1,731 @@
+# AI Career Platform
+
+Backend foundation for an AI-assisted career platform.
+
+## Phase records
+
+Completed design and implementation records are maintained separately from this quick-start guide:
+
+- [Phase 0 design record](docs/phases/phase-0.md)
+- [Phase 1 Step 2 record](docs/phases/phase-1-step-2.md)
+- [Phase 1 Step 3 record](docs/phases/phase-1-step-3.md)
+- [Phase 1 Step 4 record](docs/phases/phase-1-step-4.md)
+- [Phase 1 Step 5 record](docs/phases/phase-1-step-5.md)
+- [Phase 1 Step 6 record](docs/phases/phase-1-step-6.md)
+- [Phase 1 Step 7 record](docs/phases/phase-1-step-7.md)
+- [Phase 1 Step 8 record](docs/phases/phase-1-step-8.md)
+- [Phase 1 completion record](docs/phases/phase-1.md)
+- [Phase 2 completion record](docs/phases/phase-2.md)
+- [Phase 2 Ollama local provider step](docs/phases/phase-2-step-ollama.md)
+- [ADR 0001: Local Ollama provider](docs/adr/0001-local-ollama-as-default-llm-provider.md)
+- [Phase 3 completion record](docs/phases/phase-3.md)
+- [Phase 3 Step 1 record](docs/phases/phase-3-step-1.md)
+- [Phase 3 Step 2 record](docs/phases/phase-3-step-2.md)
+- [ADR 0002: pgvector source-linked chunks](docs/adr/0002-pgvector-source-linked-embedding-chunks.md)
+- [Phase 4 completion record](docs/phases/phase-4.md)
+- [Phase 4 Step 1 record](docs/phases/phase-4-step-1.md)
+- [Phase 5 Step 1 record](docs/phases/phase-5-step-1.md)
+- [Phase 5 Step 2 record](docs/phases/phase-5-step-2.md)
+- [Phase 5 Step 3 record: detailed self-introduction topics](docs/phases/phase-5-step-3.md)
+- [Phase 5 completion record](docs/phases/phase-5.md)
+- [Phase 6 Step 1 record](docs/phases/phase-6-step-1.md)
+- [Phase 6 Step 2 record](docs/phases/phase-6-step-2.md)
+- [Phase 6 Step 3 record](docs/phases/phase-6-step-3.md)
+- [Phase 6 Step 4 record](docs/phases/phase-6-step-4.md)
+- [Phase 6 Step 5 record](docs/phases/phase-6-step-5.md)
+- [Phase 6 completion record](docs/phases/phase-6.md)
+- [Phase 7 Step 1 record](docs/phases/phase-7-step-1.md)
+- [Phase 7 Step 2 record](docs/phases/phase-7-step-2.md)
+- [Phase 7 completion record](docs/phases/phase-7.md)
+- [Phase 8 Step 1 record](docs/phases/phase-8-step-1.md)
+- [Phase 8 Step 2 record](docs/phases/phase-8-step-2.md)
+- [Phase 8 Step 3 record](docs/phases/phase-8-step-3.md)
+- [Phase 8 completion record](docs/phases/phase-8.md)
+- [Phase 9 Step 1 record](docs/phases/phase-9-step-1.md)
+- [Phase 9 Step 2 record](docs/phases/phase-9-step-2.md)
+- [Phase 9 Step 3 record](docs/phases/phase-9-step-3.md)
+- [Phase 9 completion record](docs/phases/phase-9.md)
+- [Phase 10 Step 3 record](docs/phases/phase-10-step-3.md)
+- [Phase 10 Step 4 record](docs/phases/phase-10-step-4.md)
+- [Phase 10 JobKorea integration plan](docs/phases/phase-10-plan.md)
+- [Phase 10 completion record](docs/phases/phase-10.md)
+- [Phase 11 deployment packaging plan](docs/phases/phase-11-plan.md)
+- [Phase 11 Step 1 record](docs/phases/phase-11-step-1.md)
+- [Phase 11 Step 2 record](docs/phases/phase-11-step-2.md)
+- [ADR 0011: detailed self-introduction sections](docs/adr/0011-detailed-self-introduction-sections.md)
+- [ADR 0012: reproducible full-stack containers](docs/adr/0012-reproducible-full-stack-containers.md)
+- [ADR 0003: validated RAG citations](docs/adr/0003-validated-rag-citations.md)
+- [ADR 0005: explicit resume draft approval](docs/adr/0005-explicit-resume-draft-approval.md)
+- [ADR 0006: JobKorea integration boundary](docs/adr/0006-jobkorea-integration-boundary.md)
+- [ADR 0008: JobKorea-compatible auto-created resumes](docs/adr/0008-jobkorea-compatible-auto-resume.md)
+- [ADR 0007: authorized tool calls](docs/adr/0007-authorized-tool-calls.md)
+- [ADR 0009: production hardening baseline](docs/adr/0009-production-hardening-baseline.md)
+- [ADR 0004: Gemini image OCR provider](docs/adr/0004-gemini-image-ocr-provider.md)
+- [Phase 1 UI Step 1 record](docs/phases/phase-1-ui-step-1.md)
+- [Phase 1 UI Step 2 record](docs/phases/phase-1-ui-step-2.md)
+- [Phase 1 UI Step 3 record](docs/phases/phase-1-ui-step-3.md)
+- [Phase 1 UI Step 4 record](docs/phases/phase-1-ui-step-4.md)
+- [Phase 1 UI Step 5 record](docs/phases/phase-1-ui-step-5.md)
+- [Phase 1 UI Step 6 record](docs/phases/phase-1-ui-step-6.md)
+- [Phase 1 UI Step 7 record](docs/phases/phase-1-ui-step-7.md)
+- [Phase 1 UI Step 8 record](docs/phases/phase-1-ui-step-8.md)
+
+Phase 1 through Phase 10 are complete for the current supported integration scope. Phase 8 adds
+offline evaluation cases, deterministic reports, provider pricing inputs, and reviewed annotations.
+Phase 9 adds measured production-hardening boundaries without claiming production readiness.
+
+JobKorea integration is complete at its supported public boundary: file generation followed by a
+user-controlled download and upload handoff; this platform does not upload or publish the file to
+JobKorea. The currently observed upload contract is one `PDF`, `PNG`, `JPG`, or `JPEG` file no larger
+than 5 MB. JobKorea's public API is a recruitment-information read API, not a personal-resume write API.
+
+The planned Resume UX is a library of approved, immutable versions rather than a blank-document editor.
+The first approved grounded draft may create the Resume container automatically. New generated documents
+use a versioned JobKorea-compatible internal template mapped to the user-controlled file export contract.
+
+## Current scope: Phase 11 Step 2 workflow implemented; remote CI run pending
+
+The project currently includes the Spring Boot foundation, identity boundary, user-owned
+Experience/Project/JobPosting resources, and immutable Resume versions:
+
+- Java 25
+- Spring Boot 4.1.1
+- Maven Wrapper
+- Spring MVC
+- Bean Validation dependency
+- Actuator health endpoint
+- local/test profiles
+- request ID and basic error response structure
+- application context and health tests
+- PostgreSQL JDBC and HikariCP
+- Spring Data JPA with schema validation only
+- Flyway as the only schema migration owner
+- PostgreSQL Testcontainers integration tests
+- User signup and login
+- BCrypt password hashing through Spring Security's delegating password encoder
+- short-lived stateless Access JWT
+- persisted, hashed Refresh Session with rotation and revocation
+- authenticated `GET /api/v1/users/me`
+- authentication error responses with request IDs
+- Experience CRUD with user ownership checks
+- Project CRUD with user ownership checks
+- soft delete for Experience and Project
+- paginated Experience and Project collection APIs
+- PostgreSQL domain migration and ownership indexes
+- Resume CRUD with user ownership checks
+- immutable ResumeVersion snapshots
+- paginated Resume and ResumeVersion collection APIs
+- sequential version numbering protected by a database row lock
+- JobPosting CRUD with user ownership checks
+- paginated JobPosting collection APIs
+- JobPosting soft delete and source URL validation
+- JobPosting public URL import preview with JSON-LD and metadata fallback
+- OpenAPI JSON documentation and Swagger UI
+- JWT Bearer security scheme and protected resource documentation
+- Docker Compose PostgreSQL service with healthcheck and named volume
+- Direct OpenAI Responses API adapter and local Ollama adapter behind one LLM port
+- Ollama is the default provider for local development; OpenAI remains opt-in
+- Structured Job Description analysis through `POST /api/v1/ai/analyze-job`
+- Versioned classpath prompt (`job-analysis-v1`) and strict JSON Schema output
+- Immutable PostgreSQL JSONB AI analysis artifacts with provider token usage
+- Timeout, bounded retry for transient provider failures, and global AI error responses
+- Unit tests against a local HTTP provider stub and PostgreSQL integration coverage
+- Local Ollama `nomic-embed-text` embedding adapter with batch input and bounded transient retries
+- PostgreSQL `vector(768)` storage through the pgvector extension
+- Explicit user/source-linked `embedding_chunks` rows for Experience and Project data
+- Authenticated embedding re-index endpoint: `POST /api/v1/retrieval/index`
+- Authenticated user-scoped, source-type-filtered cosine Top-K search endpoint:
+  `POST /api/v1/retrieval/search`
+- HNSW cosine index and PostgreSQL/Testcontainers verification of user isolation and source filters
+- Job Description matching against retrieved career evidence through `POST /api/v1/ai/match-job`
+- Citation-label validation that rejects model references not present in the retrieved context
+- Immutable JSONB `ai_job_matches` artifacts with resolved source snapshots and token usage
+- Bounded RAG context size and configurable retrieval Top-K
+- Grounded resume draft generation through `POST /api/v1/ai/generate-resume-draft`
+- Immutable JSONB `ai_resume_drafts` artifacts with source snapshots and token usage
+- Server-side citation validation for every generated resume line
+- JobPosting action for grounded resume generation, explicit draft review, and automatic Resume Version 1
+  creation
+- Allowlisted Tool Catalog at `GET /api/v1/tools`
+- User-scoped read tools for Experience, Project, and JobPosting
+- One-time, short-lived, argument-bound approval tokens for mutating tool calls
+- Resume-draft approval exposed as a mutating tool at `POST /api/v1/tools/calls`
+- Experience creation exposed as an explicitly approved mutating tool
+- Project creation exposed as an explicitly approved mutating tool with repository URL validation
+- JobPosting creation exposed as an explicitly approved mutating tool with source URL validation
+- Provider-neutral Tool call executor and stable Tool error-code contract
+- Tool argument schema validation with unknown-field rejection
+- PostgreSQL `tool_approvals` migration with row-locked token consumption
+- Bounded `POST /api/v1/workflows/job-application-context` workflow
+- Deterministic, user-selected JobPosting/Experience/Project context collection through read tools
+- Configurable workflow step, cost-unit, and cooperative deadline limits
+- Git-versioned Phase 8 evaluation cases for retrieval, matching, and resume drafting
+- Offline metrics for retrieval quality, citation linkage, unsupported claims, latency, and token usage
+- Deterministic evaluation runner with dataset/provider/model/prompt metadata
+- Versioned provider pricing and estimated evaluation cost reports
+- Versioned human-reviewed claim-support annotations separated from operational AI artifacts
+- Configurable in-memory rate limiting with stable `429` responses and `Retry-After`
+- Public liveness/readiness probes with limited health detail
+- Sanitized request IDs and disabled Actuator environment disclosure
+- Browser-based JobKorea-compatible PDF preview and download from an immutable ResumeVersion
+- JobPosting-generated drafts are converted to the JobKorea field vocabulary before export; only
+  account-confirmed or user-entered personal/education data is included
+- Editable JobKorea required-profile fields with visible review warnings before export
+- Local one-file/5 MB export validation and explicit JobKorea upload-page handoff
+- Privacy-safe JobKorea export audit metadata linked to an owned immutable ResumeVersion
+- Explicit required-field demo-data helper for local export testing; demo values remain browser-local and
+  must be replaced before a real JobKorea upload
+- Career 화면에서 Experience/Project 임베딩 인덱스를 직접 재생성하는 버튼
+
+The following are intentionally not included yet:
+
+- Agents, tool selection by an LLM, and production deployment automation
+- Live provider pricing synchronization, cost comparison, and large benchmark datasets
+- Dynamic workflow branching, retries, parallel execution, and asynchronous workflow state
+- Experience/Project/JobPosting update/delete, bulk execution, and other additional tools
+
+## Frontend: Phase 1 UI foundation
+
+The repository now includes a separate React + TypeScript + Vite frontend under `frontend/`.
+The first UI step provides:
+
+- login and signup screens connected to the Spring Boot authentication API
+- short-lived Access JWT in session storage
+- Refresh Session token storage for the current local-development flow
+- logout with backend Refresh Session revocation
+- protected workspace dashboard shell
+- unified Career navigation with Experience and Project tabs
+- reviewed-before-save TXT import for Experience and Project forms
+- reviewed-before-save URL import preview for JobPosting
+- Vite development proxy from `/api` to `http://localhost:8080`
+
+Run the backend and PostgreSQL first, then start the frontend:
+
+```powershell
+cd frontend
+Copy-Item .env.example .env
+npm install
+npm run dev -- --host=127.0.0.1
+```
+
+Open `http://localhost:5173`. The frontend uses the Vite proxy, so local browser requests do not
+require a separate CORS configuration yet. Experience and Project are managed as separate resource
+types under one Career menu; Resume and JobPosting keep their own workspace menus.
+
+Experience and Project forms provide a `TXT 가져오기` action. Paste labeled text or choose a UTF-8
+`.txt` file using the format shown in the popup, for example `회사명: Acme Inc.` and
+`직무: Backend Developer`. Imported values fill the current form but are not saved until the user
+reviews them and presses the normal save button. Experience records contain company, role, and
+description data; project records additionally retain their dates and technical metadata.
+
+## Prerequisites
+
+- JDK 25
+- Docker Desktop for integration tests
+- PostgreSQL 17 for local application execution
+- Internet access for the first Maven Wrapper/dependency download
+
+Maven does not need to be installed globally. Use the project wrapper.
+
+## Run tests
+
+Windows PowerShell:
+
+```powershell
+.\mvnw.cmd test
+```
+
+The integration test starts an isolated PostgreSQL 17 + pgvector container. It verifies JDBC
+connectivity, Flyway initialization, Hibernate startup, the Actuator health endpoint, authentication
+flows, Experience/Project/JobPosting behavior, Resume/ResumeVersion ownership and immutability,
+OpenAPI/Swagger endpoints, AI analysis and matching ownership/configuration behavior, vector search
+ownership/source filtering, and the immutable matching artifact migration against PostgreSQL.
+The provider adapter tests use a local HTTP server, so the test suite never spends API credits or
+requires a real provider key or a running Ollama model.
+
+## Run locally
+
+```powershell
+$env:DB_URL = "jdbc:postgresql://localhost:5432/ai_career"
+$env:DB_USERNAME = "ai_career"
+$env:DB_PASSWORD = "local_password"
+.\mvnw.cmd spring-boot:run "-Dspring-boot.run.profiles=local"
+```
+
+The default port is `8080`.
+
+The application deliberately fails to start when PostgreSQL is unavailable or its credentials are
+invalid. This prevents a partially initialized application from serving requests.
+
+## Health check
+
+```powershell
+Invoke-RestMethod http://localhost:8080/actuator/health
+```
+
+The expected status is `UP`.
+
+## Configuration
+
+Configuration is externalized through environment variables:
+
+- `SPRING_PROFILES_ACTIVE`: active Spring profile
+- `SERVER_PORT`: HTTP port, default `8080`
+- `APP_VERSION`: value exposed by the Actuator info endpoint
+- `DB_URL`: PostgreSQL JDBC URL, default `jdbc:postgresql://localhost:5432/ai_career`
+- `DB_USERNAME`: PostgreSQL user, default `ai_career`
+- `DB_PASSWORD`: PostgreSQL password; the checked-in value is for local development only
+- `DB_POOL_MAX_SIZE`: Hikari maximum pool size, default `10`
+- `DB_POOL_MIN_IDLE`: Hikari minimum idle connections, default `2`
+- `DB_CONNECTION_TIMEOUT_MS`: fail-fast connection timeout, default `3000`
+- `POSTGRES_DB`: Docker Compose database name, default `ai_career`
+- `POSTGRES_USER`: Docker Compose database user, default `ai_career`
+- `POSTGRES_PASSWORD`: Docker Compose database password for local development
+- `POSTGRES_HOST_PORT`: host port mapped to PostgreSQL, default `5432`
+- `JWT_ISSUER`: JWT issuer, default `ai-career-platform`
+- `JWT_SECRET_BASE64`: Base64-encoded HMAC secret; use a unique secret outside local development
+- `JWT_ACCESS_TOKEN_TTL`: Access JWT lifetime, default `PT15M`
+- `JWT_REFRESH_TOKEN_TTL`: Refresh Session lifetime, default `P14D`
+- `AI_PROVIDER`: LLM provider, `ollama` or `openai`; default `ollama`
+- `AI_PROMPT_VERSION`: classpath prompt version, default `job-analysis-v1`
+- `AI_TIMEOUT`: per-request timeout, default `PT120S`; local Ollama structured resume generation can require more than 20 seconds
+- `AI_MAX_ATTEMPTS`: total attempts including the first request, default `2`
+- `AI_RETRY_DELAY`: delay between transient retries, default `PT0.1S`
+- `AI_MAX_OUTPUT_TOKENS`: output budget, default `1200`
+- `AI_TEMPERATURE`: sampling temperature, default `0.1`
+- `AI_MATCH_PROMPT_VERSION`: RAG matching prompt version, default `job-match-v1`
+- `AI_MATCH_TOP_K`: number of retrieved chunks before matching, default `8`
+- `AI_MATCH_MAX_CONTEXT_CHARACTERS`: maximum retrieved context characters, default `12000`
+- `AI_RESUME_DRAFT_PROVIDER`: resume-draft provider, `gemini` or `configured`; default `gemini`. `configured` uses the global `AI_PROVIDER` client.
+- `AI_RESUME_DRAFT_PROMPT_VERSION`: resume draft prompt version, default `resume-draft-v7`; generation starts with exactly three cited 자기소개서 appeal-topic sections, each with a title of up to 50 characters
+- `AI_RESUME_DRAFT_TOP_K`: number of retrieved chunks before resume generation, default `8`
+- `AI_RESUME_DRAFT_MAX_CONTEXT_CHARACTERS`: maximum resume-generation context characters, default `30000`; includes all indexed career evidence when available
+- `AI_RESUME_DRAFT_MAX_OUTPUT_TOKENS`: resume-draft-only output budget, default `4096`; sized to keep three detailed Korean 자기소개서 sections and the surrounding structured JSON within a bounded response
+- `AI_RESUME_DRAFT_GEMINI_THINKING_BUDGET`: Gemini 2.5 Flash reasoning budget for resume drafts, default `512`; prevents internal thinking from consuming the final structured-output budget
+- `AI_RESUME_DRAFT_MAX_ATTEMPTS`: resume-draft attempts before fallback, default `2`; retries transient provider failures and invalid structured responses once before Gemini fallback
+- `JOBKOREA_EXPORT_AUDIT_RETENTION_CLEANUP_ENABLED`: enable automatic deletion of expired export-audit metadata, default `true`
+- `JOBKOREA_EXPORT_AUDIT_RETENTION`: export-audit retention duration, default `PT720H` (30 days)
+- `JOBKOREA_EXPORT_AUDIT_CLEANUP_CRON`: UTC cleanup schedule, default `0 0 3 * * *`
+- `RATE_LIMIT_ENABLED`: enable the local in-memory API rate limiter, default `true`
+- `RATE_LIMIT_WINDOW`: rate-limit window duration, default `PT1M`
+- `RATE_LIMIT_MAX_REQUESTS`: maximum requests per bucket per window, default `60`
+- `MANAGEMENT_HEALTH_PROBES_ENABLED`: enable liveness/readiness health groups, default `true`
+- `OLLAMA_CHAT_URL`: local Ollama chat URL, default `http://localhost:11434/api/chat`
+- `OLLAMA_MODEL`: local Ollama model, default `llama3.1:8b`
+- `GEMINI_API_URL`: Gemini API base URL, default `https://generativelanguage.googleapis.com/v1beta`
+- `GEMINI_API_KEY`: server-side Gemini API key for OCR and resume-draft generation/fallback
+- `GEMINI_MODEL`: Gemini model for OCR/resume drafts, default `gemini-2.5-flash`
+- `GEMINI_TIMEOUT`: per-request Gemini timeout, default `PT90S`
+- `GEMINI_MAX_ATTEMPTS`: total Gemini attempts per request, default `1`
+- `GEMINI_RETRY_DELAY`: delay between transient Gemini retries, default `PT0.1S`
+- `GEMINI_MAX_OUTPUT_TOKENS`: Gemini OCR output budget, default `4096`; resume fallback uses `AI_RESUME_DRAFT_MAX_OUTPUT_TOKENS`
+- `OLLAMA_EMBEDDING_URL`: local Ollama embedding URL, default `http://localhost:11434/api/embed`
+- `OLLAMA_EMBEDDING_MODEL`: local embedding model, default `nomic-embed-text`
+- `OLLAMA_EMBEDDING_DIMENSIONS`: expected embedding dimensions, default `768`
+- `OLLAMA_EMBEDDING_TIMEOUT`: embedding request timeout, default `PT30S`
+- `OLLAMA_EMBEDDING_MAX_ATTEMPTS`: total embedding attempts, default `2`
+- `OLLAMA_EMBEDDING_RETRY_DELAY`: delay between transient embedding retries, default `PT0.1S`
+- `OPENAI_RESPONSES_URL`: Responses API URL, default `https://api.openai.com/v1/responses`
+- `OPENAI_API_KEY`: server-side provider API key; empty by default for local startup
+- `OPENAI_MODEL`: provider model, default `gpt-4o-mini`
+
+Image-only JobKorea postings use the Gemini API for OCR during import preview. Set `GEMINI_API_KEY`
+on the backend and keep `AI_PROVIDER=ollama` if Ollama should remain the text LLM provider. Each
+detail image is downloaded by the backend and sent as an independent Gemini OCR request; successful
+chunks are combined in image order. If the key is missing or Gemini cannot read any image, the preview
+keeps the original image URLs and reports an OCR warning instead of silently using the short metadata
+description. Ollama vision models are not required or used.
+
+Resume draft generation uses Gemini by default through `AI_RESUME_DRAFT_PROVIDER=gemini`. The global
+`AI_PROVIDER` remains responsible for job analysis and matching. If Gemini cannot complete a resume
+draft, the configured global provider is used as a bounded fallback. Set
+`AI_RESUME_DRAFT_PROVIDER=configured` to restore the global provider as the resume-draft primary.
+Gemini receives the job posting and retrieved career evidence and may incur provider cost or quota usage.
+The free Gemini allocation can return `503` when quota or provider capacity is unavailable. The current
+operational response is bounded fallback to the configured provider and manual replacement of the
+server-side `GEMINI_API_KEY` when a different key is required. Automatic key creation, key pooling,
+quota-aware routing, and secret rotation are deferred until production hardening is justified; provider
+keys must never be generated or exposed by the browser.
+
+For a local PowerShell run, configure the key without committing it:
+
+```powershell
+$env:AI_PROVIDER = "ollama"
+$env:AI_RESUME_DRAFT_PROVIDER = "gemini"
+$env:GEMINI_API_KEY = "your-gemini-api-key"
+```
+
+Do not commit real credentials. Production secrets will be supplied by the deployment environment.
+
+## Database migration policy
+
+- Flyway owns every schema change.
+- Migrations live in `src/main/resources/db/migration`.
+- Versioned files use `V<version>__<description>.sql`.
+- Applied migrations are immutable; corrections are new forward migrations.
+- Hibernate uses `ddl-auto: validate` and never creates or updates tables.
+- Spring SQL initialization is disabled to prevent a second schema owner.
+- Flyway `clean` is disabled.
+- H2 is not used; integration tests run against PostgreSQL.
+
+The first migration creates `users` and `refresh_sessions`. Hibernate validates this schema but does
+not create or update it.
+
+## Docker Compose full stack
+
+Docker Compose can run only PostgreSQL for local Java debugging or build the complete frontend/backend/
+database stack. The complete stack keeps the React frontend and Spring Boot backend in separate runtime
+images and proxies `/api` and `/actuator` through Nginx.
+
+The Compose image is `pgvector/pgvector:pg17`, which is required by the Phase 3 migration. If an
+existing local container was created from the old `postgres:17-alpine` image, recreate the container
+without deleting the named volume:
+
+```powershell
+docker compose down
+docker compose up -d postgres
+```
+
+Do not use `docker compose down -v` unless deleting the local database is intentional.
+
+```powershell
+Copy-Item .env.example .env
+docker compose up -d postgres
+docker compose ps
+docker compose logs postgres
+```
+
+The Compose healthcheck uses `pg_isready`. Once the service is healthy, run the application with the
+local profile:
+
+```powershell
+$env:DB_URL = "jdbc:postgresql://localhost:5432/ai_career"
+$env:DB_USERNAME = "ai_career"
+$env:DB_PASSWORD = "local_password"
+.\mvnw.cmd spring-boot:run "-Dspring-boot.run.profiles=local"
+```
+
+Stop the database while retaining its named volume with `docker compose stop`, or remove the
+container with `docker compose down`. `docker compose down -v` also deletes the local database
+volume and is intentionally not part of the normal stop flow.
+
+Build and run the complete stack:
+
+```powershell
+docker compose build backend frontend
+docker compose up -d postgres backend frontend
+docker compose ps
+```
+
+Open `http://localhost:5173`. Nginx preserves React deep links such as `/login` and proxies API calls to
+the backend. Backend readiness is available directly at `http://localhost:8080/actuator/health/readiness`
+and through the frontend proxy at `http://localhost:5173/actuator/health/readiness`.
+
+When Ollama runs on the host, Compose uses `host.docker.internal`. Override
+`COMPOSE_OLLAMA_CHAT_URL` and `COMPOSE_OLLAMA_EMBEDDING_URL` when the model server runs elsewhere.
+
+If Docker Desktop or another local process has a problem forwarding port `5432`, choose an unused
+host port explicitly:
+
+```powershell
+$env:POSTGRES_HOST_PORT = "55435"
+docker compose up -d postgres
+$env:DB_URL = "jdbc:postgresql://localhost:55435/ai_career"
+```
+
+## Authentication behavior
+
+| Endpoint | Purpose | Authentication |
+| --- | --- | --- |
+| `POST /api/v1/auth/signup` | Create a user | Public |
+| `POST /api/v1/auth/login` | Issue Access JWT and Refresh Session token | Public |
+| `POST /api/v1/auth/refresh` | Rotate a Refresh Session and issue new tokens | Public, refresh token required |
+| `POST /api/v1/auth/logout` | Revoke a Refresh Session | Public, refresh token required |
+| `GET /api/v1/users/me` | Return the authenticated user | Access JWT required |
+
+Access JWTs are short-lived and stateless. Logout revokes the persisted Refresh Session, but an
+already-issued Access JWT remains valid until its expiration time. Refresh token plaintext values
+are returned only to the client; the database stores their SHA-256 hashes.
+
+## Career resource behavior
+
+| Resource | Collection | Single resource |
+| --- | --- | --- |
+| Experience | `GET /api/v1/experiences?page=0&size=20` | `GET /api/v1/experiences/{id}` |
+| Project | `GET /api/v1/projects?page=0&size=20` | `GET /api/v1/projects/{id}` |
+| JobPosting | `GET /api/v1/job-postings?page=0&size=20` | `GET /api/v1/job-postings/{id}` |
+
+These resources support `POST`, `PUT`, and `DELETE` under the same paths. Collection results are
+ordered by `updatedAt DESC, id DESC`, and `size` is limited to 100. Delete records `deleted_at`
+and removes the resource from normal reads; source rows are retained for future provenance work.
+The authenticated JWT subject is the only owner identifier used by the application.
+
+JobPosting stores the user-provided title, company name, Job Description, and optional source URL.
+It remains the source of truth. Phase 2 analysis is stored separately in immutable
+`ai_job_analyses` rows and never overwrites this source record.
+
+To prefill a JobPosting from a public recruitment URL, call `POST /api/v1/job-postings/import-preview`
+with an Access JWT:
+
+```json
+{"sourceUrl":"https://jobs.example.com/backend-developer"}
+```
+
+The server prefers Schema.org `JobPosting` JSON-LD and falls back to page metadata and visible HTML.
+The response is a preview only; the client must let the user review it and then call the normal
+JobPosting create endpoint. Pages that require login or JavaScript rendering may not provide a complete
+preview. Private hosts, non-HTML responses, oversized pages, and excessive redirects are rejected.
+
+## Structured job analysis
+
+`POST /api/v1/ai/analyze-job` requires an Access JWT and accepts a saved JobPosting identifier:
+
+```json
+{"jobPostingId":"job-posting-uuid"}
+```
+
+The service verifies ownership using the authenticated JWT subject before calling the provider. A
+successful response contains the structured summary, role family, seniority, responsibilities,
+required/preferred skills, keywords, provider/model metadata, prompt version, and input/output/total
+token usage. Each successful call creates a new immutable analysis artifact. Local development uses
+Ollama by default and does not require an OpenAI API key. Set `AI_PROVIDER=openai` and configure
+`OPENAI_API_KEY` only when using the paid OpenAI provider.
+
+Ollama must be running with the configured model available:
+
+```powershell
+ollama pull llama3.1:8b
+ollama list
+```
+
+The Ollama adapter sends `stream: false` and a JSON Schema to `/api/chat`, then validates the
+returned JSON using the same application document model as the OpenAI adapter. Ollama reports local
+prompt and generation counts, which are stored as token usage metadata; they are not provider charges.
+
+## Grounded job matching
+
+`POST /api/v1/ai/match-job` requires an Access JWT and accepts the same saved JobPosting identifier:
+
+```json
+{"jobPostingId":"job-posting-uuid"}
+```
+
+The service first embeds the job title, company, and description, retrieves the authenticated user's
+top matching Experience/Project chunks, and sends only that bounded evidence to the local LLM. The
+LLM receives server-assigned labels such as `C1` and must return those labels with its strengths,
+gaps, and recommendations. The server resolves each label to the actual chunk/source ID and stores
+the source content snapshot in the immutable `ai_job_matches` artifact. A citation that was not in
+the retrieved context is rejected with `RAG_CITATION_INVALID` rather than being persisted.
+
+The endpoint requires at least one indexed Experience or Project. Run the index endpoint after source
+data changes, then call the matching endpoint:
+
+```http
+POST /api/v1/retrieval/index
+Authorization: Bearer <access-token>
+
+POST /api/v1/ai/match-job
+Authorization: Bearer <access-token>
+Content-Type: application/json
+
+{"jobPostingId":"job-posting-uuid"}
+```
+
+If no owned evidence is indexed, the endpoint returns `RAG_CONTEXT_EMPTY`. This phase does not create
+or modify a ResumeVersion and does not treat citation presence as proof that a claim is factually true.
+
+## Grounded resume draft generation
+
+Phase 5 Step 1 generates a resume draft from a saved JobPosting and the authenticated user's indexed
+Experience/Project evidence:
+
+```http
+POST /api/v1/ai/generate-resume-draft
+Authorization: Bearer <access-token>
+Content-Type: application/json
+
+{"jobPostingId":"job-posting-uuid"}
+```
+
+The server retrieves bounded evidence, assigns citation labels, and sends only that evidence to the
+configured local LLM. Every headline, summary, 자기소개서 어필 주제, experience bullet, project bullet,
+and skill in the response must cite a retrieved source label. The response must contain at least
+three distinct self-introduction topics, each with detailed multi-sentence content. The server
+resolves labels to source IDs and immutable content snapshots before storing the result in
+`ai_resume_drafts`.
+
+The endpoint creates a draft artifact only. It never modifies a Resume or ResumeVersion. If there is
+no indexed evidence it returns `RAG_CONTEXT_EMPTY`; if the model returns an unknown or missing
+citation it returns the corresponding grounding validation error. Ollama prompt and generation
+counts are usage metadata and do not create API charges.
+
+Approve a stored draft explicitly after reviewing it:
+
+```http
+POST /api/v1/ai/resume-drafts/{draftId}/approve
+Authorization: Bearer <access-token>
+Content-Type: application/json
+
+{"resumeId":"resume-uuid"}
+```
+
+The server loads the draft through the authenticated user's ownership scope and converts the stored
+grounded lines into a new immutable ResumeVersion. Citation labels are retained in the version content
+(`C1`, `C2`, ...), the target Resume's next sequential version is created under a row lock, and prior
+versions remain unchanged. The request never accepts replacement resume content, so approval cannot
+silently bypass the grounded draft artifact.
+
+## Authorized Tool Calling
+
+Phase 6 exposes a code-owned tool boundary for a future agent. It does not connect an LLM or
+allow arbitrary service invocation.
+
+List the available tools with an Access JWT:
+
+```http
+GET /api/v1/tools
+Authorization: Bearer <access-token>
+```
+
+The current read tools are `career.experience.get`, `career.project.get`, and
+`career.job-posting.get`. The current mutating tools are `career.experience.create`,
+`career.project.create`, `career.job-posting.create`, and `career.resume-draft.approve`.
+
+For a mutating call, the user-facing client first requests a short-lived approval bound to the exact
+tool arguments:
+
+```http
+POST /api/v1/tools/approvals
+Authorization: Bearer <access-token>
+Content-Type: application/json
+
+{"toolName":"career.resume-draft.approve","arguments":{"draftId":"draft-uuid","resumeId":"resume-uuid"}}
+```
+
+It then sends the returned one-time `approvalToken` with the same arguments to
+`POST /api/v1/tools/calls`. The server verifies the authenticated user, allowlisted tool, strict
+input schema, argument hash, expiry, and unused state. Tool approvals are stored as token hashes in
+`tool_approvals`; plaintext tokens are never persisted.
+
+## Bounded workflows
+
+Phase 7 Step 1 adds a deterministic application-context workflow. It accepts a JobPosting ID and up to
+three user-selected Experience IDs and Project IDs:
+
+```http
+POST /api/v1/workflows/job-application-context
+Authorization: Bearer <access-token>
+Content-Type: application/json
+
+{"jobPostingId":"job-uuid","experienceIds":["experience-uuid"],"projectIds":["project-uuid"]}
+```
+
+The workflow reads the JobPosting, Experiences, and Projects in a fixed order through the existing read
+tools. The default budget is seven steps, seven cost units, and five seconds; all three limits are
+configurable. It does not call an LLM, select tools dynamically, issue approvals, or invoke mutations.
+
+The user ownership checks therefore remain in the same application services used by the normal APIs and
+Tool Calling boundary. The timeout is cooperative and checks before and after each read; it is not a hard
+cancellation mechanism for a blocking downstream call.
+
+## Embedding index and vector search
+
+Phase 3 uses Ollama locally for embeddings, so it does not require an OpenAI API key. Pull the
+embedding model once:
+
+```powershell
+ollama pull nomic-embed-text
+ollama list
+```
+
+After creating or updating Experience and Project records, rebuild the authenticated user's index:
+
+```http
+POST /api/v1/retrieval/index
+Authorization: Bearer <access-token>
+```
+
+The endpoint reads only active records owned by the authenticated user, embeds one source snapshot
+per record, and replaces that user's derived `embedding_chunks` rows. It does not modify the source
+Experience or Project data.
+
+Search the derived index with a query and optional source-type filter:
+
+```http
+POST /api/v1/retrieval/search
+Authorization: Bearer <access-token>
+Content-Type: application/json
+
+{"query":"Java backend PostgreSQL","topK":5,"sourceTypes":["EXPERIENCE"]}
+```
+
+`topK` defaults to 5 and is limited to 20. `sourceTypes` accepts `EXPERIENCE` and `PROJECT`; an
+empty or omitted filter searches both. Results contain cosine similarity, source type, source ID,
+chunk index, content, and embedding model. The matching endpoint uses this same retrieval boundary
+to build validated RAG context.
+
+## Resume and version behavior
+
+| Resource | Endpoint | Behavior |
+| --- | --- | --- |
+| Resume | `POST /api/v1/resumes` | Creates a Resume and immutable Version 1 atomically |
+| Resume | `GET /api/v1/resumes/{id}` | Returns Resume metadata and latest version number |
+| Resume | `PUT /api/v1/resumes/{id}` | Renames the Resume metadata only |
+| Resume | `DELETE /api/v1/resumes/{id}` | Soft deletes the Resume |
+| ResumeVersion | `POST /api/v1/resumes/{resumeId}/versions` | Creates the next immutable snapshot |
+| ResumeVersion | `GET /api/v1/resumes/{resumeId}/versions` | Returns paginated snapshots |
+| ResumeVersion | `GET /api/v1/resumes/{resumeId}/versions/{versionId}` | Reads one snapshot |
+| Resume draft | `POST /api/v1/ai/resume-drafts/{draftId}/approve` | Approves a grounded draft into the next immutable ResumeVersion |
+| Resume draft | `POST /api/v1/ai/resume-drafts/{draftId}/approve-new` | Creates a new Resume and immutable Version 1 from an approved draft |
+
+There is intentionally no ResumeVersion update or delete endpoint. Editing a resume means creating
+another version; previous content remains available for comparison and audit.
+
+The primary UI flow will not require users to create an empty Resume first. Approval can create the first
+Resume container automatically, while the existing create endpoint remains available for compatibility.
+
+## Error response draft
+
+The global error response reserves an RFC-style structure for later API work:
+
+```json
+{
+  "type": "about:blank",
+  "title": "Bad Request",
+  "status": 400,
+  "detail": "Request validation failed",
+  "instance": "/api/v1/example",
+  "timestamp": "2026-01-01T00:00:00Z",
+  "code": "VALIDATION_ERROR",
+  "requestId": "request-id",
+  "fieldErrors": {}
+}
+```
+
+## API documentation
+
+When the application is running, the generated API contract is available at:
+
+- OpenAPI JSON: `http://localhost:8080/v3/api-docs`
+- OpenAPI YAML: `http://localhost:8080/v3/api-docs.yaml`
+- Swagger UI: `http://localhost:8080/swagger-ui.html`
+
+The documentation endpoints are public so that developers can inspect the contract before obtaining
+an Access JWT. Business API endpoints remain protected by the existing Spring Security configuration.
+Use the Swagger UI `Authorize` action with a short-lived Access JWT for protected requests.
+
+The contract is generated at runtime from Spring MVC mappings, validation annotations, and OpenAPI
+annotations. It is not a second manually maintained API specification.
+
+## Next phase
+
+Phase 11 Step 2 has a non-deploying CI workflow for backend tests, frontend builds, Compose validation,
+container builds, and vulnerability reports. Run it on the repository's CI host before starting the
+deployment runbook and measured readiness work in Phase 11 Step 3. The application currently generates
+a browser-side PDF from an approved ResumeVersion, lets the user review and download it, and can open the
+JobKorea upload page. Server-side upload, credentials, refresh tokens, cookies, and CAPTCHA/anti-automation
+bypasses are out of scope.
+
+Redis, asynchronous processing, streaming, distributed tracing, and cloud deployment remain deferred until
+latency, load, cost, or operational measurements justify them. Agent behavior remains deferred until a
+concrete use case demonstrates that dynamic Tool selection is genuinely needed.

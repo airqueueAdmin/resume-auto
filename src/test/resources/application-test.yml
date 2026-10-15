@@ -1,0 +1,20 @@
+spring:
+  config:
+    activate:
+      on-profile: test
+  jpa:
+    show-sql: false
+
+app:
+  ai:
+    provider: openai
+  rate-limit:
+    enabled: false
+  jobkorea:
+    export-audit:
+      retention-cleanup-enabled: false
+
+management:
+  endpoint:
+    health:
+      show-details: never

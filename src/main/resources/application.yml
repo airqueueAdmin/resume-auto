@@ -1,0 +1,118 @@
+spring:
+  application:
+    name: ai-career-platform
+  profiles:
+    default: local
+  flyway:
+    clean-disabled: true
+    enabled: true
+    locations: classpath:db/migration
+    validate-migration-naming: true
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+  sql:
+    init:
+      mode: never
+
+server:
+  port: ${SERVER_PORT:8080}
+
+app:
+  security:
+    jwt:
+      issuer: ${JWT_ISSUER:ai-career-platform}
+      secret-base64: ${JWT_SECRET_BASE64:REDACTED_HISTORY_VALUE}
+      access-token-ttl: ${JWT_ACCESS_TOKEN_TTL:PT15M}
+      refresh-token-ttl: ${JWT_REFRESH_TOKEN_TTL:P14D}
+  ai:
+    provider: ${AI_PROVIDER:ollama}
+    prompt-version: ${AI_PROMPT_VERSION:job-analysis-v1}
+    # Local Ollama structured generation can take longer than a network LLM call,
+    # especially when the model is cold or the retrieved evidence is large.
+    timeout: ${AI_TIMEOUT:PT120S}
+    max-attempts: ${AI_MAX_ATTEMPTS:2}
+    retry-delay: ${AI_RETRY_DELAY:PT0.1S}
+    max-output-tokens: ${AI_MAX_OUTPUT_TOKENS:1200}
+    temperature: ${AI_TEMPERATURE:0.1}
+    matching:
+      prompt-version: ${AI_MATCH_PROMPT_VERSION:job-match-v1}
+      top-k: ${AI_MATCH_TOP_K:8}
+      max-context-characters: ${AI_MATCH_MAX_CONTEXT_CHARACTERS:12000}
+    resume-draft:
+      provider: ${AI_RESUME_DRAFT_PROVIDER:gemini}
+      prompt-version: ${AI_RESUME_DRAFT_PROMPT_VERSION:resume-draft-v7}
+      top-k: ${AI_RESUME_DRAFT_TOP_K:8}
+      max-context-characters: ${AI_RESUME_DRAFT_MAX_CONTEXT_CHARACTERS:30000}
+      max-output-tokens: ${AI_RESUME_DRAFT_MAX_OUTPUT_TOKENS:4096}
+      gemini-thinking-budget: ${AI_RESUME_DRAFT_GEMINI_THINKING_BUDGET:512}
+      max-attempts: ${AI_RESUME_DRAFT_MAX_ATTEMPTS:2}
+    openai:
+      endpoint: ${OPENAI_RESPONSES_URL:https://api.openai.com/v1/responses}
+      api-key: ${OPENAI_API_KEY:}
+      model: ${OPENAI_MODEL:gpt-4o-mini}
+    ollama:
+      endpoint: ${OLLAMA_CHAT_URL:http://localhost:11434/api/chat}
+      model: ${OLLAMA_MODEL:llama3.1:8b}
+  ocr:
+    gemini:
+      endpoint: ${GEMINI_API_URL:https://generativelanguage.googleapis.com/v1beta}
+      api-key: ${GEMINI_API_KEY:}
+      model: ${GEMINI_MODEL:gemini-2.5-flash}
+      timeout: ${GEMINI_TIMEOUT:PT90S}
+      max-attempts: ${GEMINI_MAX_ATTEMPTS:1}
+      retry-delay: ${GEMINI_RETRY_DELAY:PT0.1S}
+      max-output-tokens: ${GEMINI_MAX_OUTPUT_TOKENS:4096}
+  retrieval:
+    embedding:
+      ollama:
+        endpoint: ${OLLAMA_EMBEDDING_URL:http://localhost:11434/api/embed}
+        model: ${OLLAMA_EMBEDDING_MODEL:nomic-embed-text}
+        dimensions: ${OLLAMA_EMBEDDING_DIMENSIONS:768}
+        timeout: ${OLLAMA_EMBEDDING_TIMEOUT:PT30S}
+        max-attempts: ${OLLAMA_EMBEDDING_MAX_ATTEMPTS:2}
+        retry-delay: ${OLLAMA_EMBEDDING_RETRY_DELAY:PT0.1S}
+  tools:
+    approval-ttl: ${TOOL_APPROVAL_TTL:PT5M}
+  workflow:
+    job-application-context:
+      timeout: ${WORKFLOW_JOB_CONTEXT_TIMEOUT:PT5S}
+      max-steps: ${WORKFLOW_JOB_CONTEXT_MAX_STEPS:7}
+      max-cost-units: ${WORKFLOW_JOB_CONTEXT_MAX_COST_UNITS:7}
+  jobkorea:
+    export-audit:
+      retention-cleanup-enabled: ${JOBKOREA_EXPORT_AUDIT_RETENTION_CLEANUP_ENABLED:true}
+      retention: ${JOBKOREA_EXPORT_AUDIT_RETENTION:PT720H}
+      cleanup-cron: ${JOBKOREA_EXPORT_AUDIT_CLEANUP_CRON:0 0 3 * * *}
+  rate-limit:
+    enabled: ${RATE_LIMIT_ENABLED:true}
+    window: ${RATE_LIMIT_WINDOW:PT1M}
+    max-requests: ${RATE_LIMIT_MAX_REQUESTS:60}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: never
+      probes:
+        enabled: ${MANAGEMENT_HEALTH_PROBES_ENABLED:true}
+  info:
+    env:
+      enabled: false
+
+info:
+  app:
+    name: ${spring.application.name}
+    version: ${APP_VERSION:dev}
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    operations-sorter: method
+    tags-sorter: alpha

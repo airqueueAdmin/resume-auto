@@ -1,0 +1,1813 @@
+import { useEffect, useRef, useState } from 'react'
+import type { ChangeEvent, FormEvent, ReactNode } from 'react'
+import { Link, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
+import { jsPDF } from 'jspdf'
+
+type User = { id: string; email: string; displayName: string }
+type AuthenticationResponse = { user: User; accessToken: string; refreshToken: string }
+type Experience = {
+  id: string
+  companyName: string
+  role: string
+  description: string
+  createdAt: string
+  updatedAt: string
+}
+type PageResponse<T> = { content: T[]; page: number; size: number; totalElements: number; totalPages: number; first: boolean; last: boolean }
+type ExperienceForm = { companyName: string; role: string; description: string }
+type Project = {
+  id: string
+  name: string
+  role: string
+  startDate: string
+  endDate: string | null
+  description: string
+  techStack: string
+  repositoryUrl: string | null
+  createdAt: string
+  updatedAt: string
+}
+type ProjectForm = { name: string; role: string; startDate: string; endDate: string; description: string; techStack: string; repositoryUrl: string }
+type Resume = { id: string; name: string; latestVersionNumber: number; createdAt: string; updatedAt: string }
+type ResumeVersion = { id: string; resumeId: string; versionNumber: number; content: string; createdAt: string }
+type ResumeDraftLine = { text: string; citations: Array<{ citationId: string }> }
+type ResumeDraftSection = { title: string; content: string; citations: Array<{ citationId: string }> }
+type ResumeDraftDocument = { headline: ResumeDraftLine; summary: ResumeDraftLine; selfIntroductionSections: ResumeDraftSection[]; experienceBullets: ResumeDraftLine[]; projectBullets: ResumeDraftLine[]; skills: ResumeDraftLine[] }
+type ResumeDraftResponse = { id: string; jobPostingId: string; draft: ResumeDraftDocument; provider: string; model: string; promptVersion: string; retrievedChunkCount: number; createdAt: string }
+type ResumeCreateForm = { name: string; content: string }
+type JobPosting = { id: string; title: string; companyName: string; description: string; sourceUrl: string | null; createdAt: string; updatedAt: string }
+type JobPostingForm = { title: string; companyName: string; description: string; sourceUrl: string }
+type JobPostingImportPreview = { sourceUrl: string; title: string; companyName: string; description: string; extractionSource: string; warnings: string[]; imageUrls: string[] }
+type EmbeddingIndexResponse = { indexedExperienceChunks: number; indexedProjectChunks: number; embeddingModel: string; embeddingDimensions: number; indexedAt: string }
+type ApiError = Error & { fieldErrors?: Record<string, string> }
+
+const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? '/api'
+const refreshTokenKey = 'ai-career.refresh-token'
+const jobKoreaTemplateVersion = 'JOBKOREA_STANDARD_V2'
+const supportedResumePhotoTypes = new Set(['image/jpeg', 'image/png', 'image/webp'])
+
+async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
+  const accessToken = sessionStorage.getItem('ai-career.access-token')
+  const headers = new Headers(options.headers)
+  headers.set('Content-Type', 'application/json')
+  if (accessToken) headers.set('Authorization', `Bearer ${accessToken}`)
+
+  const response = await fetch(`${apiBaseUrl}${path}`, { ...options, headers })
+  if (!response.ok) {
+    const body = await response.json().catch(() => null) as { detail?: string; fieldErrors?: Record<string, string> } | null
+    const error = new Error(body?.detail ?? '요청을 처리하지 못했습니다.') as ApiError
+    error.fieldErrors = body?.fieldErrors
+    throw error
+  }
+  if (response.status === 204) return undefined as T
+  return response.json() as Promise<T>
+}
+
+function saveAuthentication(result: AuthenticationResponse) {
+  sessionStorage.setItem('ai-career.access-token', result.accessToken)
+  localStorage.setItem(refreshTokenKey, result.refreshToken)
+  sessionStorage.setItem('ai-career.user', JSON.stringify(result.user))
+}
+
+function readUser(): User | null {
+  const value = sessionStorage.getItem('ai-career.user')
+  return value ? JSON.parse(value) as User : null
+}
+
+function clearAuthentication() {
+  sessionStorage.removeItem('ai-career.access-token')
+  sessionStorage.removeItem('ai-career.user')
+  localStorage.removeItem(refreshTokenKey)
+}
+
+function App() {
+  const [user, setUser] = useState<User | null>(readUser)
+
+  function handleAuthenticated(result: AuthenticationResponse) {
+    saveAuthentication(result)
+    setUser(result.user)
+  }
+
+  async function handleLogout() {
+    const refreshToken = localStorage.getItem(refreshTokenKey)
+    if (refreshToken) {
+      await request('/v1/auth/logout', {
+        method: 'POST',
+        body: JSON.stringify({ refreshToken }),
+      }).catch(() => undefined)
+    }
+    clearAuthentication()
+    setUser(null)
+  }
+
+  return (
+    <Routes>
+      <Route path="/login" element={user ? <Navigate to="/" replace /> : <AuthPage mode="login" onAuthenticated={handleAuthenticated} />} />
+      <Route path="/signup" element={user ? <Navigate to="/" replace /> : <AuthPage mode="signup" onAuthenticated={handleAuthenticated} />} />
+      <Route path="*" element={user ? <Dashboard user={user} onLogout={handleLogout} /> : <Navigate to="/login" replace />} />
+    </Routes>
+  )
+}
+
+function AuthPage({ mode, onAuthenticated }: { mode: 'login' | 'signup'; onAuthenticated: (result: AuthenticationResponse) => void }) {
+  const navigate = useNavigate()
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [displayName, setDisplayName] = useState('')
+  const [error, setError] = useState('')
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const isLogin = mode === 'login'
+
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    setError('')
+    setIsSubmitting(true)
+    try {
+      if (!isLogin) {
+        await request<User>('/v1/auth/signup', { method: 'POST', body: JSON.stringify({ email, password, displayName }) })
+      }
+      const result = await request<AuthenticationResponse>('/v1/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) })
+      onAuthenticated(result)
+      navigate('/')
+    } catch (submissionError) {
+      setError(submissionError instanceof Error ? submissionError.message : '인증에 실패했습니다.')
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  return (
+    <main className="auth-layout">
+      <section className="auth-brand-panel">
+        <span className="eyebrow">AI CAREER PLATFORM</span>
+        <h1>Don't<br /><em>Touch</em></h1>
+        <p>Don't Touch</p>
+        <div className="brand-mark" aria-hidden="true">↗</div>
+      </section>
+      <section className="auth-form-panel">
+        <div className="auth-form-wrap">
+          <span className="eyebrow">{isLogin ? 'WELCOME BACK' : 'GET STARTED'}</span>
+          <h2>{isLogin ? '다시 만나서 반가워요' : '커리어 공간을 시작하세요'}</h2>
+          <p className="muted">{isLogin ? '계정에 로그인해 작업을 이어가세요.' : '지금은 기본 Career 데이터를 안전하게 관리합니다.'}</p>
+          <form onSubmit={submit} className="auth-form">
+            {!isLogin && <label>이름<input value={displayName} onChange={(event) => setDisplayName(event.target.value)} placeholder="홍길동" required maxLength={100} /></label>}
+            <label>이메일<input type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@example.com" required /></label>
+            <label>비밀번호<input type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="12자 이상" required minLength={isLogin ? 1 : 12} /></label>
+            {error && <p className="form-error" role="alert">{error}</p>}
+            <button className="primary-button" disabled={isSubmitting} type="submit">{isSubmitting ? '처리 중...' : isLogin ? '로그인' : '계정 만들기'}</button>
+          </form>
+          <p className="auth-switch">{isLogin ? '처음 방문하셨나요?' : '이미 계정이 있으신가요?'} <Link to={isLogin ? '/signup' : '/login'}>{isLogin ? '회원가입' : '로그인'}</Link></p>
+        </div>
+      </section>
+    </main>
+  )
+}
+
+function Dashboard({ user, onLogout }: { user: User; onLogout: () => Promise<void> }) {
+  const location = useLocation()
+  const navigate = useNavigate()
+  const [isLoggingOut, setIsLoggingOut] = useState(false)
+  const careerSection = resolveCareerSection(location.pathname)
+
+  async function logout() {
+    setIsLoggingOut(true)
+    await onLogout()
+    navigate('/login')
+  }
+
+  return (
+    <div className="app-shell">
+      <aside className="sidebar">
+        <Link className="logo" to="/">AC<span>•</span></Link>
+        <div className="sidebar-label">WORKSPACE</div>
+        <nav>
+          <Link className={location.pathname === '/' ? 'nav-item active' : 'nav-item'} to="/">Overview <span>⌂</span></Link>
+          <Link className={careerSection ? 'nav-item active' : 'nav-item'} to="/career/experiences">Career <span>↗</span></Link>
+          <Link className={location.pathname === '/resumes' ? 'nav-item active' : 'nav-item'} to="/resumes">Resumes <span>▤</span></Link>
+          <Link className={location.pathname === '/job-postings' ? 'nav-item active' : 'nav-item'} to="/job-postings">Job postings <span>◌</span></Link>
+        </nav>
+        <div className="sidebar-footer">
+          <span className="avatar">{user.displayName.charAt(0)}</span>
+          <div><strong>{user.displayName}</strong><small>{user.email}</small></div>
+          <button className="logout-button" onClick={logout} disabled={isLoggingOut} aria-label="로그아웃">↪</button>
+        </div>
+      </aside>
+      <main className="main-content">
+        {careerSection ? <CareerPageContent section={careerSection} /> : location.pathname === '/resumes' ? <ResumePageContent user={user} /> : location.pathname === '/job-postings' ? <JobPostingPageContent user={user} /> : <OverviewContent user={user} />}
+      </main>
+    </div>
+  )
+}
+
+type CareerSection = 'experiences' | 'projects'
+
+function resolveCareerSection(pathname: string): CareerSection | null {
+  if (pathname === '/career' || pathname === '/career/experiences' || pathname === '/experiences') return 'experiences'
+  if (pathname === '/career/projects' || pathname === '/projects') return 'projects'
+  return null
+}
+
+function CareerPageContent({ section }: { section: CareerSection }) {
+  const [isIndexing, setIsIndexing] = useState(false)
+  const [indexMessage, setIndexMessage] = useState('')
+  const [indexError, setIndexError] = useState('')
+
+  async function indexCareerEvidence() {
+    setIsIndexing(true)
+    setIndexMessage('')
+    setIndexError('')
+    try {
+      const result = await request<EmbeddingIndexResponse>('/v1/retrieval/index', { method: 'POST' })
+      setIndexMessage(`AI 검색 데이터 업데이트 완료 · Experiences ${result.indexedExperienceChunks}개 · Projects ${result.indexedProjectChunks}개`)
+    } catch (error) {
+      setIndexError(error instanceof Error ? error.message : '경력 데이터를 인덱싱하지 못했습니다.')
+    } finally {
+      setIsIndexing(false)
+    }
+  }
+
+  return <>
+    <div className="career-toolbar">
+      <nav className="career-tabs" aria-label="Career data sections">
+        <Link className={section === 'experiences' ? 'career-tab active' : 'career-tab'} to="/career/experiences" aria-current={section === 'experiences' ? 'page' : undefined}>Experiences</Link>
+        <Link className={section === 'projects' ? 'career-tab active' : 'career-tab'} to="/career/projects" aria-current={section === 'projects' ? 'page' : undefined}>Projects</Link>
+      </nav>
+      <div className="career-index-actions">
+        <button className="secondary-button compact-button" onClick={() => void indexCareerEvidence()} disabled={isIndexing} aria-describedby="career-index-help">{isIndexing ? 'AI 검색 데이터 만드는 중...' : 'AI 검색용 경력 데이터 업데이트'}</button>
+        <small id="career-index-help">Experience·Project를 채용공고 매칭에 사용할 검색 데이터로 변환합니다. 저장·수정 후 다시 실행하세요.</small>
+      </div>
+    </div>
+    {indexMessage && <p className="career-index-message" role="status">{indexMessage}</p>}
+    {indexError && <p className="career-index-message career-index-error" role="alert">{indexError}</p>}
+    {section === 'experiences' ? <ExperiencePageContent /> : <ProjectPageContent />}
+  </>
+}
+
+function OverviewContent({ user }: { user: User }) {
+  return <>
+    <header className="topbar"><div><span className="eyebrow">YOUR WORKSPACE</span><h1>안녕하세요, {user.displayName}님</h1></div><span className="status-pill"><span /> Phase 1 · Foundation</span></header>
+    <section className="hero-card"><div><span className="eyebrow">CAREER SIGNALS</span><h2>당신의 다음 기회를<br /><em>준비하는 중입니다.</em></h2><p>경험과 프로젝트를 쌓아두면, 다음 단계에서 AI가 채용공고와 연결해드립니다.</p></div><div className="hero-orbit" aria-hidden="true"><span>+</span><span>✦</span><span>→</span></div></section>
+    <section className="stats-grid"><StatCard label="Experiences" value="0" action="경험 추가" /><StatCard label="Projects" value="0" action="프로젝트 추가" /><StatCard label="Resumes" value="0" action="이력서 만들기" /></section>
+    <section className="next-section"><div><span className="eyebrow">NEXT UP</span><h2>작업 공간을 채워보세요</h2><p>Career 메뉴에서 경험과 프로젝트 데이터를 함께 관리할 수 있습니다.</p></div><div className="progress-ring"><strong>1</strong><span>/ 4</span></div></section>
+  </>
+}
+
+type TxtFieldDefinition<T extends string> = { key: T; aliases: string[] }
+
+const experienceTxtTemplate = `회사명: Acme Inc.
+직무: Backend Developer
+설명:
+Spring Boot API를 개발했습니다.
+PostgreSQL 성능을 개선했습니다.`
+
+const projectTxtTemplate = `프로젝트명: AI Career Platform
+역할: Backend Developer
+시작일: 2025-01-01
+종료일: 현재
+기술 스택: Java, Spring Boot, PostgreSQL
+Repository URL: https://github.com/example/project
+설명:
+커리어 데이터를 관리하는 서비스를 개발했습니다.`
+
+const experienceTxtFields: TxtFieldDefinition<keyof ExperienceForm>[] = [
+  { key: 'companyName', aliases: ['회사명', '회사', 'company', 'companyName'] },
+  { key: 'role', aliases: ['직무', '역할', '직무 역할', '포지션', 'role', 'position'] },
+  { key: 'description', aliases: ['설명', '업무 내용', '주요 업무', '성과', 'description'] },
+]
+
+const projectTxtFields: TxtFieldDefinition<keyof ProjectForm>[] = [
+  { key: 'name', aliases: ['프로젝트명', '프로젝트 이름', 'name', 'projectName', 'project name'] },
+  { key: 'role', aliases: ['역할', '담당 역할', 'role', 'position'] },
+  { key: 'startDate', aliases: ['시작일', '시작 날짜', 'startDate', 'start date'] },
+  { key: 'endDate', aliases: ['종료일', '종료 날짜', 'endDate', 'end date'] },
+  { key: 'techStack', aliases: ['기술 스택', '기술', '사용 기술', 'techStack', 'tech stack', 'stack'] },
+  { key: 'repositoryUrl', aliases: ['Repository URL', '저장소 URL', '리포지토리', 'repositoryUrl', 'repository'] },
+  { key: 'description', aliases: ['설명', '프로젝트 설명', '구현 내용', 'description'] },
+]
+
+function normalizeTxtLabel(label: string) {
+  return label.normalize('NFKC').toLowerCase().replace(/[^a-z0-9가-힣]/g, '')
+}
+
+function parseLabeledTxt<T extends string>(text: string, fields: TxtFieldDefinition<T>[]) {
+  const aliases = new Map<string, T>()
+  fields.forEach(({ key, aliases: fieldAliases }) => fieldAliases.forEach((alias) => aliases.set(normalizeTxtLabel(alias), key)))
+
+  const values: Partial<Record<T, string>> = {}
+  let activeKey: T | null = null
+  let matchedFields = 0
+  const sanitizedText = text.replace(/^\uFEFF/, '').replace(/\*{2,}/g, '')
+
+  sanitizedText.split(/\r?\n/).forEach((line) => {
+    const match = line.match(/^(.{1,40}?)[=:]\s*(.*)$/)
+    const matchedKey = match ? aliases.get(normalizeTxtLabel(match[1])) : undefined
+    if (match && matchedKey) {
+      activeKey = matchedKey
+      values[matchedKey] = match[2].trim()
+      matchedFields += 1
+      return
+    }
+    if (!activeKey) return
+    const previous = values[activeKey] ?? ''
+    values[activeKey] = previous ? `${previous}\n${line}` : line
+  })
+
+  Object.keys(values).forEach((key) => {
+    const typedKey = key as T
+    values[typedKey] = values[typedKey]?.trim()
+  })
+  return { values, matchedFields }
+}
+
+function normalizeImportedDate(value: string, allowCurrent: boolean): string | null {
+  const trimmed = value.trim()
+  if (allowCurrent && !trimmed) return ''
+  if (allowCurrent && /^(현재|진행중|재직중|present|current|ongoing)$/i.test(trimmed)) return ''
+  const match = trimmed.match(/^(\d{4})[./-](\d{1,2})[./-](\d{1,2})$/)
+  if (!match) return null
+  const year = Number(match[1])
+  const month = Number(match[2])
+  const day = Number(match[3])
+  const date = new Date(Date.UTC(year, month - 1, day))
+  if (date.getUTCFullYear() !== year || date.getUTCMonth() !== month - 1 || date.getUTCDate() !== day) return null
+  return `${match[1]}-${match[2].padStart(2, '0')}-${match[3].padStart(2, '0')}`
+}
+
+function TxtImportModal({ title, template, onClose, onApply }: { title: string; template: string; onClose: () => void; onApply: (text: string) => string | null }) {
+  const [text, setText] = useState('')
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    const closeOnEscape = (event: KeyboardEvent) => { if (event.key === 'Escape') onClose() }
+    window.addEventListener('keydown', closeOnEscape)
+    return () => {
+      document.body.style.overflow = previousOverflow
+      window.removeEventListener('keydown', closeOnEscape)
+    }
+  }, [onClose])
+
+  async function readTxtFile(file: File | undefined) {
+    setError('')
+    if (!file) return
+    if (!file.name.toLowerCase().endsWith('.txt')) {
+      setError('.txt 파일만 선택할 수 있습니다.')
+      return
+    }
+    if (file.size > 1024 * 1024) {
+      setError('TXT 파일은 1MB 이하여야 합니다.')
+      return
+    }
+    try {
+      setText(await file.text())
+    } catch {
+      setError('파일을 읽지 못했습니다. UTF-8 TXT 파일인지 확인해주세요.')
+    }
+  }
+
+  function apply() {
+    const applyError = onApply(text)
+    if (applyError) {
+      setError(applyError)
+      return
+    }
+    onClose()
+  }
+
+  return <div className="modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose() }}>
+    <section className="txt-import-modal" role="dialog" aria-modal="true" aria-labelledby="txt-import-title">
+      <header className="modal-heading"><div><span className="eyebrow">TXT IMPORT</span><h2 id="txt-import-title">{title}</h2></div><button className="modal-close" onClick={onClose} aria-label="닫기">×</button></header>
+      <p className="modal-description">아래 형식의 내용을 붙여넣거나 UTF-8 TXT 파일을 선택하세요. 인식된 값은 폼에만 채워지며 자동 저장되지 않습니다.</p>
+      <div className="txt-import-grid">
+        <div className="txt-template"><strong>입력 형식 예시</strong><pre>{template}</pre></div>
+        <label className="txt-input-label">가져올 내용<textarea value={text} onChange={(event) => { setText(event.target.value); setError('') }} rows={12} autoFocus placeholder="항목명: 값을 붙여넣으세요." /></label>
+      </div>
+      <div className="file-input-row"><label className="secondary-button compact-button">TXT 파일 선택<input type="file" accept=".txt,text/plain" onChange={(event) => void readTxtFile(event.target.files?.[0])} /></label><span>최대 1MB · UTF-8</span></div>
+      {error && <p className="form-error modal-error" role="alert">{error}</p>}
+      <footer className="modal-actions"><button className="text-button" onClick={onClose}>취소</button><button className="primary-button compact-button" onClick={apply} disabled={!text.trim()}>폼에 적용</button></footer>
+    </section>
+  </div>
+}
+
+function JobPostingUrlImportModal({ onClose, onApply }: { onClose: () => void; onApply: (preview: JobPostingImportPreview) => void }) {
+  const [sourceUrl, setSourceUrl] = useState('')
+  const [preview, setPreview] = useState<JobPostingImportPreview | null>(null)
+  const [error, setError] = useState('')
+  const [isLoading, setIsLoading] = useState(false)
+
+  useEffect(() => {
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    const closeOnEscape = (event: KeyboardEvent) => { if (event.key === 'Escape') onClose() }
+    window.addEventListener('keydown', closeOnEscape)
+    return () => {
+      document.body.style.overflow = previousOverflow
+      window.removeEventListener('keydown', closeOnEscape)
+    }
+  }, [onClose])
+
+  async function loadPreview() {
+    const trimmedUrl = sourceUrl.trim()
+    if (!/^https?:\/\/.+/i.test(trimmedUrl)) {
+      setError('http 또는 https 형식의 채용공고 URL을 입력해주세요.')
+      return
+    }
+    setError('')
+    setPreview(null)
+    setIsLoading(true)
+    try {
+      const result = await request<JobPostingImportPreview>('/v1/job-postings/import-preview', {
+        method: 'POST',
+        body: JSON.stringify({ sourceUrl: trimmedUrl }),
+      })
+      setPreview(result)
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : '채용공고를 가져오지 못했습니다.')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  return <div className="modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose() }}>
+    <section className="txt-import-modal url-import-modal" role="dialog" aria-modal="true" aria-labelledby="job-url-import-title">
+      <header className="modal-heading"><div><span className="eyebrow">URL IMPORT</span><h2 id="job-url-import-title">채용공고 URL 가져오기</h2></div><button className="modal-close" onClick={onClose} aria-label="닫기">×</button></header>
+      <p className="modal-description">공개된 채용공고 URL에서 제목, 회사명, Job Description을 읽어옵니다. 미리보기에서 확인한 뒤 폼에 적용하며, 이 단계에서는 자동 저장되지 않습니다.</p>
+      <label className="url-import-label">채용공고 URL<input className="url-import-input" value={sourceUrl} onChange={(event) => { setSourceUrl(event.target.value); setPreview(null); setError('') }} onKeyDown={(event) => { if (event.key === 'Enter') void loadPreview() }} placeholder="https://www.example.com/jobs/123" autoFocus /></label>
+      {isLoading && <p className="import-status">페이지를 읽고 있습니다...</p>}
+      {error && <p className="form-error modal-error" role="alert">{error}</p>}
+      {preview && <div className="url-import-preview">
+        <div className="preview-meta"><span className="eyebrow">PREVIEW · {preview.extractionSource}</span><span>{preview.sourceUrl}</span></div>
+        <h3>{preview.title || '제목을 찾지 못했습니다.'}</h3>
+        <strong>{preview.companyName || '회사명을 찾지 못했습니다.'}</strong>
+        <p>{preview.description || 'Job Description을 찾지 못했습니다.'}</p>
+        {preview.imageUrls.length > 0 && <div className="import-image-preview">
+          <strong>상세 공고 원문 이미지</strong>
+          {preview.imageUrls.map((imageUrl) => <img key={imageUrl} src={imageUrl} alt="채용공고 상세 내용" loading="lazy" />)}
+        </div>}
+        {preview.warnings.length > 0 && <div className="import-warning"><strong>확인 필요</strong><ul>{preview.warnings.map((warning) => <li key={warning}>{warning}</li>)}</ul></div>}
+      </div>}
+      <footer className="modal-actions"><button className="text-button" onClick={onClose}>취소</button>{preview ? <><button className="secondary-button compact-button" onClick={() => { setPreview(null); setError('') }}>다시 조회</button><button className="primary-button compact-button" onClick={() => onApply(preview)}>폼에 적용</button></> : <button className="primary-button compact-button" onClick={() => void loadPreview()} disabled={isLoading || !sourceUrl.trim()}>{isLoading ? '가져오는 중...' : '공고 가져오기'}</button>}</footer>
+    </section>
+  </div>
+}
+
+const emptyExperienceForm: ExperienceForm = { companyName: '', role: '', description: '' }
+
+function ExperiencePageContent() {
+  const [experiences, setExperiences] = useState<Experience[]>([])
+  const [page, setPage] = useState(0)
+  const [totalPages, setTotalPages] = useState(0)
+  const [totalElements, setTotalElements] = useState(0)
+  const [isLoading, setIsLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
+  const [form, setForm] = useState<ExperienceForm>(emptyExperienceForm)
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [formError, setFormError] = useState('')
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [isImportOpen, setIsImportOpen] = useState(false)
+
+  async function loadExperiences(targetPage = page) {
+    setIsLoading(true)
+    setLoadError('')
+    try {
+      const result = await request<PageResponse<Experience>>(`/v1/experiences?page=${targetPage}&size=5`)
+      setExperiences(result.content)
+      setPage(result.page)
+      setTotalPages(result.totalPages)
+      setTotalElements(result.totalElements)
+    } catch (error) {
+      setLoadError(error instanceof Error ? error.message : '경력 목록을 불러오지 못했습니다.')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  useEffect(() => { void loadExperiences(0) }, [])
+
+  function updateField(field: keyof ExperienceForm, value: string) {
+    setForm((current) => ({ ...current, [field]: value }))
+    setFieldErrors((current) => ({ ...current, [field]: '' }))
+  }
+
+  function startCreate() {
+    setEditingId(null)
+    setForm(emptyExperienceForm)
+    setFieldErrors({})
+    setFormError('')
+  }
+
+  function startEdit(experience: Experience) {
+    setEditingId(experience.id)
+    setForm({ companyName: experience.companyName, role: experience.role, description: experience.description })
+    setFieldErrors({})
+    setFormError('')
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  function applyTxtImport(text: string) {
+    const { values, matchedFields } = parseLabeledTxt(text, experienceTxtFields)
+    if (matchedFields === 0) return '인식할 수 있는 항목이 없습니다. 예시처럼 “항목명: 값” 형식으로 입력해주세요.'
+    setForm((current) => ({ ...current, ...values }))
+    setFieldErrors({})
+    setFormError('')
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+    return null
+  }
+
+  function validateForm() {
+    const errors: Record<string, string> = {}
+    if (!form.companyName.trim()) errors.companyName = '회사명을 입력해주세요.'
+    if (!form.role.trim()) errors.role = '직무를 입력해주세요.'
+    if (!form.description.trim()) errors.description = '경험 설명을 입력해주세요.'
+    setFieldErrors(errors)
+    return Object.keys(errors).length === 0
+  }
+
+  async function submitExperience(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    setFormError('')
+    if (!validateForm()) return
+    setIsSubmitting(true)
+    const payload = { companyName: form.companyName.trim(), role: form.role.trim(), description: form.description.trim() }
+    try {
+      await request<Experience>(editingId ? `/v1/experiences/${editingId}` : '/v1/experiences', { method: editingId ? 'PUT' : 'POST', body: JSON.stringify(payload) })
+      startCreate()
+      await loadExperiences(editingId ? page : 0)
+    } catch (error) {
+      const apiError = error as ApiError
+      setFormError(apiError.message)
+      setFieldErrors(apiError.fieldErrors ?? {})
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  async function deleteExperience(id: string) {
+    if (!window.confirm('이 경험을 삭제할까요? 삭제된 경험은 목록에서 숨겨집니다.')) return
+    setDeletingId(id)
+    try {
+      await request<void>(`/v1/experiences/${id}`, { method: 'DELETE' })
+      await loadExperiences(page > 0 && experiences.length === 1 ? page - 1 : page)
+    } catch (error) {
+      setLoadError(error instanceof Error ? error.message : '경험을 삭제하지 못했습니다.')
+    } finally {
+      setDeletingId(null)
+    }
+  }
+
+  return <>
+    <header className="page-heading"><div><span className="eyebrow">CAREER DATA</span><h1>Experiences</h1><p>직무 경험을 기록해두면 향후 채용공고와 연결할 수 있습니다.</p></div><div className="heading-actions"><button className="secondary-button compact-button" onClick={() => setIsImportOpen(true)}>TXT 가져오기</button><button className="primary-button compact-button" onClick={startCreate}>+ 경험 추가</button></div></header>
+    <section className="experience-form-card">
+      <div className="section-title"><div><span className="eyebrow">{editingId ? 'EDIT EXPERIENCE' : 'NEW EXPERIENCE'}</span><h2>{editingId ? '경험 수정' : '새 경험 기록'}</h2></div>{editingId && <button className="text-button" onClick={startCreate}>취소</button>}</div>
+      <form className="experience-form" onSubmit={submitExperience}>
+        <FormField label="회사명" value={form.companyName} onChange={(value) => updateField('companyName', value)} error={fieldErrors.companyName} placeholder="예: Acme Inc." />
+        <FormField label="직무 / 역할" value={form.role} onChange={(value) => updateField('role', value)} error={fieldErrors.role} placeholder="예: Backend Developer" />
+        <label className="wide-field">설명<textarea value={form.description} onChange={(event) => updateField('description', event.target.value)} placeholder="담당 업무, 성과, 사용 기술을 기록해주세요." maxLength={10000} rows={4} />{fieldErrors.description && <small className="field-error">{fieldErrors.description}</small>}</label>
+        {formError && <p className="form-error wide-field" role="alert">{formError}</p>}
+        <div className="form-actions wide-field"><button className="primary-button compact-button" disabled={isSubmitting} type="submit">{isSubmitting ? '저장 중...' : editingId ? '변경 저장' : '경험 저장'}</button></div>
+      </form>
+    </section>
+    <section className="experience-list-section"><div className="list-heading"><div><span className="eyebrow">YOUR EXPERIENCES</span><h2>{totalElements}개의 경험</h2></div><button className="text-button" onClick={() => void loadExperiences(page)}>새로고침</button></div>
+      {isLoading && <div className="list-state">경험 목록을 불러오는 중입니다...</div>}
+      {!isLoading && loadError && <div className="list-state error-state" role="alert">{loadError}<button className="text-button" onClick={() => void loadExperiences(page)}>다시 시도</button></div>}
+      {!isLoading && !loadError && experiences.length === 0 && <div className="list-state">아직 등록된 경험이 없습니다. 위에서 첫 경험을 기록해보세요.</div>}
+      {!isLoading && !loadError && experiences.length > 0 && <div className="experience-list">{experiences.map((experience) => <article className="experience-item" key={experience.id}><div className="experience-date">CAREER EVIDENCE</div><div className="experience-main"><h3>{experience.role}</h3><strong>{experience.companyName}</strong><p>{experience.description}</p></div><div className="item-actions"><button className="text-button" onClick={() => startEdit(experience)}>수정</button><button className="text-button danger-button" onClick={() => void deleteExperience(experience.id)} disabled={deletingId === experience.id}>{deletingId === experience.id ? '삭제 중' : '삭제'}</button></div></article>)}</div>}
+      {!isLoading && !loadError && totalPages > 1 && <div className="pagination"><button className="text-button" disabled={page === 0} onClick={() => void loadExperiences(page - 1)}>← 이전</button><span>{page + 1} / {totalPages}</span><button className="text-button" disabled={page >= totalPages - 1} onClick={() => void loadExperiences(page + 1)}>다음 →</button></div>}
+    </section>
+    {isImportOpen && <TxtImportModal title="경험 TXT 가져오기" template={experienceTxtTemplate} onClose={() => setIsImportOpen(false)} onApply={applyTxtImport} />}
+  </>
+}
+
+const emptyProjectForm: ProjectForm = { name: '', role: '', startDate: '', endDate: '', description: '', techStack: '', repositoryUrl: '' }
+
+function ProjectPageContent() {
+  const [projects, setProjects] = useState<Project[]>([])
+  const [page, setPage] = useState(0)
+  const [totalPages, setTotalPages] = useState(0)
+  const [totalElements, setTotalElements] = useState(0)
+  const [isLoading, setIsLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
+  const [form, setForm] = useState<ProjectForm>(emptyProjectForm)
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [formError, setFormError] = useState('')
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [isImportOpen, setIsImportOpen] = useState(false)
+
+  async function loadProjects(targetPage = page) {
+    setIsLoading(true)
+    setLoadError('')
+    try {
+      const result = await request<PageResponse<Project>>(`/v1/projects?page=${targetPage}&size=5`)
+      setProjects(result.content)
+      setPage(result.page)
+      setTotalPages(result.totalPages)
+      setTotalElements(result.totalElements)
+    } catch (error) {
+      setLoadError(error instanceof Error ? error.message : '프로젝트 목록을 불러오지 못했습니다.')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  useEffect(() => { void loadProjects(0) }, [])
+
+  function updateField(field: keyof ProjectForm, value: string) {
+    setForm((current) => ({ ...current, [field]: value }))
+    setFieldErrors((current) => ({ ...current, [field]: '' }))
+  }
+
+  function startCreate() {
+    setEditingId(null)
+    setForm(emptyProjectForm)
+    setFieldErrors({})
+    setFormError('')
+  }
+
+  function startEdit(project: Project) {
+    setEditingId(project.id)
+    setForm({ name: project.name, role: project.role, startDate: project.startDate, endDate: project.endDate ?? '', description: project.description, techStack: project.techStack, repositoryUrl: project.repositoryUrl ?? '' })
+    setFieldErrors({})
+    setFormError('')
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  function applyTxtImport(text: string) {
+    const { values, matchedFields } = parseLabeledTxt(text, projectTxtFields)
+    if (matchedFields === 0) return '인식할 수 있는 항목이 없습니다. 예시처럼 “항목명: 값” 형식으로 입력해주세요.'
+    if (values.startDate !== undefined) {
+      const normalized = normalizeImportedDate(values.startDate, false)
+      if (normalized === null) return '시작일은 YYYY-MM-DD 형식으로 입력해주세요.'
+      values.startDate = normalized
+    }
+    if (values.endDate !== undefined) {
+      const normalized = normalizeImportedDate(values.endDate, true)
+      if (normalized === null) return '종료일은 YYYY-MM-DD 또는 현재로 입력해주세요.'
+      values.endDate = normalized
+    }
+    setForm((current) => ({ ...current, ...values }))
+    setFieldErrors({})
+    setFormError('')
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+    return null
+  }
+
+  function validateForm() {
+    const errors: Record<string, string> = {}
+    if (!form.name.trim()) errors.name = '프로젝트명을 입력해주세요.'
+    if (!form.role.trim()) errors.role = '역할을 입력해주세요.'
+    if (!form.startDate) errors.startDate = '시작일을 입력해주세요.'
+    if (form.endDate && form.startDate && form.endDate < form.startDate) errors.endDate = '종료일은 시작일 이후여야 합니다.'
+    if (!form.description.trim()) errors.description = '프로젝트 설명을 입력해주세요.'
+    if (!form.techStack.trim()) errors.techStack = '기술 스택을 입력해주세요.'
+    if (form.repositoryUrl && !/^https?:\/\/.+/i.test(form.repositoryUrl.trim())) errors.repositoryUrl = 'http 또는 https URL을 입력해주세요.'
+    setFieldErrors(errors)
+    return Object.keys(errors).length === 0
+  }
+
+  async function submitProject(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    setFormError('')
+    if (!validateForm()) return
+    setIsSubmitting(true)
+    const payload = { ...form, name: form.name.trim(), role: form.role.trim(), description: form.description.trim(), techStack: form.techStack.trim(), repositoryUrl: form.repositoryUrl.trim() || null, endDate: form.endDate || null }
+    try {
+      await request<Project>(editingId ? `/v1/projects/${editingId}` : '/v1/projects', { method: editingId ? 'PUT' : 'POST', body: JSON.stringify(payload) })
+      const nextPage = editingId ? page : 0
+      startCreate()
+      await loadProjects(nextPage)
+    } catch (error) {
+      const apiError = error as ApiError
+      setFormError(apiError.message)
+      setFieldErrors(apiError.fieldErrors ?? {})
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  async function deleteProject(id: string) {
+    if (!window.confirm('이 프로젝트를 삭제할까요? 삭제된 프로젝트는 목록에서 숨겨집니다.')) return
+    setDeletingId(id)
+    try {
+      await request<void>(`/v1/projects/${id}`, { method: 'DELETE' })
+      await loadProjects(page > 0 && projects.length === 1 ? page - 1 : page)
+    } catch (error) {
+      setLoadError(error instanceof Error ? error.message : '프로젝트를 삭제하지 못했습니다.')
+    } finally {
+      setDeletingId(null)
+    }
+  }
+
+  return <>
+    <header className="page-heading"><div><span className="eyebrow">CAREER DATA</span><h1>Projects</h1><p>직접 만든 프로젝트와 기술 스택을 기록해두세요.</p></div><div className="heading-actions"><button className="secondary-button compact-button" onClick={() => setIsImportOpen(true)}>TXT 가져오기</button><button className="primary-button compact-button" onClick={startCreate}>+ 프로젝트 추가</button></div></header>
+    <section className="experience-form-card">
+      <div className="section-title"><div><span className="eyebrow">{editingId ? 'EDIT PROJECT' : 'NEW PROJECT'}</span><h2>{editingId ? '프로젝트 수정' : '새 프로젝트 기록'}</h2></div>{editingId && <button className="text-button" onClick={startCreate}>취소</button>}</div>
+      <form className="experience-form" onSubmit={submitProject}>
+        <FormField label="프로젝트명" value={form.name} onChange={(value) => updateField('name', value)} error={fieldErrors.name} placeholder="예: AI Career Platform" />
+        <FormField label="역할" value={form.role} onChange={(value) => updateField('role', value)} error={fieldErrors.role} placeholder="예: Backend Developer" />
+        <FormField label="시작일" type="date" value={form.startDate} onChange={(value) => updateField('startDate', value)} error={fieldErrors.startDate} />
+        <FormField label="종료일 (선택)" type="date" value={form.endDate} onChange={(value) => updateField('endDate', value)} error={fieldErrors.endDate} />
+        <FormField label="기술 스택" value={form.techStack} onChange={(value) => updateField('techStack', value)} error={fieldErrors.techStack} placeholder="예: Java, Spring Boot, PostgreSQL" />
+        <FormField label="Repository URL (선택)" value={form.repositoryUrl} onChange={(value) => updateField('repositoryUrl', value)} error={fieldErrors.repositoryUrl} placeholder="https://github.com/..." />
+        <label className="wide-field">설명<textarea value={form.description} onChange={(event) => updateField('description', event.target.value)} placeholder="문제, 구현 내용, 성과를 기록해주세요." maxLength={10000} rows={4} />{fieldErrors.description && <small className="field-error">{fieldErrors.description}</small>}</label>
+        {formError && <p className="form-error wide-field" role="alert">{formError}</p>}
+        <div className="form-actions wide-field"><button className="primary-button compact-button" disabled={isSubmitting} type="submit">{isSubmitting ? '저장 중...' : editingId ? '변경 저장' : '프로젝트 저장'}</button></div>
+      </form>
+    </section>
+    <section className="experience-list-section"><div className="list-heading"><div><span className="eyebrow">YOUR PROJECTS</span><h2>{totalElements}개의 프로젝트</h2></div><button className="text-button" onClick={() => void loadProjects(page)}>새로고침</button></div>
+      {isLoading && <div className="list-state">프로젝트 목록을 불러오는 중입니다...</div>}
+      {!isLoading && loadError && <div className="list-state error-state" role="alert">{loadError}<button className="text-button" onClick={() => void loadProjects(page)}>다시 시도</button></div>}
+      {!isLoading && !loadError && projects.length === 0 && <div className="list-state">아직 등록된 프로젝트가 없습니다. 위에서 첫 프로젝트를 기록해보세요.</div>}
+      {!isLoading && !loadError && projects.length > 0 && <div className="experience-list">{projects.map((project) => <article className="experience-item" key={project.id}><div className="experience-date">{project.startDate}<span>→</span>{project.endDate ?? '현재'}</div><div className="experience-main"><h3>{project.name}</h3><strong>{project.role}</strong><p>{project.description}</p><div className="tech-stack">{project.techStack}</div>{project.repositoryUrl && <a className="repo-link" href={project.repositoryUrl} target="_blank" rel="noreferrer">Repository ↗</a>}</div><div className="item-actions"><button className="text-button" onClick={() => startEdit(project)}>수정</button><button className="text-button danger-button" onClick={() => void deleteProject(project.id)} disabled={deletingId === project.id}>{deletingId === project.id ? '삭제 중' : '삭제'}</button></div></article>)}</div>}
+      {!isLoading && !loadError && totalPages > 1 && <div className="pagination"><button className="text-button" disabled={page === 0} onClick={() => void loadProjects(page - 1)}>← 이전</button><span>{page + 1} / {totalPages}</span><button className="text-button" disabled={page >= totalPages - 1} onClick={() => void loadProjects(page + 1)}>다음 →</button></div>}
+    </section>
+    {isImportOpen && <TxtImportModal title="프로젝트 TXT 가져오기" template={projectTxtTemplate} onClose={() => setIsImportOpen(false)} onApply={applyTxtImport} />}
+  </>
+}
+
+const emptyResumeCreateForm: ResumeCreateForm = { name: '', content: '' }
+
+type ResumeExportSection = { title: string; lines: string[] }
+type ParsedResumeExport = { headline: string; summary: string; selfIntroductions: JobKoreaSelfIntroduction[]; sections: ResumeExportSection[] }
+type JobKoreaEducation = {
+  schoolType: string
+  schoolName: string
+  admissionMonth: string
+  graduationMonth: string
+  status: string
+  major: string
+  gpa: string
+  gpaScale: string
+  additionalMajor: string
+}
+type JobKoreaCareer = {
+  companyName: string
+  hideCompanyName: boolean
+  department: string
+  startMonth: string
+  endMonth: string
+  isCurrent: boolean
+  title: string
+  job: string
+  salary: string
+  duties: string
+}
+type JobKoreaAdditionalRecord = { name: string; organization: string; date: string; description: string }
+type JobKoreaOverseasExperience = { country: string; organization: string; startMonth: string; endMonth: string; description: string }
+type JobKoreaLanguage = { language: string; level: string; score: string }
+type JobKoreaPortfolio = { title: string; url: string; description: string }
+type JobKoreaSelfIntroduction = { title: string; content: string }
+const jobKoreaJobCategories = ['백엔드개발자', '웹개발자', '서버개발자', '응용프로그램개발자', '프론트엔드개발자', '데이터엔지니어', 'DevOps·인프라', '직접 입력']
+type JobKoreaExportProfile = {
+  name: string
+  phone: string
+  mobile: string
+  email: string
+  address: string
+  birthDate: string
+  gender: string
+  photoDataUrl: string
+  desiredJobKeywords: string
+  skills: string
+  educations: JobKoreaEducation[]
+  careers: JobKoreaCareer[]
+  careerDescription: string
+  activities: JobKoreaAdditionalRecord[]
+  trainings: JobKoreaAdditionalRecord[]
+  certificates: JobKoreaAdditionalRecord[]
+  awards: JobKoreaAdditionalRecord[]
+  overseas: JobKoreaOverseasExperience[]
+  languages: JobKoreaLanguage[]
+  portfolios: JobKoreaPortfolio[]
+  veteran: boolean
+  employmentProtection: boolean
+  employmentSupport: boolean
+  disability: boolean
+  militaryStatus: string
+  enlistmentDate: string
+  dischargeDate: string
+  militaryDetails: string
+  selfIntroductions: JobKoreaSelfIntroduction[]
+  employmentType: string
+  desiredSalary: string
+  desiredLocations: string
+  industryKeywords: string
+}
+
+const resumeExportSectionAliases: Record<string, string> = {
+  experience: '경력사항',
+  experiences: '경력사항',
+  '경력': '경력사항',
+  '경력사항': '경력사항',
+  project: '프로젝트',
+  projects: '프로젝트',
+  '프로젝트': '프로젝트',
+  skill: '기술 및 역량',
+  skills: '기술 및 역량',
+  '스킬': '기술 및 역량',
+  '기술': '기술 및 역량',
+  '기술스택': '기술 및 역량',
+  '기술 및 역량': '기술 및 역량',
+  '경력기술서': '경력기술서',
+}
+
+function stripResumeCitation(value: string) {
+  return value.replace(/\s+\[[^\]]+\]\s*$/, '').trim()
+}
+
+function parseResumeExport(content: string): ParsedResumeExport {
+  let headline = ''
+  let summary = ''
+  let inSelfIntroduction = false
+  const selfIntroductions: JobKoreaSelfIntroduction[] = []
+  const sections: ResumeExportSection[] = []
+  let currentSection: ResumeExportSection | null = null
+  let currentSelfIntroduction: JobKoreaSelfIntroduction | null = null
+
+  function sectionFor(title: string) {
+    const existing = sections.find((section) => section.title === title)
+    if (existing) return existing
+    const created = { title, lines: [] }
+    sections.push(created)
+    return created
+  }
+
+  for (const rawLine of content.split(/\r?\n/)) {
+    const line = stripResumeCitation(rawLine)
+    if (!line) continue
+    const labeled = line.match(/^([^:]{1,50}):\s*(.*)$/)
+    const label = labeled?.[1].trim().toLocaleLowerCase('ko-KR')
+    const value = labeled?.[2] ? stripResumeCitation(labeled[2]) : ''
+
+    if (label === 'headline' || label === '헤드라인' || label === '희망직무') {
+      headline = value
+      inSelfIntroduction = false
+      currentSelfIntroduction = null
+      continue
+    }
+    if (label === 'summary' || label === '요약' || label === '자기소개' || label === '자기소개서') {
+      if (value) summary = value
+      inSelfIntroduction = true
+      currentSelfIntroduction = null
+      continue
+    }
+
+    const selfIntroductionHeader = line.match(/^\[(?:자기소개서|대주제)\s+\d+\]\s*(.+)$/)
+    if (inSelfIntroduction && selfIntroductionHeader) {
+      currentSelfIntroduction = { title: selfIntroductionHeader[1].trim(), content: '' }
+      selfIntroductions.push(currentSelfIntroduction)
+      continue
+    }
+
+    const sectionTitle = label ? resumeExportSectionAliases[label] : undefined
+    if (sectionTitle) {
+      inSelfIntroduction = false
+      currentSelfIntroduction = null
+      currentSection = sectionFor(sectionTitle)
+      if (value) currentSection.lines.push(value.replace(/^[-•]\s*/, '').trim())
+      continue
+    }
+
+    if (inSelfIntroduction) {
+      const selfIntroductionContent = line.replace(/^[-•]\s*/, '').trim()
+      if (currentSelfIntroduction) {
+        currentSelfIntroduction.content = [currentSelfIntroduction.content, selfIntroductionContent].filter(Boolean).join('\n')
+      } else {
+        summary = [summary, selfIntroductionContent].filter(Boolean).join('\n')
+      }
+      continue
+    }
+
+    if (!currentSection) currentSection = sectionFor('자기소개')
+    currentSection.lines.push(line.replace(/^[-•]\s*/, '').trim())
+  }
+
+  return { headline, summary, selfIntroductions, sections }
+}
+
+function safeResumeFileName(name: string, versionNumber: number) {
+  const safeName = name.trim().replace(/[\\/:*?"<>|]+/g, '-').replace(/\s+/g, ' ').slice(0, 80) || 'jobkorea-resume'
+  return `${safeName}-v${versionNumber}.pdf`
+}
+
+function splitJobKoreaList(value: string) {
+  return value.split(/[,，\n]/).map((item) => item.trim()).filter(Boolean)
+}
+
+function formatJobKoreaMonth(value: string) {
+  return value ? value.replace('-', '.') : '입력 필요'
+}
+
+function formatJobKoreaDate(value: string) {
+  return value ? value.replaceAll('-', '.') : '입력 필요'
+}
+
+function emptyJobKoreaEducation(): JobKoreaEducation {
+  return { schoolType: '', schoolName: '', admissionMonth: '', graduationMonth: '', status: '', major: '', gpa: '', gpaScale: '', additionalMajor: '' }
+}
+
+function emptyJobKoreaCareer(): JobKoreaCareer {
+  return { companyName: '', hideCompanyName: false, department: '', startMonth: '', endMonth: '', isCurrent: false, title: '', job: '', salary: '', duties: '' }
+}
+
+function emptyJobKoreaAdditionalRecord(): JobKoreaAdditionalRecord {
+  return { name: '', organization: '', date: '', description: '' }
+}
+
+function emptyJobKoreaOverseasExperience(): JobKoreaOverseasExperience {
+  return { country: '', organization: '', startMonth: '', endMonth: '', description: '' }
+}
+
+function emptyJobKoreaLanguage(): JobKoreaLanguage {
+  return { language: '', level: '', score: '' }
+}
+
+function emptyJobKoreaPortfolio(): JobKoreaPortfolio {
+  return { title: '', url: '', description: '' }
+}
+
+function defaultJobKoreaSelfIntroductions(parsed: ParsedResumeExport): JobKoreaSelfIntroduction[] {
+  if (parsed.selfIntroductions.length > 0) return parsed.selfIntroductions
+  const defaults = Array.from({ length: 3 }, (): JobKoreaSelfIntroduction => ({ title: '', content: '' }))
+  if (parsed.summary) defaults[0] = { title: '직무 역량과 경험', content: parsed.summary }
+  return defaults
+}
+
+function JobKoreaPreviewSection({ title, children }: { title: string; children: ReactNode }) {
+  return <section style={{ marginTop: '10px', border: '1px solid #aeb6ae', fontSize: '11px' }}><h3 style={{ margin: 0, padding: '8px 10px', background: '#dfe5df', color: '#202820', fontSize: '12px' }}>{title}</h3><div style={{ padding: '9px 12px', lineHeight: 1.6 }}>{children}</div></section>
+}
+
+function JobKoreaExportModal({
+  resumeName,
+  version,
+  jobTitle,
+  displayName,
+  email,
+  onClose,
+}: {
+  resumeName: string
+  version: ResumeVersion
+  jobTitle?: string
+  displayName: string
+  email: string
+  onClose: () => void
+}) {
+  const previewRef = useRef<HTMLDivElement>(null)
+  const parsed = parseResumeExport(version.content)
+  const generatedCareerDescription = parsed.sections
+    .filter((section) => ['경력기술서', '경력사항', '프로젝트'].includes(section.title))
+    .flatMap((section) => section.lines)
+    .map((line) => `• ${line}`)
+    .join('\n')
+  const [profile, setProfile] = useState<JobKoreaExportProfile>(() => ({
+    name: displayName,
+    phone: '',
+    mobile: '',
+    email,
+    address: '',
+    birthDate: '',
+    gender: '',
+    photoDataUrl: '',
+    desiredJobKeywords: parsed.headline || jobTitle || resumeName.replace(/\s*이력서\s*$/, ''),
+    skills: parsed.sections.find((section) => section.title === '기술 및 역량')?.lines.join(', ') ?? '',
+    educations: [emptyJobKoreaEducation()],
+    careers: [],
+    careerDescription: generatedCareerDescription,
+    activities: [],
+    trainings: [],
+    certificates: [],
+    awards: [],
+    overseas: [],
+    languages: [],
+    portfolios: [],
+    veteran: false,
+    employmentProtection: false,
+    employmentSupport: false,
+    disability: false,
+    militaryStatus: '',
+    enlistmentDate: '',
+    dischargeDate: '',
+    militaryDetails: '',
+    selfIntroductions: defaultJobKoreaSelfIntroductions(parsed),
+    employmentType: '',
+    desiredSalary: '',
+    desiredLocations: '',
+    industryKeywords: '',
+  }))
+  const [status, setStatus] = useState('')
+  const [isGenerating, setIsGenerating] = useState(false)
+  const [isLoadingCareers, setIsLoadingCareers] = useState(false)
+  const [reviewConfirmed, setReviewConfirmed] = useState(false)
+
+  type TextField = Exclude<keyof JobKoreaExportProfile, 'educations' | 'careers' | 'overseas' | 'activities' | 'trainings' | 'certificates' | 'awards' | 'languages' | 'portfolios' | 'selfIntroductions' | 'veteran' | 'employmentProtection' | 'employmentSupport' | 'disability'>
+
+  function updateProfile(field: TextField, value: string) {
+    setProfile((current) => ({ ...current, [field]: value }))
+  }
+
+  function updateEducation(index: number, field: keyof JobKoreaEducation, value: string) {
+    setProfile((current) => ({ ...current, educations: current.educations.map((education, educationIndex) => educationIndex === index ? { ...education, [field]: value } : education) }))
+  }
+
+  function updateCareer(index: number, field: Exclude<keyof JobKoreaCareer, 'isCurrent'>, value: string) {
+    setProfile((current) => ({ ...current, careers: current.careers.map((career, careerIndex) => careerIndex === index ? { ...career, [field]: value } : career) }))
+  }
+
+  type AdditionalCollection = 'activities' | 'trainings' | 'certificates' | 'awards'
+
+  function updateAdditional(collection: AdditionalCollection, index: number, field: keyof JobKoreaAdditionalRecord, value: string) {
+    setProfile((current) => ({ ...current, [collection]: current[collection].map((item, itemIndex) => itemIndex === index ? { ...item, [field]: value } : item) }))
+  }
+
+  function updateOverseas(index: number, field: keyof JobKoreaOverseasExperience, value: string) {
+    setProfile((current) => ({ ...current, overseas: current.overseas.map((item, itemIndex) => itemIndex === index ? { ...item, [field]: value } : item) }))
+  }
+
+  function updateLanguage(index: number, field: keyof JobKoreaLanguage, value: string) {
+    setProfile((current) => ({ ...current, languages: current.languages.map((language, languageIndex) => languageIndex === index ? { ...language, [field]: value } : language) }))
+  }
+
+  function updatePortfolio(index: number, field: keyof JobKoreaPortfolio, value: string) {
+    setProfile((current) => ({ ...current, portfolios: current.portfolios.map((portfolio, portfolioIndex) => portfolioIndex === index ? { ...portfolio, [field]: value } : portfolio) }))
+  }
+
+  function updateSelfIntroduction(index: number, field: keyof JobKoreaSelfIntroduction, value: string) {
+    setProfile((current) => ({ ...current, selfIntroductions: current.selfIntroductions.map((item, itemIndex) => itemIndex === index ? { ...item, [field]: value } : item) }))
+  }
+
+  function withDemoCareerDates(careers: JobKoreaCareer[]) {
+    return careers.map((career, index) => {
+      const demoYear = 2018 + index
+      return {
+        ...career,
+        startMonth: career.startMonth || `${demoYear}-01`,
+        endMonth: career.isCurrent ? '' : career.endMonth || `${demoYear}-12`,
+      }
+    })
+  }
+
+  function fillCareerDemoDates() {
+    if (profile.careers.length === 0) {
+      setStatus('먼저 Career 경력을 불러오거나 경력을 추가해주세요.')
+      return
+    }
+    setProfile((current) => ({ ...current, careers: withDemoCareerDates(current.careers) }))
+    setReviewConfirmed(false)
+    setStatus('비어 있는 입·퇴사월에 테스트용 기간을 임시 입력했습니다. 실제 제출 전 본인 경력 기간으로 교체해주세요.')
+  }
+
+  function fillRequiredDemoData() {
+    const demoEducation: JobKoreaEducation = {
+      ...emptyJobKoreaEducation(),
+      schoolName: '테스트대학교',
+      admissionMonth: '2009-03',
+      graduationMonth: '2013-02',
+      major: '컴퓨터공학',
+    }
+    setProfile((current) => ({
+      ...current,
+      birthDate: current.birthDate || '1990-01-01',
+      gender: current.gender || '남자',
+      mobile: current.mobile || '010-0000-0000',
+      desiredLocations: current.desiredLocations || '서울',
+      careers: withDemoCareerDates(current.careers),
+      educations: current.educations.length === 0
+        ? [demoEducation]
+        : current.educations.map((education, index) => index === 0 ? {
+          ...education,
+          schoolName: education.schoolName || demoEducation.schoolName,
+          admissionMonth: education.admissionMonth || demoEducation.admissionMonth,
+          graduationMonth: education.graduationMonth || demoEducation.graduationMonth,
+          major: education.major || demoEducation.major,
+        } : education),
+    }))
+    setReviewConfirmed(false)
+    setStatus('테스트용 필수값을 임시 입력했습니다. 실제 JobKorea 제출 전 반드시 본인 정보로 교체해주세요.')
+  }
+
+  async function recordExportAudit(result: 'DOWNLOAD_TRIGGERED' | 'GENERATION_FAILED', fileSizeBytes?: number) {
+    await request('/v1/jobkorea/export-audits', {
+      method: 'POST',
+      body: JSON.stringify({
+        resumeVersionId: version.id,
+        templateVersion: jobKoreaTemplateVersion,
+        result,
+        fileSizeBytes: fileSizeBytes ?? null,
+      }),
+    })
+  }
+
+  function failGeneration(message: string) {
+    setStatus(message)
+    setIsGenerating(false)
+    void recordExportAudit('GENERATION_FAILED').catch(() => undefined)
+  }
+
+  async function loadAllCareers() {
+    setIsLoadingCareers(true)
+    setStatus('Career의 경력을 불러오는 중입니다...')
+    try {
+      const firstPage = await request<PageResponse<Experience>>('/v1/experiences?page=0&size=100')
+      const remainingPages = await Promise.all(
+        Array.from({ length: Math.max(0, firstPage.totalPages - 1) }, (_, index) =>
+          request<PageResponse<Experience>>(`/v1/experiences?page=${index + 1}&size=100`)
+        )
+      )
+      const allExperiences = [firstPage, ...remainingPages].flatMap((page) => page.content)
+      const careers = allExperiences.map((experience) => ({
+        ...emptyJobKoreaCareer(),
+        companyName: experience.companyName,
+        job: experience.role,
+        duties: experience.description,
+      }))
+      setProfile((current) => ({ ...current, careers }))
+      setStatus(careers.length > 0
+        ? `${careers.length}개의 Career 경력을 불러왔습니다. 기간·부서·직급·연봉을 확인해주세요.`
+        : '불러올 Career 경력이 없습니다.')
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : 'Career 경력을 불러오지 못했습니다.')
+    } finally {
+      setIsLoadingCareers(false)
+    }
+  }
+
+  function handlePhotoChange(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0]
+    if (!file) return
+    if (!supportedResumePhotoTypes.has(file.type)) {
+      setStatus('사진은 JPG, PNG, WEBP 파일만 선택할 수 있습니다.')
+      return
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setStatus('사진 파일은 5MB 이하만 선택할 수 있습니다.')
+      return
+    }
+    const reader = new FileReader()
+    reader.onload = () => updateProfile('photoDataUrl', typeof reader.result === 'string' ? reader.result : '')
+    reader.onerror = () => setStatus('사진을 읽지 못했습니다.')
+    reader.readAsDataURL(file)
+  }
+
+  async function downloadPdf() {
+    if (!previewRef.current) return
+    const errors: string[] = []
+    const requiredFields: Array<[string, string]> = [
+      ['이름', profile.name],
+      ['생년월일', profile.birthDate],
+      ['성별', profile.gender],
+      ['이메일', profile.email],
+      ['휴대폰번호', profile.mobile],
+    ]
+    const missingFields = requiredFields.filter(([, value]) => !value.trim()).map(([label]) => label)
+    if (missingFields.length > 0) errors.push(`필수값: ${missingFields.join(', ')}`)
+    if (!profile.email.includes('@')) errors.push('이메일 형식을 확인해주세요.')
+    if (splitJobKoreaList(profile.desiredJobKeywords).length === 0) errors.push('희망직무 키워드를 1개 이상 입력해주세요.')
+    const desiredLocations = splitJobKoreaList(profile.desiredLocations)
+    if (desiredLocations.length === 0) errors.push('희망근무지를 1개 이상 입력해주세요.')
+    if (desiredLocations.length > 3) errors.push('희망근무지는 최대 3개까지 입력할 수 있습니다.')
+    if (splitJobKoreaList(profile.skills).length > 20) errors.push('스킬은 최대 20개까지 입력할 수 있습니다.')
+    if (profile.educations.length === 0) errors.push('학력을 1개 이상 추가해주세요.')
+    profile.educations.forEach((education, index) => {
+      const fields: Array<[string, string]> = [['학교명', education.schoolName], ['입학년월', education.admissionMonth], ['졸업년월', education.graduationMonth], ['전공명', education.major]]
+      const missing = fields.filter(([, value]) => !value.trim()).map(([label]) => label)
+      if (missing.length > 0) errors.push(`학력 ${index + 1}: ${missing.join(', ')} 입력 필요`)
+    })
+    profile.careers.forEach((career, index) => {
+      const fields: Array<[string, string]> = [['회사명', career.companyName], ['입사년월', career.startMonth], ['담당직무', career.job]]
+      const missing = fields.filter(([, value]) => !value.trim()).map(([label]) => label)
+      if (!career.isCurrent && !career.endMonth.trim()) missing.push('퇴사년월')
+      if (missing.length > 0) errors.push(`경력 ${index + 1}: ${missing.join(', ')} 입력 필요`)
+    })
+    profile.selfIntroductions.forEach((item, index) => {
+      const missing = [['제목', item.title], ['내용', item.content]]
+        .filter(([, value]) => !value.trim())
+        .map(([label]) => label)
+      if (missing.length > 0) errors.push(`자기소개서 ${index + 1}: ${missing.join(', ')} 입력 필요`)
+      if (item.title.trim().length > 50) errors.push(`자기소개서 ${index + 1}: 제목은 최대 50자까지 입력할 수 있습니다.`)
+    })
+    if (!reviewConfirmed) errors.push('개인정보와 AI 생성 내용을 검토했다는 확인이 필요합니다.')
+    if (errors.length > 0) {
+      setStatus(errors.join(' · '))
+      return
+    }
+
+    setIsGenerating(true)
+    setStatus('PDF를 생성하는 중입니다...')
+    try {
+      const element = previewRef.current
+      const { default: html2canvas } = await import('html2canvas')
+      const canvas = await html2canvas(element, {
+        allowTaint: false,
+        backgroundColor: '#ffffff',
+        height: Math.ceil(element.scrollHeight),
+        imageTimeout: 15000,
+        logging: false,
+        scale: 2,
+        useCORS: true,
+        width: Math.ceil(element.scrollWidth),
+        windowHeight: Math.ceil(element.scrollHeight),
+        windowWidth: Math.ceil(element.scrollWidth),
+      })
+      const pageWidth = 595.28
+      const pageHeight = 841.89
+      const pagePixelHeight = Math.floor(canvas.width * pageHeight / pageWidth)
+      const pdf = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4', compress: true })
+
+      for (let offset = 0, pageIndex = 0; offset < canvas.height; offset += pagePixelHeight, pageIndex += 1) {
+        const sliceHeight = Math.min(pagePixelHeight, canvas.height - offset)
+        const pageCanvas = document.createElement('canvas')
+        pageCanvas.width = canvas.width
+        pageCanvas.height = sliceHeight
+        const pageContext = pageCanvas.getContext('2d')
+        if (!pageContext) {
+          failGeneration('PDF 렌더러를 초기화하지 못했습니다.')
+          return
+        }
+        pageContext.fillStyle = '#ffffff'
+        pageContext.fillRect(0, 0, pageCanvas.width, pageCanvas.height)
+        pageContext.drawImage(
+          canvas,
+          0,
+          offset,
+          canvas.width,
+          sliceHeight,
+          0,
+          0,
+          pageCanvas.width,
+          pageCanvas.height,
+        )
+
+        if (pageIndex > 0) pdf.addPage()
+        pdf.addImage(
+          pageCanvas.toDataURL('image/jpeg', 0.92),
+          'JPEG',
+          0,
+          0,
+          pageWidth,
+          sliceHeight / canvas.width * pageWidth,
+        )
+      }
+
+      const blob = pdf.output('blob')
+      if (blob.size > 5 * 1024 * 1024) {
+        failGeneration('생성된 PDF가 5MB를 초과합니다. 내용을 줄인 후 다시 시도해주세요.')
+        return
+      }
+      const downloadUrl = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = downloadUrl
+      link.download = safeResumeFileName(resumeName, version.versionNumber)
+      link.click()
+      URL.revokeObjectURL(downloadUrl)
+      await recordExportAudit('DOWNLOAD_TRIGGERED', blob.size).catch(() => undefined)
+      setStatus('PDF가 다운로드되었습니다. 내용을 확인한 뒤 JobKorea에 직접 업로드해주세요.')
+      setIsGenerating(false)
+    } catch (error) {
+      failGeneration(error instanceof Error ? error.message : 'PDF 파일을 생성하지 못했습니다.')
+    }
+  }
+
+  const desiredJobs = splitJobKoreaList(profile.desiredJobKeywords)
+  const skills = splitJobKoreaList(profile.skills)
+  const desiredLocations = splitJobKoreaList(profile.desiredLocations)
+  const industryKeywords = splitJobKoreaList(profile.industryKeywords)
+  const legacySections = parsed.sections.filter((section) => !['기술 및 역량', '경력기술서', '경력사항', '프로젝트'].includes(section.title))
+
+  function renderAdditionalSection(title: string, collection: AdditionalCollection) {
+    const records = profile[collection]
+    return <div className="export-subsection"><div className="export-subsection-heading"><strong>{title}</strong><button className="text-button" type="button" onClick={() => setProfile((current) => ({ ...current, [collection]: [...current[collection], emptyJobKoreaAdditionalRecord()] }))}>추가</button></div>{records.length === 0 && <p className="export-empty">선택 입력 항목입니다.</p>}<div className="export-repeat-list">{records.map((record, index) => <div className="export-repeat-item" key={`${collection}-${index}`}><div className="export-repeat-heading"><strong>{title} {index + 1}</strong><button className="text-button danger-button" type="button" onClick={() => setProfile((current) => ({ ...current, [collection]: current[collection].filter((_, itemIndex) => itemIndex !== index) }))}>삭제</button></div><div className="export-form-grid"><label>항목명<input value={record.name} onChange={(event) => updateAdditional(collection, index, 'name', event.target.value)} /></label><label>기관·회사<input value={record.organization} onChange={(event) => updateAdditional(collection, index, 'organization', event.target.value)} /></label><label>년월<input type="month" value={record.date} onChange={(event) => updateAdditional(collection, index, 'date', event.target.value)} /></label><label className="export-profile-wide">내용<textarea value={record.description} onChange={(event) => updateAdditional(collection, index, 'description', event.target.value)} rows={3} /></label></div></div>)}</div></div>
+  }
+
+  function renderAdditionalPreview(title: string, records: JobKoreaAdditionalRecord[]) {
+    if (records.length === 0) return null
+    return <JobKoreaPreviewSection title={title}>{records.map((record, index) => <div key={`preview-${title}-${index}`} style={{ marginBottom: index === records.length - 1 ? 0 : '9px' }}><strong>{record.name || '항목명 미입력'}</strong>{record.organization && ` · ${record.organization}`}{record.date && ` · ${formatJobKoreaMonth(record.date)}`}{record.description && <div style={{ whiteSpace: 'pre-wrap' }}>{record.description}</div>}</div>)}</JobKoreaPreviewSection>
+  }
+
+  return <div className="modal-backdrop" role="presentation">
+    <section className="resume-export-modal" role="dialog" aria-modal="true" aria-labelledby="jobkorea-export-title">
+      <div className="modal-heading"><div><span className="eyebrow">JOBKOREA FILE EXPORT</span><h2 id="jobkorea-export-title">JobKorea 업로드 파일 만들기</h2></div><button className="modal-close" onClick={onClose} aria-label="닫기">×</button></div>
+      <p className="modal-description">승인된 immutable Version {version.versionNumber}를 JobKorea 표준 항목 순서로 변환해 PDF를 생성합니다. AI 생성 내용은 희망직무·자기소개서·경력기술서·스킬에 자동 배치하고, 계정에 없는 개인정보·학력·근무조건은 직접 입력합니다.</p>
+      <div className="export-contract-note"><strong>파일 계약</strong><span>PDF 1개 · 5MB 이하 · JobKorea 업로드 페이지에서 직접 제출</span></div>
+
+      <div className="export-section"><div className="export-section-heading"><div><span className="eyebrow">PROFILE</span><h3>인적사항</h3></div><div className="heading-actions"><span className="export-required-note">* 필수</span><button className="secondary-button compact-button" type="button" onClick={fillRequiredDemoData}>필수 데모 데이터 채우기</button></div></div><div className="export-form-grid">
+        <label>이름 *<input value={profile.name} onChange={(event) => updateProfile('name', event.target.value)} maxLength={100} /></label>
+        <label>생년월일 *<input type="date" value={profile.birthDate} onChange={(event) => updateProfile('birthDate', event.target.value)} /></label>
+        <label>성별 *<select value={profile.gender} onChange={(event) => updateProfile('gender', event.target.value)}><option value="">선택해주세요</option><option>남자</option><option>여자</option><option>선택하지 않음</option></select></label>
+        <label>이메일 *<input type="email" value={profile.email} onChange={(event) => updateProfile('email', event.target.value)} /></label>
+        <label>전화번호<input value={profile.phone} onChange={(event) => updateProfile('phone', event.target.value)} placeholder="02-0000-0000" /></label>
+        <label>휴대폰번호 *<input value={profile.mobile} onChange={(event) => updateProfile('mobile', event.target.value)} placeholder="010-0000-0000" /></label>
+        <label className="export-profile-wide">주소<input value={profile.address} onChange={(event) => updateProfile('address', event.target.value)} placeholder="시·군·구까지 입력" /></label>
+        <label className="export-photo-control">사진<input type="file" accept="image/jpeg,image/png,image/webp" onChange={handlePhotoChange} /></label>
+        {profile.photoDataUrl && <div className="export-photo-preview"><img src={profile.photoDataUrl} alt="이력서 사진 미리보기" /><button className="text-button danger-button" type="button" onClick={() => updateProfile('photoDataUrl', '')}>사진 제거</button></div>}
+      </div></div>
+
+      <div className="export-section"><div className="export-section-heading"><div><span className="eyebrow">TARGET</span><h3>희망직무 · 스킬</h3></div></div><div className="export-form-grid">
+        <label className="export-profile-wide">희망직무 키워드 *<input value={profile.desiredJobKeywords} onChange={(event) => updateProfile('desiredJobKeywords', event.target.value)} placeholder="백엔드개발자, 웹개발자" /></label>
+        <p className="export-help export-profile-wide">쉼표 또는 줄바꿈으로 구분합니다. 희망직무는 1개 이상, 스킬은 최대 20개입니다.</p>
+        <label className="export-profile-wide">내가 선택한 스킬<textarea value={profile.skills} onChange={(event) => updateProfile('skills', event.target.value)} placeholder="Java, Spring Boot, PostgreSQL, Docker" rows={3} /></label>
+        <label className="export-profile-wide">산업 키워드<input value={profile.industryKeywords} onChange={(event) => updateProfile('industryKeywords', event.target.value)} placeholder="핀테크, SaaS, 플랫폼" /></label>
+      </div></div>
+
+      <div className="export-section"><div className="export-section-heading"><div><span className="eyebrow">EDUCATION</span><h3>학력</h3></div><button className="secondary-button compact-button" type="button" onClick={() => setProfile((current) => ({ ...current, educations: [...current.educations, emptyJobKoreaEducation()] }))}>학력 추가</button></div>
+        {profile.educations.length === 0 && <p className="export-empty">학력 정보를 추가하면 학교명·기간·전공을 구조화해서 표시합니다. 확인되지 않은 학력은 자동으로 만들지 않습니다.</p>}
+        <div className="export-repeat-list">{profile.educations.map((education, index) => <div className="export-repeat-item" key={`education-${index}`}><div className="export-repeat-heading"><strong>학력 {index + 1}</strong><button className="text-button danger-button" type="button" onClick={() => setProfile((current) => ({ ...current, educations: current.educations.filter((_, itemIndex) => itemIndex !== index) }))}>삭제</button></div><div className="export-form-grid">
+          <label>학교구분<select value={education.schoolType} onChange={(event) => updateEducation(index, 'schoolType', event.target.value)}><option value="">선택</option><option>고등학교</option><option>대학교(2년제)</option><option>대학교(4년제)</option><option>대학원</option></select></label>
+          <label>학교명 *<input value={education.schoolName} onChange={(event) => updateEducation(index, 'schoolName', event.target.value)} /></label>
+          <label>입학년월 *<input type="month" value={education.admissionMonth} onChange={(event) => updateEducation(index, 'admissionMonth', event.target.value)} /></label>
+          <label>졸업년월 *<input type="month" value={education.graduationMonth} onChange={(event) => updateEducation(index, 'graduationMonth', event.target.value)} /></label>
+          <label>졸업상태<select value={education.status} onChange={(event) => updateEducation(index, 'status', event.target.value)}><option value="">선택</option><option>졸업</option><option>재학</option><option>휴학</option><option>수료</option><option>중퇴</option><option>편입</option></select></label>
+          <label>전공명 *<input value={education.major} onChange={(event) => updateEducation(index, 'major', event.target.value)} /></label>
+          <label>학점<input value={education.gpa} onChange={(event) => updateEducation(index, 'gpa', event.target.value)} placeholder="예: 4.12" /></label>
+          <label>총점<input value={education.gpaScale} onChange={(event) => updateEducation(index, 'gpaScale', event.target.value)} placeholder="예: 4.5" /></label>
+          <label className="export-profile-wide">다른 전공·졸업 논문/작품<input value={education.additionalMajor} onChange={(event) => updateEducation(index, 'additionalMajor', event.target.value)} /></label>
+        </div></div>)}</div>
+      </div>
+
+      <div className="export-section"><div className="export-section-heading"><div><span className="eyebrow">CAREER</span><h3>경력</h3></div><div className="heading-actions"><button className="secondary-button compact-button" type="button" onClick={() => void loadAllCareers()} disabled={isLoadingCareers}>{isLoadingCareers ? '불러오는 중...' : '모든 경력 한 번에 불러오기'}</button><button className="secondary-button compact-button" type="button" onClick={fillCareerDemoDates}>경력 데모 기간 채우기</button><button className="secondary-button compact-button" type="button" onClick={() => setProfile((current) => ({ ...current, careers: [...current.careers, emptyJobKoreaCareer()] }))}>경력 추가</button></div></div>
+        <p className="export-help">Career 메뉴에 저장된 회사·직무·담당업무만 자동 입력합니다. JobKorea에 필요한 기간·부서·직급·연봉은 Career에 값이 없으면 직접 확인해 입력해주세요.</p>
+        <div className="export-repeat-list">
+          {profile.careers.length === 0 && <p className="export-empty">경력 정보를 추가하거나 “모든 경력 한 번에 불러오기”를 눌러주세요.</p>}
+          {profile.careers.map((career, index) => { const selectedJob = jobKoreaJobCategories.includes(career.job) ? career.job : career.job ? '직접 입력' : ''; return <div className="export-repeat-item" key={`career-${index}`}><div className="export-repeat-heading"><strong>경력 {index + 1}</strong><button className="text-button danger-button" type="button" onClick={() => setProfile((current) => ({ ...current, careers: current.careers.filter((_, itemIndex) => itemIndex !== index) }))}>삭제</button></div><div className="export-form-grid">
+            <label>회사명 *<input value={career.companyName} onChange={(event) => updateCareer(index, 'companyName', event.target.value)} /></label>
+            <label>부서명<input value={career.department} onChange={(event) => updateCareer(index, 'department', event.target.value)} /></label>
+            <label>입사년월 *<input type="month" value={career.startMonth} onChange={(event) => updateCareer(index, 'startMonth', event.target.value)} /></label>
+            <label>퇴사년월{!career.isCurrent && ' *'}<input type="month" value={career.endMonth} onChange={(event) => updateCareer(index, 'endMonth', event.target.value)} disabled={career.isCurrent} /></label>
+            <label className="export-checkbox"><input type="checkbox" checked={career.isCurrent} onChange={(event) => setProfile((current) => ({ ...current, careers: current.careers.map((item, itemIndex) => itemIndex === index ? { ...item, isCurrent: event.target.checked, endMonth: event.target.checked ? '' : item.endMonth } : item) }))} />재직중</label>
+            <label>직급/직책<input value={career.title} onChange={(event) => updateCareer(index, 'title', event.target.value)} /></label>
+            <label>담당직무 *<select value={selectedJob} onChange={(event) => updateCareer(index, 'job', event.target.value === '직접 입력' ? '' : event.target.value)}><option value="">선택하기</option>{jobKoreaJobCategories.map((job) => <option key={job} value={job}>{job}</option>)}</select></label>
+            {selectedJob === '직접 입력' && <label>담당직무 직접입력<input value={career.job} onChange={(event) => updateCareer(index, 'job', event.target.value)} placeholder="웹개발자" /></label>}
+            <label>연봉<input value={career.salary} onChange={(event) => updateCareer(index, 'salary', event.target.value)} placeholder="예: 5,000만원" /></label>
+            <label className="export-checkbox export-profile-wide" title="JobKorea 인재정보에 이 경력의 회사명을 공개하지 않습니다."><input type="checkbox" checked={career.hideCompanyName} onChange={(event) => setProfile((current) => ({ ...current, careers: current.careers.map((item, itemIndex) => itemIndex === index ? { ...item, hideCompanyName: event.target.checked } : item) }))} />인재정보에 회사명 비공개 ⓘ</label>
+            <label className="export-profile-wide">담당업무<textarea value={career.duties} onChange={(event) => updateCareer(index, 'duties', event.target.value)} rows={4} placeholder="담당하신 업무와 성과에 대해 간단명료하게 적어주세요." /></label>
+          </div></div> })}
+        </div><label className="export-wide-label">경력기술서<textarea value={profile.careerDescription} onChange={(event) => updateProfile('careerDescription', event.target.value)} rows={5} placeholder="경력을 자유롭게 작성할 수 있습니다." /></label></div>
+
+      <div className="export-section"><div className="export-section-heading"><div><span className="eyebrow">OPTIONAL</span><h3>추가 이력서 항목</h3></div></div>
+        {renderAdditionalSection('인턴·대외활동', 'activities')}
+        {renderAdditionalSection('교육이수', 'trainings')}
+        {renderAdditionalSection('자격증', 'certificates')}
+        {renderAdditionalSection('수상', 'awards')}
+        <div className="export-subsection"><div className="export-subsection-heading"><strong>해외 근무 경험</strong><button className="text-button" type="button" onClick={() => setProfile((current) => ({ ...current, overseas: [...current.overseas, emptyJobKoreaOverseasExperience()] }))}>해외 근무 경험 추가하기</button></div>{profile.overseas.length === 0 && <p className="export-empty">선택 입력 항목입니다.</p>}<div className="export-repeat-list">{profile.overseas.map((experience, index) => <div className="export-repeat-item" key={`overseas-${index}`}><div className="export-repeat-heading"><strong>해외 근무 경험 {index + 1}</strong><button className="text-button danger-button" type="button" onClick={() => setProfile((current) => ({ ...current, overseas: current.overseas.filter((_, itemIndex) => itemIndex !== index) }))}>삭제</button></div><div className="export-form-grid"><label>국가<input value={experience.country} onChange={(event) => updateOverseas(index, 'country', event.target.value)} placeholder="미국" /></label><label>회사·기관<input value={experience.organization} onChange={(event) => updateOverseas(index, 'organization', event.target.value)} /></label><label>시작년월<input type="month" value={experience.startMonth} onChange={(event) => updateOverseas(index, 'startMonth', event.target.value)} /></label><label>종료년월<input type="month" value={experience.endMonth} onChange={(event) => updateOverseas(index, 'endMonth', event.target.value)} /></label><label className="export-profile-wide">내용<textarea value={experience.description} onChange={(event) => updateOverseas(index, 'description', event.target.value)} rows={3} /></label></div></div>)}</div></div>
+        <div className="export-subsection"><div className="export-subsection-heading"><strong>어학</strong><button className="text-button" type="button" onClick={() => setProfile((current) => ({ ...current, languages: [...current.languages, emptyJobKoreaLanguage()] }))}>추가</button></div>{profile.languages.length === 0 && <p className="export-empty">선택 입력 항목입니다.</p>}<div className="export-repeat-list">{profile.languages.map((language, index) => <div className="export-repeat-item" key={`language-${index}`}><div className="export-repeat-heading"><strong>어학 {index + 1}</strong><button className="text-button danger-button" type="button" onClick={() => setProfile((current) => ({ ...current, languages: current.languages.filter((_, itemIndex) => itemIndex !== index) }))}>삭제</button></div><div className="export-form-grid"><label>언어<input value={language.language} onChange={(event) => updateLanguage(index, 'language', event.target.value)} placeholder="영어" /></label><label>수준<input value={language.level} onChange={(event) => updateLanguage(index, 'level', event.target.value)} placeholder="비즈니스 회화" /></label><label>점수·등급<input value={language.score} onChange={(event) => updateLanguage(index, 'score', event.target.value)} placeholder="TOEIC 900" /></label></div></div>)}</div></div>
+        <div className="export-subsection"><div className="export-subsection-heading"><strong>포트폴리오</strong><button className="text-button" type="button" onClick={() => setProfile((current) => ({ ...current, portfolios: [...current.portfolios, emptyJobKoreaPortfolio()] }))}>추가</button></div>{profile.portfolios.length === 0 && <p className="export-empty">선택 입력 항목입니다.</p>}<div className="export-repeat-list">{profile.portfolios.map((portfolio, index) => <div className="export-repeat-item" key={`portfolio-${index}`}><div className="export-repeat-heading"><strong>포트폴리오 {index + 1}</strong><button className="text-button danger-button" type="button" onClick={() => setProfile((current) => ({ ...current, portfolios: current.portfolios.filter((_, itemIndex) => itemIndex !== index) }))}>삭제</button></div><div className="export-form-grid"><label>제목<input value={portfolio.title} onChange={(event) => updatePortfolio(index, 'title', event.target.value)} /></label><label>URL<input type="url" value={portfolio.url} onChange={(event) => updatePortfolio(index, 'url', event.target.value)} placeholder="https://" /></label><label className="export-profile-wide">설명<textarea value={portfolio.description} onChange={(event) => updatePortfolio(index, 'description', event.target.value)} rows={3} /></label></div></div>)}</div></div>
+      </div>
+
+      <div className="export-section"><div className="export-section-heading"><div><span className="eyebrow">ADDITIONAL</span><h3>취업우대 · 병역</h3></div></div><div className="export-subsection"><div className="export-subsection-heading"><strong>취업우대</strong></div><div className="export-preference-grid"><label className="export-checkbox"><input type="checkbox" checked={profile.veteran} onChange={(event) => setProfile((current) => ({ ...current, veteran: event.target.checked }))} />보훈대상</label><label className="export-checkbox"><input type="checkbox" checked={profile.employmentProtection} onChange={(event) => setProfile((current) => ({ ...current, employmentProtection: event.target.checked }))} />취업보호 대상</label><label className="export-checkbox"><input type="checkbox" checked={profile.employmentSupport} onChange={(event) => setProfile((current) => ({ ...current, employmentSupport: event.target.checked }))} />고용지원금 대상</label><label className="export-checkbox"><input type="checkbox" checked={profile.disability} onChange={(event) => setProfile((current) => ({ ...current, disability: event.target.checked }))} />장애</label></div></div><div className="export-form-grid">
+        <label>병역<select value={profile.militaryStatus} onChange={(event) => updateProfile('militaryStatus', event.target.value)}><option value="">선택</option><option>군필</option><option>미필</option><option>면제</option><option>복무중</option></select></label>
+        <label>군별·제대 계급<input value={profile.militaryDetails} onChange={(event) => updateProfile('militaryDetails', event.target.value)} placeholder="육군 병장" /></label>
+        <label>입대일<input type="month" value={profile.enlistmentDate} onChange={(event) => updateProfile('enlistmentDate', event.target.value)} /></label>
+        <label>제대일<input type="month" value={profile.dischargeDate} onChange={(event) => updateProfile('dischargeDate', event.target.value)} /></label>
+      </div></div>
+
+      <div className="export-section self-introduction-section"><div className="export-section-heading"><div><span className="eyebrow">SELF INTRODUCTION</span><h3>자기소개서</h3></div><button className="secondary-button compact-button" type="button" onClick={() => setProfile((current) => ({ ...current, selfIntroductions: [...current.selfIntroductions, { title: '', content: '' }] }))}>자기소개서 항목 추가</button></div>
+        <p className="export-help self-introduction-help">각 제목은 지원자를 어필하는 독립적인 주제입니다. 생성 시 3개로 시작하며 필요에 따라 항목을 추가하거나 삭제할 수 있습니다.</p>
+        <div className="export-repeat-list">{profile.selfIntroductions.length === 0 && <p className="export-empty">자기소개서 항목을 추가해주세요.</p>}{profile.selfIntroductions.map((item, index) => <div className="export-repeat-item self-introduction-item" key={`self-introduction-${index}`}><div className="export-repeat-heading"><strong>자기소개서 항목 {index + 1}</strong><button className="text-button danger-button" type="button" onClick={() => setProfile((current) => ({ ...current, selfIntroductions: current.selfIntroductions.filter((_, itemIndex) => itemIndex !== index) }))}>단락삭제</button></div><div className="export-form-grid">
+          <label className="export-profile-wide">제목<input value={item.title} onChange={(event) => updateSelfIntroduction(index, 'title', event.target.value)} maxLength={50} placeholder="예: 문제 해결로 만드는 안정적인 백엔드" /><span className="export-character-count"><em>{item.title.length}</em>/50자</span></label>
+          <label className="export-profile-wide">내용<textarea value={item.content} onChange={(event) => updateSelfIntroduction(index, 'content', event.target.value)} rows={10} placeholder="해당 내용을 입력하세요." /><span className="export-character-count"><em>{item.content.length}</em>자</span></label>
+        </div></div>)}</div>
+      </div>
+
+      <div className="export-section"><div className="export-section-heading"><div><span className="eyebrow">CONDITIONS</span><h3>희망근무조건</h3></div></div><div className="export-form-grid">
+        <label>고용형태<input value={profile.employmentType} onChange={(event) => updateProfile('employmentType', event.target.value)} placeholder="정규직" /></label>
+        <label>희망연봉<input value={profile.desiredSalary} onChange={(event) => updateProfile('desiredSalary', event.target.value)} placeholder="면접 후 결정" /></label>
+        <label className="export-profile-wide">희망근무지 *<input value={profile.desiredLocations} onChange={(event) => updateProfile('desiredLocations', event.target.value)} placeholder="서울전지역, 경기 성남시" /></label>
+        <p className="export-help export-profile-wide">최대 3개까지 입력할 수 있습니다. 쉼표 또는 줄바꿈으로 구분합니다.</p>
+      </div></div>
+
+      <label className="export-review-check"><input type="checkbox" checked={reviewConfirmed} onChange={(event) => { setReviewConfirmed(event.target.checked); if (event.target.checked) setStatus('') }} /><span><strong>다운로드 전 확인</strong><br />개인정보와 AI 생성 문구를 직접 검토했으며, 필요한 내용을 수정한 뒤 JobKorea에 직접 업로드하겠습니다.</span></label>
+      <p className="export-profile-warning" role="note">JobKorea 로그인 정보·쿠키·업로드 세션은 이 서비스에 전송되지 않습니다. JobKorea의 개인정보 동의와 최종 제출은 JobKorea 화면에서 직접 진행하세요.</p>
+
+      <div className="resume-export-preview-shell"><div ref={previewRef} style={{ boxSizing: 'border-box', width: '794px', minHeight: '1123px', padding: '26px 30px', background: '#ffffff', color: '#202820', fontFamily: 'Arial, "Malgun Gothic", sans-serif' }}>
+        <div style={{ display: 'flex', alignItems: 'start', justifyContent: 'space-between', gap: '16px' }}><div><h1 style={{ margin: 0, fontSize: '25px', lineHeight: 1.3, letterSpacing: '0.24em' }}>이 력 서</h1><p style={{ margin: '8px 0 0', color: '#718071', fontSize: '10px' }}>{resumeName} · Version {version.versionNumber}</p></div>{profile.photoDataUrl && <img src={profile.photoDataUrl} alt="" style={{ width: '74px', height: '94px', objectFit: 'cover', border: '1px solid #aeb6ae' }} />}</div>
+        <div style={{ marginTop: '14px', padding: '8px 10px', background: '#dfe5df', color: '#202820', fontSize: '12px', fontWeight: 700 }}>인적사항</div>
+        <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed', fontSize: '11px' }}><tbody>
+          <tr><th style={{ width: '88px', border: '1px solid #aeb6ae', padding: '8px', background: '#eef1ee', textAlign: 'center' }}>성명</th><td style={{ border: '1px solid #aeb6ae', padding: '8px' }}>{profile.name || '입력 필요'}</td><th style={{ width: '88px', border: '1px solid #aeb6ae', padding: '8px', background: '#eef1ee', textAlign: 'center' }}>생년월일</th><td style={{ border: '1px solid #aeb6ae', padding: '8px' }}>{formatJobKoreaDate(profile.birthDate)}</td></tr>
+          <tr><th style={{ border: '1px solid #aeb6ae', padding: '8px', background: '#eef1ee', textAlign: 'center' }}>성별</th><td style={{ border: '1px solid #aeb6ae', padding: '8px' }}>{profile.gender || '입력 필요'}</td><th style={{ border: '1px solid #aeb6ae', padding: '8px', background: '#eef1ee', textAlign: 'center' }}>휴대폰</th><td style={{ border: '1px solid #aeb6ae', padding: '8px' }}>{profile.mobile || '입력 필요'}</td></tr>
+          <tr><th style={{ border: '1px solid #aeb6ae', padding: '8px', background: '#eef1ee', textAlign: 'center' }}>이메일</th><td style={{ border: '1px solid #aeb6ae', padding: '8px' }}>{profile.email || '입력 필요'}</td><th style={{ border: '1px solid #aeb6ae', padding: '8px', background: '#eef1ee', textAlign: 'center' }}>전화번호</th><td style={{ border: '1px solid #aeb6ae', padding: '8px' }}>{profile.phone || '-'}</td></tr>
+          <tr><th style={{ border: '1px solid #aeb6ae', padding: '8px', background: '#eef1ee', textAlign: 'center' }}>주소</th><td colSpan={3} style={{ border: '1px solid #aeb6ae', padding: '8px' }}>{profile.address || '-'}</td></tr>
+        </tbody></table>
+        <JobKoreaPreviewSection title="희망직무"><strong>{desiredJobs.length > 0 ? desiredJobs.join(' · ') : '입력 필요'}</strong></JobKoreaPreviewSection>
+        <JobKoreaPreviewSection title={`스킬 (${skills.length}/20)`}>{skills.length > 0 ? skills.join(' · ') : '입력 필요'}</JobKoreaPreviewSection>
+        {industryKeywords.length > 0 && <JobKoreaPreviewSection title="산업 키워드">{industryKeywords.join(' · ')}</JobKoreaPreviewSection>}
+        {profile.educations.length > 0 && <JobKoreaPreviewSection title="학력">{profile.educations.map((education, index) => <div key={`preview-education-${index}`} style={{ marginBottom: index === profile.educations.length - 1 ? 0 : '10px' }}><strong>{education.schoolName || '학교명 입력 필요'}</strong> · {education.major || '전공 입력 필요'}<br />{formatJobKoreaMonth(education.admissionMonth)} ~ {formatJobKoreaMonth(education.graduationMonth)} · {education.status || '상태 미입력'}{education.gpa && ` · 학점 ${education.gpa}${education.gpaScale ? `/${education.gpaScale}` : ''}`}{education.additionalMajor && <><br />{education.additionalMajor}</>}</div>)}</JobKoreaPreviewSection>}
+        {profile.careers.length > 0 && <JobKoreaPreviewSection title="경력">{profile.careers.map((career, index) => <div key={`preview-career-${index}`} style={{ marginBottom: index === profile.careers.length - 1 ? 0 : '12px' }}><strong>{career.hideCompanyName ? '회사명 비공개' : career.companyName || '회사명 입력 필요'}</strong>{career.department && ` · ${career.department}`}<br />{formatJobKoreaMonth(career.startMonth)} ~ {career.isCurrent ? '재직중' : formatJobKoreaMonth(career.endMonth)} · {career.job || '담당직무 입력 필요'}{career.title && ` · ${career.title}`}{career.salary && ` · ${career.salary}`}{career.duties && <p style={{ margin: '5px 0 0', whiteSpace: 'pre-wrap' }}>{career.duties}</p>}</div>)}</JobKoreaPreviewSection>}
+        {legacySections.map((section) => <JobKoreaPreviewSection key={section.title} title={section.title === '경력사항' ? '경력' : section.title}><ul style={{ margin: 0, paddingLeft: '18px' }}>{section.lines.map((line, index) => <li key={`${section.title}-${index}`} style={{ marginBottom: '5px' }}>{line}</li>)}</ul></JobKoreaPreviewSection>)}
+        {profile.careerDescription && <JobKoreaPreviewSection title="경력기술서"><div style={{ whiteSpace: 'pre-wrap' }}>{profile.careerDescription}</div></JobKoreaPreviewSection>}
+        {renderAdditionalPreview('인턴·대외활동', profile.activities)}
+        {renderAdditionalPreview('교육이수', profile.trainings)}
+        {renderAdditionalPreview('자격증', profile.certificates)}
+        {renderAdditionalPreview('수상', profile.awards)}
+        {profile.overseas.length > 0 && <JobKoreaPreviewSection title="해외 근무 경험">{profile.overseas.map((experience, index) => <div key={`preview-overseas-${index}`} style={{ marginBottom: index === profile.overseas.length - 1 ? 0 : '9px' }}><strong>{experience.country || '국가 입력 필요'}</strong>{experience.organization && ` · ${experience.organization}`}<br />{experience.startMonth || experience.endMonth ? `${formatJobKoreaMonth(experience.startMonth)} ~ ${formatJobKoreaMonth(experience.endMonth)}` : ''}{experience.description && <div style={{ whiteSpace: 'pre-wrap' }}>{experience.description}</div>}</div>)}</JobKoreaPreviewSection>}
+        {profile.languages.length > 0 && <JobKoreaPreviewSection title="어학">{profile.languages.map((language, index) => <div key={`preview-language-${index}`} style={{ marginBottom: index === profile.languages.length - 1 ? 0 : '7px' }}><strong>{language.language || '언어 미입력'}</strong>{language.level && ` · ${language.level}`}{language.score && ` · ${language.score}`}</div>)}</JobKoreaPreviewSection>}
+        {profile.portfolios.length > 0 && <JobKoreaPreviewSection title="포트폴리오">{profile.portfolios.map((portfolio, index) => <div key={`preview-portfolio-${index}`} style={{ marginBottom: index === profile.portfolios.length - 1 ? 0 : '9px' }}><strong>{portfolio.title || '포트폴리오'}</strong>{portfolio.url && <><br />{portfolio.url}</>}{portfolio.description && <div style={{ whiteSpace: 'pre-wrap' }}>{portfolio.description}</div>}</div>)}</JobKoreaPreviewSection>}
+        {(profile.veteran || profile.employmentProtection || profile.employmentSupport || profile.disability || profile.militaryStatus) && <JobKoreaPreviewSection title="취업우대 · 병역">{[profile.veteran && '보훈대상', profile.employmentProtection && '취업보호 대상', profile.employmentSupport && '고용지원금 대상', profile.disability && '장애'].filter(Boolean).join(' · ')}{profile.militaryStatus && <><strong>{[profile.veteran, profile.employmentProtection, profile.employmentSupport, profile.disability].some(Boolean) ? ' · ' : ''}{profile.militaryStatus}</strong>{profile.militaryDetails && ` · ${profile.militaryDetails}`}{(profile.enlistmentDate || profile.dischargeDate) && <><br />{formatJobKoreaMonth(profile.enlistmentDate)} ~ {formatJobKoreaMonth(profile.dischargeDate)}</>}</>}</JobKoreaPreviewSection>}
+        {profile.selfIntroductions.map((item, index) => (item.title || item.content) && <JobKoreaPreviewSection key={`preview-self-introduction-${index}`} title={item.title || '자기소개서'}><div style={{ whiteSpace: 'pre-wrap' }}>{item.content}</div></JobKoreaPreviewSection>)}
+        {(profile.employmentType || profile.desiredSalary || desiredLocations.length > 0) && <JobKoreaPreviewSection title="희망근무조건">{profile.employmentType && <div>고용형태: {profile.employmentType}</div>}{profile.desiredSalary && <div>희망연봉: {profile.desiredSalary}</div>}{desiredLocations.length > 0 && <div>희망근무지: {desiredLocations.join(' · ')}</div>}</JobKoreaPreviewSection>}
+        <footer style={{ paddingTop: '18px', color: '#8b958c', fontSize: '9px' }}>JOBKOREA_STANDARD_V2 · 사용자가 검토한 ResumeVersion과 입력한 프로필에서 생성된 업로드용 파일입니다.</footer>
+      </div></div>
+      {status && <p className="export-status" role="status">{status}</p>}
+      <div className="modal-actions"><button className="text-button" onClick={onClose}>취소</button><button className="secondary-button compact-button" onClick={() => window.open('https://resume.jobkorea.co.kr/resume/upload', '_blank', 'noopener,noreferrer')}>JobKorea 업로드 페이지 열기</button><button className="primary-button compact-button" onClick={() => void downloadPdf()} disabled={isGenerating || !reviewConfirmed}>{isGenerating ? 'PDF 생성 중...' : '검토 완료 · PDF 다운로드'}</button></div>
+    </section>
+  </div>
+}
+
+function ResumeDraftReviewModal({
+  jobPosting,
+  draft,
+  isApproving,
+  onClose,
+  onApprove,
+}: {
+  jobPosting: JobPosting
+  draft: ResumeDraftResponse
+  isApproving: boolean
+  onClose: () => void
+  onApprove: () => void
+}) {
+  function DraftLine({ line }: { line: ResumeDraftLine | null }) {
+    if (!line?.text) return null
+    return <li><span>{line.text}</span><small>{line.citations.map((citation) => citation.citationId).join(', ')}</small></li>
+  }
+
+  function DraftSection({ title, lines }: { title: string; lines: ResumeDraftLine[] }) {
+    const visibleLines = lines.filter((line) => line?.text)
+    if (visibleLines.length === 0) return null
+    return <section className="draft-review-section"><h3>{title}</h3><ul>{visibleLines.map((line, index) => <DraftLine key={`${title}-${index}`} line={line} />)}</ul></section>
+  }
+
+  function DraftSelfIntroduction({ sections, summary }: { sections: ResumeDraftSection[]; summary: ResumeDraftLine | null }) {
+    const visibleSections = (sections ?? []).filter((section) => section?.title && section?.content)
+    if (visibleSections.length === 0) return <DraftSection title="자기소개서" lines={summary ? [summary] : []} />
+    return <section className="draft-review-section"><div className="draft-review-section-heading"><h3>자기소개서</h3><span>{visibleSections.length}개 어필 주제</span></div><div className="draft-topic-list">{visibleSections.map((section, index) => <article className="draft-topic" key={`self-introduction-${index}`}><h4>{section.title}</h4><p>{section.content}</p><small>{section.citations.map((citation) => citation.citationId).join(', ')}</small></article>)}</div></section>
+  }
+
+  return <div className="modal-backdrop" role="presentation">
+    <section className="resume-draft-modal" role="dialog" aria-modal="true" aria-labelledby="resume-draft-title">
+      <div className="modal-heading"><div><span className="eyebrow">JOBKOREA RESUME DRAFT</span><h2 id="resume-draft-title">JobKorea 이력서 초안 검토</h2></div><button className="modal-close" onClick={onClose} aria-label="닫기">×</button></div>
+      <p className="modal-description"><strong>{jobPosting.companyName}</strong> · {jobPosting.title}<br />저장된 Career evidence에서 확인된 내용만 사용했습니다. 아래 내용은 승인 후 JobKorea 표준 항목으로 변환되며, 개인정보·학력·근무조건은 직접 입력합니다.</p>
+      <div className="draft-review-meta"><span>provider: {draft.provider}</span><span>model: {draft.model}</span><span>retrieved: {draft.retrievedChunkCount}개</span></div>
+      <div className="draft-review-content">
+        <DraftSection title="희망직무" lines={[draft.draft.headline]} />
+        <DraftSelfIntroduction sections={draft.draft.selfIntroductionSections} summary={draft.draft.summary} />
+        <DraftSection title="경력기술서" lines={[...draft.draft.experienceBullets, ...draft.draft.projectBullets]} />
+        <DraftSection title="스킬" lines={draft.draft.skills} />
+      </div>
+      <p className="export-profile-warning">AI가 작성한 문장은 반드시 직접 검토하세요. 승인하면 새 immutable Resume과 Version 1이 생성됩니다.</p>
+      <div className="modal-actions"><button className="text-button" onClick={onClose}>취소</button><button className="primary-button compact-button" onClick={onApprove} disabled={isApproving}>{isApproving ? 'JobKorea 이력서 준비 중...' : '검토 완료 · JobKorea 양식으로 계속'}</button></div>
+    </section>
+  </div>
+}
+
+function ResumePageContent({ user }: { user: User }) {
+  const [resumes, setResumes] = useState<Resume[]>([])
+  const [selectedResumeId, setSelectedResumeId] = useState<string | null>(null)
+  const [versions, setVersions] = useState<ResumeVersion[]>([])
+  const [selectedVersion, setSelectedVersion] = useState<ResumeVersion | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [isLoadingVersions, setIsLoadingVersions] = useState(false)
+  const [loadError, setLoadError] = useState('')
+  const [form, setForm] = useState<ResumeCreateForm>(emptyResumeCreateForm)
+  const [renameName, setRenameName] = useState('')
+  const [newVersionContent, setNewVersionContent] = useState('')
+  const [formError, setFormError] = useState('')
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [isExportOpen, setIsExportOpen] = useState(false)
+
+  async function loadResumes(preferredId?: string) {
+    setIsLoading(true)
+    setLoadError('')
+    try {
+      const result = await request<PageResponse<Resume>>('/v1/resumes?page=0&size=20')
+      setResumes(result.content)
+      const nextId = preferredId ?? selectedResumeId ?? result.content[0]?.id ?? null
+      setSelectedResumeId(nextId)
+      const selected = result.content.find((resume) => resume.id === nextId)
+      setRenameName(selected?.name ?? '')
+    } catch (error) {
+      setLoadError(error instanceof Error ? error.message : '이력서 목록을 불러오지 못했습니다.')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  async function loadVersions(resumeId: string) {
+    setIsLoadingVersions(true)
+    setLoadError('')
+    try {
+      const result = await request<PageResponse<ResumeVersion>>(`/v1/resumes/${resumeId}/versions?page=0&size=20`)
+      setVersions(result.content)
+      setSelectedVersion(result.content[0] ?? null)
+    } catch (error) {
+      setLoadError(error instanceof Error ? error.message : '이력서 버전을 불러오지 못했습니다.')
+    } finally {
+      setIsLoadingVersions(false)
+    }
+  }
+
+  useEffect(() => { void loadResumes() }, [])
+
+  useEffect(() => {
+    if (selectedResumeId) void loadVersions(selectedResumeId)
+    else {
+      setVersions([])
+      setSelectedVersion(null)
+      setRenameName('')
+    }
+  }, [selectedResumeId])
+
+  function selectResume(resume: Resume) {
+    setSelectedResumeId(resume.id)
+    setRenameName(resume.name)
+    setFormError('')
+  }
+
+  async function createResume(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    setFormError('')
+    if (!form.name.trim() || !form.content.trim()) {
+      setFormError('이력서 이름과 내용을 모두 입력해주세요.')
+      return
+    }
+    setIsSubmitting(true)
+    try {
+      const created = await request<Resume>('/v1/resumes', { method: 'POST', body: JSON.stringify({ name: form.name.trim(), content: form.content.trim() }) })
+      setForm(emptyResumeCreateForm)
+      await loadResumes(created.id)
+    } catch (error) {
+      setFormError(error instanceof Error ? error.message : '이력서를 생성하지 못했습니다.')
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  async function renameResume() {
+    if (!selectedResumeId || !renameName.trim()) {
+      setFormError('이력서 이름을 입력해주세요.')
+      return
+    }
+    setIsSubmitting(true)
+    setFormError('')
+    try {
+      await request<Resume>(`/v1/resumes/${selectedResumeId}`, { method: 'PUT', body: JSON.stringify({ name: renameName.trim() }) })
+      await loadResumes(selectedResumeId)
+    } catch (error) {
+      setFormError(error instanceof Error ? error.message : '이력서 이름을 변경하지 못했습니다.')
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  async function createVersion(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    if (!selectedResumeId || !newVersionContent.trim()) {
+      setFormError('새 버전의 내용을 입력해주세요.')
+      return
+    }
+    setIsSubmitting(true)
+    setFormError('')
+    try {
+      await request<ResumeVersion>(`/v1/resumes/${selectedResumeId}/versions`, { method: 'POST', body: JSON.stringify({ content: newVersionContent.trim() }) })
+      setNewVersionContent('')
+      await loadResumes(selectedResumeId)
+      await loadVersions(selectedResumeId)
+    } catch (error) {
+      setFormError(error instanceof Error ? error.message : '새 이력서 버전을 생성하지 못했습니다.')
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  async function deleteResume() {
+    if (!selectedResumeId || !window.confirm('이 이력서를 삭제할까요? 모든 버전이 목록에서 숨겨집니다.')) return
+    setIsDeleting(true)
+    setFormError('')
+    try {
+      await request<void>(`/v1/resumes/${selectedResumeId}`, { method: 'DELETE' })
+      setSelectedResumeId(null)
+      await loadResumes()
+    } catch (error) {
+      setFormError(error instanceof Error ? error.message : '이력서를 삭제하지 못했습니다.')
+    } finally {
+      setIsDeleting(false)
+    }
+  }
+
+  const selectedResume = resumes.find((resume) => resume.id === selectedResumeId)
+
+  return <>
+    <header className="page-heading"><div><span className="eyebrow">CAREER DOCUMENTS</span><h1>Resumes</h1><p>본문을 버전으로 보존하면서 이력서를 발전시켜보세요.</p></div></header>
+    {formError && <p className="form-error resume-global-error" role="alert">{formError}</p>}
+    <section className="resume-layout">
+      <aside className="resume-list-panel">
+        <div className="list-heading"><div><span className="eyebrow">YOUR RESUMES</span><h2>{resumes.length}개의 이력서</h2></div><button className="text-button" onClick={() => void loadResumes()}>새로고침</button></div>
+        {isLoading && <div className="list-state">이력서를 불러오는 중입니다...</div>}
+        {!isLoading && loadError && <div className="list-state error-state">{loadError}</div>}
+        {!isLoading && !loadError && resumes.length === 0 && <div className="list-state">아직 이력서가 없습니다.</div>}
+        {!isLoading && !loadError && resumes.length > 0 && <div className="resume-list">{resumes.map((resume) => <button className={resume.id === selectedResumeId ? 'resume-list-item selected' : 'resume-list-item'} key={resume.id} onClick={() => selectResume(resume)}><strong>{resume.name}</strong><span>Latest v{resume.latestVersionNumber}</span></button>)}</div>}
+        <form className="new-resume-form" onSubmit={createResume}><span className="eyebrow">NEW RESUME</span><input value={form.name} onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))} placeholder="이력서 이름" maxLength={200} /><textarea value={form.content} onChange={(event) => setForm((current) => ({ ...current, content: event.target.value }))} placeholder="첫 번째 이력서 내용을 입력하세요." maxLength={100000} rows={5} /><button className="primary-button compact-button" disabled={isSubmitting} type="submit">{isSubmitting ? '생성 중...' : '이력서 생성'}</button></form>
+      </aside>
+      <section className="resume-detail-panel">
+        {!selectedResume && <div className="resume-empty"><span className="eyebrow">RESUME WORKSPACE</span><h2>이력서를 선택하거나<br />새로 만들어보세요.</h2><p>첫 생성 시 Resume과 ResumeVersion 1이 함께 만들어집니다.</p></div>}
+        {selectedResume && <>
+          <div className="resume-detail-header"><div><span className="eyebrow">RESUME WORKSPACE</span><h2>{selectedResume.name}</h2><span className="version-count">현재 최신 버전 v{selectedResume.latestVersionNumber}</span></div><button className="text-button danger-button" onClick={() => void deleteResume()} disabled={isDeleting}>{isDeleting ? '삭제 중' : '이력서 삭제'}</button></div>
+          <div className="rename-row"><input value={renameName} onChange={(event) => setRenameName(event.target.value)} maxLength={200} /><button className="text-button" onClick={() => void renameResume()} disabled={isSubmitting}>이름 저장</button></div>
+          <div className="version-section"><div className="section-title"><div><span className="eyebrow">VERSION HISTORY</span><h2>버전 기록</h2></div><span className="version-count">{versions.length}개 버전</span></div>
+            {isLoadingVersions && <div className="list-state">버전을 불러오는 중입니다...</div>}
+            {!isLoadingVersions && versions.length > 0 && <div className="version-list">{versions.map((version) => <button className={selectedVersion?.id === version.id ? 'version-item selected' : 'version-item'} key={version.id} onClick={() => setSelectedVersion(version)}><strong>Version {version.versionNumber}</strong><span>{new Date(version.createdAt).toLocaleString('ko-KR')}</span></button>)}</div>}
+          </div>
+          {selectedVersion && <div className="version-preview"><div className="section-title"><div><span className="eyebrow">READ-ONLY SNAPSHOT</span><h2>Version {selectedVersion.versionNumber}</h2></div><div className="version-preview-actions"><span className="immutable-badge">IMMUTABLE</span><button className="secondary-button compact-button" onClick={() => setIsExportOpen(true)}>JobKorea 파일 생성</button></div></div><pre>{selectedVersion.content}</pre></div>}
+          <form className="new-version-form" onSubmit={createVersion}><div className="section-title"><div><span className="eyebrow">NEW SNAPSHOT</span><h2>새 버전 작성</h2></div><span className="version-count">기존 버전은 수정되지 않습니다.</span></div><textarea value={newVersionContent} onChange={(event) => setNewVersionContent(event.target.value)} placeholder="새로운 이력서 내용을 입력하세요." maxLength={100000} rows={8} /><button className="primary-button compact-button" disabled={isSubmitting} type="submit">{isSubmitting ? '저장 중...' : `Version ${selectedResume.latestVersionNumber + 1} 저장`}</button></form>
+          {isExportOpen && selectedVersion && <JobKoreaExportModal resumeName={selectedResume.name} version={selectedVersion} displayName={user.displayName} email={user.email} onClose={() => setIsExportOpen(false)} />}
+        </>}
+      </section>
+    </section>
+  </>
+}
+
+const emptyJobPostingForm: JobPostingForm = { title: '', companyName: '', description: '', sourceUrl: '' }
+
+function JobPostingPageContent({ user }: { user: User }) {
+  const [jobPostings, setJobPostings] = useState<JobPosting[]>([])
+  const [page, setPage] = useState(0)
+  const [totalPages, setTotalPages] = useState(0)
+  const [totalElements, setTotalElements] = useState(0)
+  const [isLoading, setIsLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
+  const [form, setForm] = useState<JobPostingForm>(emptyJobPostingForm)
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [formError, setFormError] = useState('')
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [isImportOpen, setIsImportOpen] = useState(false)
+  const [generatingDraftId, setGeneratingDraftId] = useState<string | null>(null)
+  const [draftState, setDraftState] = useState<{ jobPosting: JobPosting; draft: ResumeDraftResponse } | null>(null)
+  const [isApprovingDraft, setIsApprovingDraft] = useState(false)
+  const [exportState, setExportState] = useState<{ resumeName: string; version: ResumeVersion; jobTitle?: string } | null>(null)
+
+  async function loadJobPostings(targetPage = page) {
+    setIsLoading(true)
+    setLoadError('')
+    try {
+      const result = await request<PageResponse<JobPosting>>(`/v1/job-postings?page=${targetPage}&size=5`)
+      setJobPostings(result.content)
+      setPage(result.page)
+      setTotalPages(result.totalPages)
+      setTotalElements(result.totalElements)
+    } catch (error) {
+      setLoadError(error instanceof Error ? error.message : '채용공고 목록을 불러오지 못했습니다.')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  useEffect(() => { void loadJobPostings(0) }, [])
+
+  function updateField(field: keyof JobPostingForm, value: string) {
+    setForm((current) => ({ ...current, [field]: value }))
+    setFieldErrors((current) => ({ ...current, [field]: '' }))
+  }
+
+  function startCreate() {
+    setEditingId(null)
+    setForm(emptyJobPostingForm)
+    setFieldErrors({})
+    setFormError('')
+  }
+
+  function startEdit(jobPosting: JobPosting) {
+    setEditingId(jobPosting.id)
+    setForm({ title: jobPosting.title, companyName: jobPosting.companyName, description: jobPosting.description, sourceUrl: jobPosting.sourceUrl ?? '' })
+    setFieldErrors({})
+    setFormError('')
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  function validateForm() {
+    const errors: Record<string, string> = {}
+    if (!form.title.trim()) errors.title = '채용공고 제목을 입력해주세요.'
+    if (!form.companyName.trim()) errors.companyName = '회사명을 입력해주세요.'
+    if (!form.description.trim()) errors.description = '채용공고 내용을 입력해주세요.'
+    if (form.sourceUrl && !/^https?:\/\/.+/i.test(form.sourceUrl.trim())) errors.sourceUrl = 'http 또는 https URL을 입력해주세요.'
+    setFieldErrors(errors)
+    return Object.keys(errors).length === 0
+  }
+
+  async function submitJobPosting(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    setFormError('')
+    if (!validateForm()) return
+    setIsSubmitting(true)
+    const payload = { title: form.title.trim(), companyName: form.companyName.trim(), description: form.description.trim(), sourceUrl: form.sourceUrl.trim() || null }
+    try {
+      await request<JobPosting>(editingId ? `/v1/job-postings/${editingId}` : '/v1/job-postings', { method: editingId ? 'PUT' : 'POST', body: JSON.stringify(payload) })
+      const nextPage = editingId ? page : 0
+      startCreate()
+      await loadJobPostings(nextPage)
+    } catch (error) {
+      const apiError = error as ApiError
+      setFormError(apiError.message)
+      setFieldErrors(apiError.fieldErrors ?? {})
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  async function deleteJobPosting(id: string) {
+    if (!window.confirm('이 채용공고를 삭제할까요? 삭제된 공고는 목록에서 숨겨집니다.')) return
+    setDeletingId(id)
+    try {
+      await request<void>(`/v1/job-postings/${id}`, { method: 'DELETE' })
+      await loadJobPostings(page > 0 && jobPostings.length === 1 ? page - 1 : page)
+    } catch (error) {
+      setLoadError(error instanceof Error ? error.message : '채용공고를 삭제하지 못했습니다.')
+    } finally {
+      setDeletingId(null)
+    }
+  }
+
+  async function generateResumeDraft(jobPosting: JobPosting) {
+    setGeneratingDraftId(jobPosting.id)
+    setFormError('')
+    try {
+      const draft = await request<ResumeDraftResponse>('/v1/ai/generate-resume-draft', {
+        method: 'POST',
+        body: JSON.stringify({ jobPostingId: jobPosting.id }),
+      })
+      setDraftState({ jobPosting, draft })
+    } catch (error) {
+      setFormError(error instanceof Error ? error.message : '채용공고 기준 이력서 초안을 생성하지 못했습니다.')
+    } finally {
+      setGeneratingDraftId(null)
+    }
+  }
+
+  async function approveGeneratedDraft() {
+    if (!draftState) return
+    setIsApprovingDraft(true)
+    setFormError('')
+    try {
+      const resumeName = `${draftState.jobPosting.companyName} - ${draftState.jobPosting.title} 이력서`.slice(0, 200)
+      const resume = await request<Resume>(`/v1/ai/resume-drafts/${draftState.draft.id}/approve-new`, {
+        method: 'POST',
+        body: JSON.stringify({ resumeName }),
+      })
+      const versions = await request<PageResponse<ResumeVersion>>(`/v1/resumes/${resume.id}/versions?page=0&size=1`)
+      const version = versions.content[0]
+      if (!version) throw new Error('생성된 ResumeVersion을 찾지 못했습니다.')
+      setDraftState(null)
+       setExportState({ resumeName: resume.name, version, jobTitle: draftState.jobPosting.title })
+    } catch (error) {
+      setFormError(error instanceof Error ? error.message : 'ResumeVersion을 생성하지 못했습니다.')
+    } finally {
+      setIsApprovingDraft(false)
+    }
+  }
+
+  return <>
+    <header className="page-heading"><div><span className="eyebrow">OPPORTUNITIES</span><h1>Job postings</h1><p>관심 있는 채용공고를 URL로 가져오거나 직접 기록해두세요. 이력서 생성 전 Career 메뉴에서 AI 검색 데이터를 업데이트해주세요.</p></div><div className="heading-actions"><button className="secondary-button compact-button" onClick={() => setIsImportOpen(true)}>URL로 가져오기</button><button className="primary-button compact-button" onClick={startCreate}>+ 공고 추가</button></div></header>
+    <section className="experience-form-card">
+      <div className="section-title"><div><span className="eyebrow">{editingId ? 'EDIT JOB POSTING' : 'NEW JOB POSTING'}</span><h2>{editingId ? '채용공고 수정' : '새 채용공고 기록'}</h2></div>{editingId && <button className="text-button" onClick={startCreate}>취소</button>}</div>
+      <form className="experience-form" onSubmit={submitJobPosting}>
+        <FormField label="공고 제목" value={form.title} onChange={(value) => updateField('title', value)} error={fieldErrors.title} placeholder="예: Senior Backend Engineer" />
+        <FormField label="회사명" value={form.companyName} onChange={(value) => updateField('companyName', value)} error={fieldErrors.companyName} placeholder="예: Acme Inc." />
+        <FormField label="Source URL (선택)" value={form.sourceUrl} onChange={(value) => updateField('sourceUrl', value)} error={fieldErrors.sourceUrl} placeholder="https://jobs.example.com/..." />
+        <label className="wide-field">Job Description<textarea value={form.description} onChange={(event) => updateField('description', event.target.value)} placeholder="채용공고 원문을 붙여 넣어주세요." maxLength={100000} rows={8} />{fieldErrors.description && <small className="field-error">{fieldErrors.description}</small>}</label>
+        {formError && <p className="form-error wide-field" role="alert">{formError}</p>}
+        <div className="form-actions wide-field"><button className="primary-button compact-button" disabled={isSubmitting} type="submit">{isSubmitting ? '저장 중...' : editingId ? '변경 저장' : '공고 저장'}</button></div>
+      </form>
+    </section>
+    <section className="experience-list-section"><div className="list-heading"><div><span className="eyebrow">SAVED OPPORTUNITIES</span><h2>{totalElements}개의 채용공고</h2></div><button className="text-button" onClick={() => void loadJobPostings(page)}>새로고침</button></div>
+      {isLoading && <div className="list-state">채용공고 목록을 불러오는 중입니다...</div>}
+      {!isLoading && loadError && <div className="list-state error-state" role="alert">{loadError}<button className="text-button" onClick={() => void loadJobPostings(page)}>다시 시도</button></div>}
+      {!isLoading && !loadError && jobPostings.length === 0 && <div className="list-state">아직 저장된 채용공고가 없습니다.</div>}
+      {!isLoading && !loadError && jobPostings.length > 0 && <div className="experience-list">{jobPostings.map((jobPosting) => <article className="experience-item job-posting-item" key={jobPosting.id}><div className="job-source-label"><span className="job-dot" /> SAVED<br /><small>{new Date(jobPosting.updatedAt).toLocaleDateString('ko-KR')}</small></div><div className="experience-main"><h3>{jobPosting.title}</h3><strong>{jobPosting.companyName}</strong><p>{jobPosting.description}</p>{jobPosting.sourceUrl && <a className="repo-link" href={jobPosting.sourceUrl} target="_blank" rel="noreferrer">원문 보기 ↗</a>}</div><div className="item-actions"><button className="primary-button compact-button" onClick={() => void generateResumeDraft(jobPosting)} disabled={generatingDraftId === jobPosting.id}>{generatingDraftId === jobPosting.id ? '생성 중...' : '이 공고로 이력서 생성'}</button><button className="text-button" onClick={() => startEdit(jobPosting)}>수정</button><button className="text-button danger-button" onClick={() => void deleteJobPosting(jobPosting.id)} disabled={deletingId === jobPosting.id}>{deletingId === jobPosting.id ? '삭제 중' : '삭제'}</button></div></article>)}</div>}
+      {!isLoading && !loadError && totalPages > 1 && <div className="pagination"><button className="text-button" disabled={page === 0} onClick={() => void loadJobPostings(page - 1)}>← 이전</button><span>{page + 1} / {totalPages}</span><button className="text-button" disabled={page >= totalPages - 1} onClick={() => void loadJobPostings(page + 1)}>다음 →</button></div>}
+    </section>
+    {isImportOpen && <JobPostingUrlImportModal onClose={() => setIsImportOpen(false)} onApply={(preview) => {
+      setEditingId(null)
+      setForm({ title: preview.title, companyName: preview.companyName, description: preview.description, sourceUrl: preview.sourceUrl })
+      setFieldErrors({})
+      setFormError(preview.warnings.length > 0 ? `가져온 값 중 확인이 필요한 항목: ${preview.warnings.join(' ')}` : '')
+      setIsImportOpen(false)
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+    }} />}
+    {draftState && <ResumeDraftReviewModal jobPosting={draftState.jobPosting} draft={draftState.draft} isApproving={isApprovingDraft} onClose={() => setDraftState(null)} onApprove={() => void approveGeneratedDraft()} />}
+    {exportState && <JobKoreaExportModal resumeName={exportState.resumeName} version={exportState.version} jobTitle={exportState.jobTitle} displayName={user.displayName} email={user.email} onClose={() => setExportState(null)} />}
+  </>
+}
+
+function FormField({ label, value, onChange, error, placeholder, type = 'text' }: { label: string; value: string; onChange: (value: string) => void; error?: string; placeholder?: string; type?: string }) {
+  return <label>{label}<input type={type} value={value} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} />{error && <small className="field-error">{error}</small>}</label>
+}
+
+function StatCard({ label, value, action }: { label: string; value: string; action: string }) {
+  return <article className="stat-card"><div><span className="eyebrow">{label}</span><strong>{value}</strong></div><button disabled>{action} <span>+</span></button></article>
+}
+
+export default App

@@ -1,0 +1,9 @@
+target/
+.mvn/wrapper/maven-wrapper.jar
+*.log
+.env
+.idea/
+*.iml
+frontend/.env
+frontend/node_modules/
+frontend/dist/

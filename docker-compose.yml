@@ -1,0 +1,74 @@
+name: ai-career-platform
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg17
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-ai_career}
+      POSTGRES_USER: ${POSTGRES_USER:-ai_career}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-local_password}
+    ports:
+      - "${POSTGRES_HOST_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: .
+    environment:
+      SPRING_PROFILES_ACTIVE: local
+      SERVER_PORT: 8080
+      DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-ai_career}
+      DB_USERNAME: ${POSTGRES_USER:-ai_career}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-local_password}
+      JWT_ISSUER: ${JWT_ISSUER:-ai-career-platform}
+      JWT_SECRET_BASE64: ${JWT_SECRET_BASE64:-REDACTED_HISTORY_VALUE}
+      AI_PROVIDER: ${AI_PROVIDER:-ollama}
+      AI_RESUME_DRAFT_PROVIDER: ${AI_RESUME_DRAFT_PROVIDER:-gemini}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OLLAMA_CHAT_URL: ${COMPOSE_OLLAMA_CHAT_URL:-http://host.docker.internal:11434/api/chat}
+      OLLAMA_EMBEDDING_URL: ${COMPOSE_OLLAMA_EMBEDDING_URL:-http://host.docker.internal:11434/api/embed}
+      JOBKOREA_EXPORT_AUDIT_RETENTION_CLEANUP_ENABLED: ${JOBKOREA_EXPORT_AUDIT_RETENTION_CLEANUP_ENABLED:-true}
+      JOBKOREA_EXPORT_AUDIT_RETENTION: ${JOBKOREA_EXPORT_AUDIT_RETENTION:-PT720H}
+      JOBKOREA_EXPORT_AUDIT_CLEANUP_CRON: ${JOBKOREA_EXPORT_AUDIT_CLEANUP_CRON:-0 0 3 * * *}
+    ports:
+      - "${BACKEND_HOST_PORT:-8080}:8080"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://localhost:8080/actuator/health/readiness || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+    ports:
+      - "${FRONTEND_HOST_PORT:-5173}:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1/ || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 5s
+    restart: unless-stopped
+
+volumes:
+  postgres_data:

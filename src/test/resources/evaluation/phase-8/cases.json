@@ -1,0 +1,26 @@
+[
+  {
+    "caseId": "backend-api-retrieval",
+    "task": "RETRIEVAL",
+    "query": "Java backend API and PostgreSQL experience",
+    "topK": 3,
+    "expectedSourceIds": ["experience-java-api", "project-career-platform"],
+    "notes": "The relevant evidence is intentionally split across one Experience and one Project."
+  },
+  {
+    "caseId": "grounded-job-match",
+    "task": "MATCHING",
+    "query": "Build reliable Spring Boot services with PostgreSQL",
+    "topK": 3,
+    "expectedSourceIds": ["experience-spring-services", "project-career-platform"],
+    "notes": "Strengths and recommendations must cite retrieved career evidence."
+  },
+  {
+    "caseId": "grounded-resume-draft",
+    "task": "RESUME_DRAFT",
+    "query": "Backend developer resume for a platform engineering role",
+    "topK": 3,
+    "expectedSourceIds": ["experience-spring-services", "project-career-platform"],
+    "notes": "Every non-empty generated line is expected to retain at least one source citation."
+  }
+]

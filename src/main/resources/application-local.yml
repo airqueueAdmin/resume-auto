@@ -1,0 +1,17 @@
+spring:
+  config:
+    activate:
+      on-profile: local
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/ai_career}
+    username: ${DB_USERNAME:ai_career}
+    password: ${DB_PASSWORD:local_password}
+    hikari:
+      maximum-pool-size: ${DB_POOL_MAX_SIZE:10}
+      minimum-idle: ${DB_POOL_MIN_IDLE:2}
+      connection-timeout: ${DB_CONNECTION_TIMEOUT_MS:3000}
+
+management:
+  endpoint:
+    health:
+      show-details: always

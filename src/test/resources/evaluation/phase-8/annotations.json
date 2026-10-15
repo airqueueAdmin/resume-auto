@@ -1,0 +1,29 @@
+[
+  {
+    "caseId": "backend-api-retrieval",
+    "annotationVersion": "grounding-v1",
+    "reviewer": "synthetic-reviewer",
+    "reviewedAt": "2026-10-13",
+    "claimCount": 0,
+    "supportedClaimCount": 0,
+    "notes": "Retrieval-only case has no generated claims."
+  },
+  {
+    "caseId": "grounded-job-match",
+    "annotationVersion": "grounding-v1",
+    "reviewer": "synthetic-reviewer",
+    "reviewedAt": "2026-10-13",
+    "claimCount": 2,
+    "supportedClaimCount": 2,
+    "notes": "Strength and recommendation are both supported by reviewed career evidence."
+  },
+  {
+    "caseId": "grounded-resume-draft",
+    "annotationVersion": "grounding-v1",
+    "reviewer": "synthetic-reviewer",
+    "reviewedAt": "2026-10-13",
+    "claimCount": 3,
+    "supportedClaimCount": 3,
+    "notes": "Each generated line is supported by at least one source."
+  }
+]
