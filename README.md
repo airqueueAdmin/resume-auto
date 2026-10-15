@@ -52,6 +52,9 @@ Completed design and implementation records are maintained separately from this 
 - [Phase 11 deployment packaging plan](docs/phases/phase-11-plan.md)
 - [Phase 11 Step 1 record](docs/phases/phase-11-step-1.md)
 - [Phase 11 Step 2 record](docs/phases/phase-11-step-2.md)
+- [Phase 11 Step 3 record](docs/phases/phase-11-step-3.md)
+- [Phase 11 completion record](docs/phases/phase-11.md)
+- [Deployment and readiness runbook](docs/runbooks/deployment-and-readiness.md)
 - [ADR 0011: detailed self-introduction sections](docs/adr/0011-detailed-self-introduction-sections.md)
 - [ADR 0012: reproducible full-stack containers](docs/adr/0012-reproducible-full-stack-containers.md)
 - [ADR 0003: validated RAG citations](docs/adr/0003-validated-rag-citations.md)
@@ -83,7 +86,7 @@ The planned Resume UX is a library of approved, immutable versions rather than a
 The first approved grounded draft may create the Resume container automatically. New generated documents
 use a versioned JobKorea-compatible internal template mapped to the user-controlled file export contract.
 
-## Current scope: Phase 11 Step 2 workflow implemented; remote CI run pending
+## Current scope: Phase 11 complete for the approved packaging and operability scope
 
 The project currently includes the Spring Boot foundation, identity boundary, user-owned
 Experience/Project/JobPosting resources, and immutable Resume versions:
@@ -717,15 +720,16 @@ Use the Swagger UI `Authorize` action with a short-lived Access JWT for protecte
 The contract is generated at runtime from Spring MVC mappings, validation annotations, and OpenAPI
 annotations. It is not a second manually maintained API specification.
 
-## Next phase
+## Deployment and next direction
 
-Phase 11 Step 2 has a non-deploying CI workflow for backend tests, frontend builds, Compose validation,
-container builds, and vulnerability reports. Run it on the repository's CI host before starting the
-deployment runbook and measured readiness work in Phase 11 Step 3. The application currently generates
+Phase 11 now has reproducible full-stack containers, a non-deploying CI workflow for backend tests,
+frontend builds, Compose validation, container builds, and vulnerability reports, plus a deployment
+and readiness runbook. The application currently generates
 a browser-side PDF from an approved ResumeVersion, lets the user review and download it, and can open the
 JobKorea upload page. Server-side upload, credentials, refresh tokens, cookies, and CAPTCHA/anti-automation
 bypasses are out of scope.
 
-Redis, asynchronous processing, streaming, distributed tracing, and cloud deployment remain deferred until
-latency, load, cost, or operational measurements justify them. Agent behavior remains deferred until a
-concrete use case demonstrates that dynamic Tool selection is genuinely needed.
+Redis, asynchronous processing, streaming, distributed tracing, cloud deployment, and image publication
+remain deferred until latency, load, cost, privacy, or operational measurements justify them. Agent
+behavior remains deferred until a concrete use case demonstrates that dynamic Tool selection is genuinely
+needed.

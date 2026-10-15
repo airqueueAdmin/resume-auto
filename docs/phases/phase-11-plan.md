@@ -2,8 +2,9 @@
 
 ## Status
 
-In progress. Step 1 full-stack container packaging is complete. Step 2 CI workflow is implemented;
-its first remote CI run is pending.
+Complete for the approved packaging and measured-readiness scope. Step 1 container packaging, Step 2
+remote CI verification, and Step 3 deployment runbook work are complete. This does not claim cloud
+deployment or production capacity.
 
 ## Objective
 
@@ -27,8 +28,8 @@ while making startup, health verification, configuration, and release checks exp
 - Pin action and tool versions and avoid publishing images or deploying without explicit authorization.
 - Add dependency and image vulnerability reporting with documented severity policy.
 
-Status: implemented locally in `.github/workflows/ci.yml`; a repository-hosted run is still required to
-verify the runner-specific action, Docker, and vulnerability-reporting behavior.
+Status: complete. Remote CI run 4 verified the runner-specific action, Docker, and vulnerability-reporting
+behavior for commit `845942c`.
 
 ### Step 3 - Deployment runbook and measured readiness
 
@@ -36,6 +37,9 @@ verify the runner-specific action, Docker, and vulnerability-reporting behavior.
 - Capture cold-start, readiness, image size, and representative request latency before selecting a cloud
   platform or introducing horizontal scaling.
 - Revisit Redis, queueing, centralized tracing, and managed PostgreSQL only from measured evidence.
+
+Status: complete for the documented single-host scope. A local baseline and operating procedures are
+recorded in `docs/runbooks/deployment-and-readiness.md` and `docs/phases/phase-11-step-3.md`.
 
 ## Explicit non-goals
 
