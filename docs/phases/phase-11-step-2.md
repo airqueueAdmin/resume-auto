@@ -70,7 +70,10 @@ Remote CI verification history:
 - Commit `9d46469` changed `mvnw` to mode `100755`. Run 2 then passed backend tests, frontend build,
   and Compose validation.
 - Run 2's container job failed during GitHub-hosted runner setup before any job step executed. The
-  local backend/frontend image build passed, so this remains an environment-level CI rerun item.
+  local backend/frontend image build passed. Run 3 reproduced the same setup failure; GitHub reported
+  that `aquasecurity/trivy-action@v0.28.0` could not resolve its internal
+  `aquasecurity/setup-trivy@v0.2.1` dependency. The workflow now uses Trivy Action v0.36.0 pinned to
+  its immutable commit, which pins a valid setup-trivy revision.
 
 The vulnerability reports and dependency-review result require a remote CI runner and are therefore
 not marked as locally executed results.
