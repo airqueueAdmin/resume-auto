@@ -113,6 +113,7 @@ public class ToolExecutionService implements ToolCallExecutor {
                                 toolArguments.endDate(),
                                 toolArguments.description(),
                                 toolArguments.techStack(),
+                                toolArguments.customerOrDomain(),
                                 toolArguments.repositoryUrl()
                         )
                 )));

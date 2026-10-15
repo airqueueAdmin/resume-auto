@@ -144,7 +144,7 @@ class AiCareerPlatformApplicationTests {
     @Test
     void flywayAppliesIdentityCareerResumeJobPostingAiMatchingResumeDraftAndToolMigrations() throws Exception {
         assertThat(flyway.info().pending()).isEmpty();
-        assertThat(flyway.info().applied()).hasSize(11);
+        assertThat(flyway.info().applied()).hasSize(12);
 
         try (Connection connection = dataSource.getConnection();
                 Statement statement = connection.createStatement();

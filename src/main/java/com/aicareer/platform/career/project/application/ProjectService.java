@@ -45,6 +45,7 @@ public class ProjectService {
                 request.endDate(),
                 normalize(request.description()),
                 normalize(request.techStack()),
+                normalizeOptional(request.customerOrDomain()),
                 normalizeOptional(request.repositoryUrl()),
                 now
         ));
@@ -73,6 +74,7 @@ public class ProjectService {
                 request.endDate(),
                 normalize(request.description()),
                 normalize(request.techStack()),
+                normalizeOptional(request.customerOrDomain()),
                 normalizeOptional(request.repositoryUrl()),
                 clock.instant()
         );

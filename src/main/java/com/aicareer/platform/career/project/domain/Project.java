@@ -42,6 +42,9 @@ public class Project {
     @Column(name = "tech_stack", nullable = false, length = 1000)
     private String techStack;
 
+    @Column(name = "customer_or_domain", length = 300)
+    private String customerOrDomain;
+
     @Column(name = "repository_url", length = 2048)
     private String repositoryUrl;
 
@@ -65,6 +68,7 @@ public class Project {
             LocalDate endDate,
             String description,
             String techStack,
+            String customerOrDomain,
             String repositoryUrl,
             Instant now
     ) {
@@ -77,6 +81,7 @@ public class Project {
         this.endDate = endDate;
         this.description = description;
         this.techStack = techStack;
+        this.customerOrDomain = customerOrDomain;
         this.repositoryUrl = repositoryUrl;
         this.createdAt = now;
         this.updatedAt = now;
@@ -93,6 +98,21 @@ public class Project {
             String repositoryUrl,
             Instant now
     ) {
+        return create(user, name, role, startDate, endDate, description, techStack, null, repositoryUrl, now);
+    }
+
+    public static Project create(
+            User user,
+            String name,
+            String role,
+            LocalDate startDate,
+            LocalDate endDate,
+            String description,
+            String techStack,
+            String customerOrDomain,
+            String repositoryUrl,
+            Instant now
+    ) {
         return new Project(
                 user,
                 name,
@@ -101,6 +121,7 @@ public class Project {
                 endDate,
                 description,
                 techStack,
+                customerOrDomain,
                 repositoryUrl,
                 now
         );
@@ -116,6 +137,20 @@ public class Project {
             String repositoryUrl,
             Instant now
     ) {
+        update(name, role, startDate, endDate, description, techStack, null, repositoryUrl, now);
+    }
+
+    public void update(
+            String name,
+            String role,
+            LocalDate startDate,
+            LocalDate endDate,
+            String description,
+            String techStack,
+            String customerOrDomain,
+            String repositoryUrl,
+            Instant now
+    ) {
         validateDateRange(startDate, endDate);
         this.name = name;
         this.role = role;
@@ -123,6 +158,7 @@ public class Project {
         this.endDate = endDate;
         this.description = description;
         this.techStack = techStack;
+        this.customerOrDomain = customerOrDomain;
         this.repositoryUrl = repositoryUrl;
         this.updatedAt = now;
     }
@@ -164,6 +200,10 @@ public class Project {
 
     public String getTechStack() {
         return techStack;
+    }
+
+    public String getCustomerOrDomain() {
+        return customerOrDomain;
     }
 
     public String getRepositoryUrl() {

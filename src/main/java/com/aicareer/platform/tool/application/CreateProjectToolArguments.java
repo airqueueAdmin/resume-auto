@@ -14,6 +14,7 @@ public record CreateProjectToolArguments(
         LocalDate endDate,
         @NotBlank @Size(max = 10_000) String description,
         @NotBlank @Size(max = 1_000) String techStack,
+        @Size(max = 300) String customerOrDomain,
         @Size(max = 2_048)
         @Pattern(regexp = "^$|https?://.+", message = "repositoryUrl must use http or https")
         String repositoryUrl

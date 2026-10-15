@@ -23,11 +23,12 @@ type Project = {
   endDate: string | null
   description: string
   techStack: string
+  customerOrDomain: string | null
   repositoryUrl: string | null
   createdAt: string
   updatedAt: string
 }
-type ProjectForm = { name: string; role: string; startDate: string; endDate: string; description: string; techStack: string; repositoryUrl: string }
+type ProjectForm = { name: string; role: string; startDate: string; endDate: string; description: string; techStack: string; customerOrDomain: string; repositoryUrl: string }
 type Resume = { id: string; name: string; latestVersionNumber: number; createdAt: string; updatedAt: string }
 type ResumeVersion = { id: string; resumeId: string; versionNumber: number; content: string; createdAt: string }
 type ResumeDraftLine = { text: string; citations: Array<{ citationId: string }> }
@@ -61,6 +62,16 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   }
   if (response.status === 204) return undefined as T
   return response.json() as Promise<T>
+}
+
+async function requestAllPages<T>(path: string): Promise<T[]> {
+  const firstPage = await request<PageResponse<T>>(`${path}?page=0&size=100`)
+  const remainingPages = await Promise.all(
+    Array.from({ length: Math.max(0, firstPage.totalPages - 1) }, (_, index) =>
+      request<PageResponse<T>>(`${path}?page=${index + 1}&size=100`)
+    )
+  )
+  return [firstPage, ...remainingPages].flatMap((page) => page.content)
 }
 
 function saveAuthentication(result: AuthenticationResponse) {
@@ -264,6 +275,7 @@ const projectTxtTemplate = `프로젝트명: AI Career Platform
 역할: Backend Developer
 시작일: 2025-01-01
 종료일: 현재
+고객사/Domain: B2B SaaS 플랫폼
 기술 스택: Java, Spring Boot, PostgreSQL
 Repository URL: https://github.com/example/project
 설명:
@@ -280,6 +292,7 @@ const projectTxtFields: TxtFieldDefinition<keyof ProjectForm>[] = [
   { key: 'role', aliases: ['역할', '담당 역할', 'role', 'position'] },
   { key: 'startDate', aliases: ['시작일', '시작 날짜', 'startDate', 'start date'] },
   { key: 'endDate', aliases: ['종료일', '종료 날짜', 'endDate', 'end date'] },
+  { key: 'customerOrDomain', aliases: ['고객사/Domain', '고객사', '도메인', 'customerOrDomain', 'customer', 'domain'] },
   { key: 'techStack', aliases: ['기술 스택', '기술', '사용 기술', 'techStack', 'tech stack', 'stack'] },
   { key: 'repositoryUrl', aliases: ['Repository URL', '저장소 URL', '리포지토리', 'repositoryUrl', 'repository'] },
   { key: 'description', aliases: ['설명', '프로젝트 설명', '구현 내용', 'description'] },
@@ -581,7 +594,7 @@ function ExperiencePageContent() {
   </>
 }
 
-const emptyProjectForm: ProjectForm = { name: '', role: '', startDate: '', endDate: '', description: '', techStack: '', repositoryUrl: '' }
+const emptyProjectForm: ProjectForm = { name: '', role: '', startDate: '', endDate: '', description: '', techStack: '', customerOrDomain: '', repositoryUrl: '' }
 
 function ProjectPageContent() {
   const [projects, setProjects] = useState<Project[]>([])
@@ -630,7 +643,7 @@ function ProjectPageContent() {
 
   function startEdit(project: Project) {
     setEditingId(project.id)
-    setForm({ name: project.name, role: project.role, startDate: project.startDate, endDate: project.endDate ?? '', description: project.description, techStack: project.techStack, repositoryUrl: project.repositoryUrl ?? '' })
+    setForm({ name: project.name, role: project.role, startDate: project.startDate, endDate: project.endDate ?? '', description: project.description, techStack: project.techStack, customerOrDomain: project.customerOrDomain ?? '', repositoryUrl: project.repositoryUrl ?? '' })
     setFieldErrors({})
     setFormError('')
     window.scrollTo({ top: 0, behavior: 'smooth' })
@@ -674,7 +687,7 @@ function ProjectPageContent() {
     setFormError('')
     if (!validateForm()) return
     setIsSubmitting(true)
-    const payload = { ...form, name: form.name.trim(), role: form.role.trim(), description: form.description.trim(), techStack: form.techStack.trim(), repositoryUrl: form.repositoryUrl.trim() || null, endDate: form.endDate || null }
+    const payload = { ...form, name: form.name.trim(), role: form.role.trim(), description: form.description.trim(), techStack: form.techStack.trim(), customerOrDomain: form.customerOrDomain.trim() || null, repositoryUrl: form.repositoryUrl.trim() || null, endDate: form.endDate || null }
     try {
       await request<Project>(editingId ? `/v1/projects/${editingId}` : '/v1/projects', { method: editingId ? 'PUT' : 'POST', body: JSON.stringify(payload) })
       const nextPage = editingId ? page : 0
@@ -711,6 +724,7 @@ function ProjectPageContent() {
         <FormField label="역할" value={form.role} onChange={(value) => updateField('role', value)} error={fieldErrors.role} placeholder="예: Backend Developer" />
         <FormField label="시작일" type="date" value={form.startDate} onChange={(value) => updateField('startDate', value)} error={fieldErrors.startDate} />
         <FormField label="종료일 (선택)" type="date" value={form.endDate} onChange={(value) => updateField('endDate', value)} error={fieldErrors.endDate} />
+        <FormField label="고객사 / Domain (선택)" value={form.customerOrDomain} onChange={(value) => updateField('customerOrDomain', value)} error={fieldErrors.customerOrDomain} placeholder="예: 금융권 결제 플랫폼, B2B SaaS" />
         <FormField label="기술 스택" value={form.techStack} onChange={(value) => updateField('techStack', value)} error={fieldErrors.techStack} placeholder="예: Java, Spring Boot, PostgreSQL" />
         <FormField label="Repository URL (선택)" value={form.repositoryUrl} onChange={(value) => updateField('repositoryUrl', value)} error={fieldErrors.repositoryUrl} placeholder="https://github.com/..." />
         <label className="wide-field">설명<textarea value={form.description} onChange={(event) => updateField('description', event.target.value)} placeholder="문제, 구현 내용, 성과를 기록해주세요." maxLength={10000} rows={4} />{fieldErrors.description && <small className="field-error">{fieldErrors.description}</small>}</label>
@@ -722,7 +736,7 @@ function ProjectPageContent() {
       {isLoading && <div className="list-state">프로젝트 목록을 불러오는 중입니다...</div>}
       {!isLoading && loadError && <div className="list-state error-state" role="alert">{loadError}<button className="text-button" onClick={() => void loadProjects(page)}>다시 시도</button></div>}
       {!isLoading && !loadError && projects.length === 0 && <div className="list-state">아직 등록된 프로젝트가 없습니다. 위에서 첫 프로젝트를 기록해보세요.</div>}
-      {!isLoading && !loadError && projects.length > 0 && <div className="experience-list">{projects.map((project) => <article className="experience-item" key={project.id}><div className="experience-date">{project.startDate}<span>→</span>{project.endDate ?? '현재'}</div><div className="experience-main"><h3>{project.name}</h3><strong>{project.role}</strong><p>{project.description}</p><div className="tech-stack">{project.techStack}</div>{project.repositoryUrl && <a className="repo-link" href={project.repositoryUrl} target="_blank" rel="noreferrer">Repository ↗</a>}</div><div className="item-actions"><button className="text-button" onClick={() => startEdit(project)}>수정</button><button className="text-button danger-button" onClick={() => void deleteProject(project.id)} disabled={deletingId === project.id}>{deletingId === project.id ? '삭제 중' : '삭제'}</button></div></article>)}</div>}
+      {!isLoading && !loadError && projects.length > 0 && <div className="experience-list">{projects.map((project) => <article className="experience-item" key={project.id}><div className="experience-date">{project.startDate}<span>→</span>{project.endDate ?? '현재'}</div><div className="experience-main"><h3>{project.name}</h3><strong>{project.role}</strong>{project.customerOrDomain && <div className="job-source-label">{project.customerOrDomain}</div>}<p>{project.description}</p><div className="tech-stack">{project.techStack}</div>{project.repositoryUrl && <a className="repo-link" href={project.repositoryUrl} target="_blank" rel="noreferrer">Repository ↗</a>}</div><div className="item-actions"><button className="text-button" onClick={() => startEdit(project)}>수정</button><button className="text-button danger-button" onClick={() => void deleteProject(project.id)} disabled={deletingId === project.id}>{deletingId === project.id ? '삭제 중' : '삭제'}</button></div></article>)}</div>}
       {!isLoading && !loadError && totalPages > 1 && <div className="pagination"><button className="text-button" disabled={page === 0} onClick={() => void loadProjects(page - 1)}>← 이전</button><span>{page + 1} / {totalPages}</span><button className="text-button" disabled={page >= totalPages - 1} onClick={() => void loadProjects(page + 1)}>다음 →</button></div>}
     </section>
     {isImportOpen && <TxtImportModal title="프로젝트 TXT 가져오기" template={projectTxtTemplate} onClose={() => setIsImportOpen(false)} onApply={applyTxtImport} />}
@@ -906,6 +920,33 @@ function formatJobKoreaDate(value: string) {
   return value ? value.replaceAll('-', '.') : '입력 필요'
 }
 
+function formatCareerPeriod(startDate: string | null | undefined, endDate: string | null | undefined) {
+  if (!startDate) return '입력 필요'
+  return `${formatJobKoreaDate(startDate)} ~ ${endDate ? formatJobKoreaDate(endDate) : '현재'}`
+}
+
+function buildCareerDescription(projects: Project[], experiences: Experience[]) {
+  const projectSections = projects.map((project) => [
+    `[프로젝트] ${project.name}`,
+    `① 프로젝트 명: ${project.name}`,
+    `② 고객사/Domain: ${project.customerOrDomain?.trim() || '입력 필요 (Project에 고객사 / Domain을 입력해주세요.)'}`,
+    `③ 수행 기간: ${formatCareerPeriod(project.startDate, project.endDate)}`,
+    `④ 업무 내용 및 성과: ${project.description.trim() || '입력 필요'}`,
+    `⑤ 담당 역할: ${project.role}`,
+    `⑥ 보유/활용 Skill: ${project.techStack}`,
+  ].join('\n'))
+  const experienceSections = experiences.map((experience) => [
+    `[경력] ${experience.companyName}`,
+    `① 프로젝트 명: 입력 필요 (Experience에 프로젝트명이 없습니다.)`,
+    `② 고객사/Domain: ${experience.companyName}`,
+    '③ 수행 기간: 입력 필요 (Experience에 경력 기간이 없습니다.)',
+    `④ 업무 내용 및 성과: ${experience.description.trim() || '입력 필요'}`,
+    `⑤ 담당 역할: ${experience.role}`,
+    '⑥ 보유/활용 Skill: 입력 필요 (Experience에 기술 스택이 없습니다.)',
+  ].join('\n'))
+  return [...projectSections, ...experienceSections].join('\n\n')
+}
+
 function emptyJobKoreaEducation(): JobKoreaEducation {
   return { schoolType: '', schoolName: '', admissionMonth: '', graduationMonth: '', status: '', major: '', gpa: '', gpaScale: '', additionalMajor: '' }
 }
@@ -1001,6 +1042,7 @@ function JobKoreaExportModal({
   const [status, setStatus] = useState('')
   const [isGenerating, setIsGenerating] = useState(false)
   const [isLoadingCareers, setIsLoadingCareers] = useState(false)
+  const [isGeneratingCareerDescription, setIsGeneratingCareerDescription] = useState(false)
   const [reviewConfirmed, setReviewConfirmed] = useState(false)
 
   type TextField = Exclude<keyof JobKoreaExportProfile, 'educations' | 'careers' | 'overseas' | 'activities' | 'trainings' | 'certificates' | 'awards' | 'languages' | 'portfolios' | 'selfIntroductions' | 'veteran' | 'employmentProtection' | 'employmentSupport' | 'disability'>
@@ -1111,13 +1153,7 @@ function JobKoreaExportModal({
     setIsLoadingCareers(true)
     setStatus('Career의 경력을 불러오는 중입니다...')
     try {
-      const firstPage = await request<PageResponse<Experience>>('/v1/experiences?page=0&size=100')
-      const remainingPages = await Promise.all(
-        Array.from({ length: Math.max(0, firstPage.totalPages - 1) }, (_, index) =>
-          request<PageResponse<Experience>>(`/v1/experiences?page=${index + 1}&size=100`)
-        )
-      )
-      const allExperiences = [firstPage, ...remainingPages].flatMap((page) => page.content)
+      const allExperiences = await requestAllPages<Experience>('/v1/experiences')
       const careers = allExperiences.map((experience) => ({
         ...emptyJobKoreaCareer(),
         companyName: experience.companyName,
@@ -1132,6 +1168,38 @@ function JobKoreaExportModal({
       setStatus(error instanceof Error ? error.message : 'Career 경력을 불러오지 못했습니다.')
     } finally {
       setIsLoadingCareers(false)
+    }
+  }
+
+  async function generateCareerDescription() {
+    if (profile.careerDescription.trim() && !window.confirm('현재 경력기술서 내용을 Career 데이터로 교체할까요?')) return
+    setIsGeneratingCareerDescription(true)
+    setStatus('프로젝트와 경력 데이터를 모아 경력기술서를 작성하는 중입니다...')
+    try {
+      const [experiences, projects] = await Promise.all([
+        requestAllPages<Experience>('/v1/experiences'),
+        requestAllPages<Project>('/v1/projects'),
+      ])
+      if (experiences.length === 0 && projects.length === 0) {
+        throw new Error('먼저 Career 메뉴에 경력 또는 프로젝트를 등록해주세요.')
+      }
+      const description = buildCareerDescription(projects, experiences)
+      setProfile((current) => ({
+        ...current,
+        careerDescription: description,
+        careers: current.careers.length > 0 ? current.careers : experiences.map((experience) => ({
+          ...emptyJobKoreaCareer(),
+          companyName: experience.companyName,
+          job: experience.role,
+          duties: experience.description,
+        })),
+      }))
+      setReviewConfirmed(false)
+      setStatus(`프로젝트 ${projects.length}개와 경력 ${experiences.length}개를 반영했습니다. '입력 필요' 항목과 성과를 검토해주세요.`)
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : '경력기술서를 자동 작성하지 못했습니다.')
+    } finally {
+      setIsGeneratingCareerDescription(false)
     }
   }
 
@@ -1344,7 +1412,7 @@ function JobKoreaExportModal({
             <label className="export-checkbox export-profile-wide" title="JobKorea 인재정보에 이 경력의 회사명을 공개하지 않습니다."><input type="checkbox" checked={career.hideCompanyName} onChange={(event) => setProfile((current) => ({ ...current, careers: current.careers.map((item, itemIndex) => itemIndex === index ? { ...item, hideCompanyName: event.target.checked } : item) }))} />인재정보에 회사명 비공개 ⓘ</label>
             <label className="export-profile-wide">담당업무<textarea value={career.duties} onChange={(event) => updateCareer(index, 'duties', event.target.value)} rows={4} placeholder="담당하신 업무와 성과에 대해 간단명료하게 적어주세요." /></label>
           </div></div> })}
-        </div><label className="export-wide-label">경력기술서<textarea value={profile.careerDescription} onChange={(event) => updateProfile('careerDescription', event.target.value)} rows={5} placeholder="경력을 자유롭게 작성할 수 있습니다." /></label></div>
+        </div><div className="export-subsection-heading career-description-heading"><strong>경력기술서</strong><button className="secondary-button compact-button" type="button" onClick={() => void generateCareerDescription()} disabled={isGeneratingCareerDescription}>{isGeneratingCareerDescription ? '자동 작성 중...' : 'Career 데이터로 자동 작성'}</button></div><p className="export-help">① 프로젝트 명 ② 고객사/Domain ③ 수행 기간 ④ 업무 내용 및 성과 ⑤ 담당 역할 ⑥ 보유/활용 Skill 순서로 작성합니다. 입력되지 않은 정보는 추측하지 않고 “입력 필요”로 표시합니다.</p><label className="export-wide-label"><textarea value={profile.careerDescription} onChange={(event) => updateProfile('careerDescription', event.target.value)} rows={10} placeholder="경력을 자유롭게 작성하거나 위 버튼으로 Career 데이터를 불러오세요." /></label></div>
 
       <div className="export-section"><div className="export-section-heading"><div><span className="eyebrow">OPTIONAL</span><h3>추가 이력서 항목</h3></div></div>
         {renderAdditionalSection('인턴·대외활동', 'activities')}

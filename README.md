@@ -173,6 +173,9 @@ Experience/Project/JobPosting resources, and immutable Resume versions:
 - Browser-based JobKorea-compatible PDF preview and download from an immutable ResumeVersion
 - JobPosting-generated drafts are converted to the JobKorea field vocabulary before export; only
   account-confirmed or user-entered personal/education data is included
+- Project records can optionally store a customer/domain value for career-description provenance
+- The JobKorea export template can compose an editable career description from owned Experience and
+  Project records using project name, customer/domain, period, duties/results, role, and skills
 - Editable JobKorea required-profile fields with visible review warnings before export
 - Local one-file/5 MB export validation and explicit JobKorea upload-page handoff
 - Privacy-safe JobKorea export audit metadata linked to an owned immutable ResumeVersion

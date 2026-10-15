@@ -14,6 +14,7 @@ public record ProjectResponse(
         LocalDate endDate,
         String description,
         String techStack,
+        String customerOrDomain,
         String repositoryUrl,
         Instant createdAt,
         Instant updatedAt
@@ -28,6 +29,7 @@ public record ProjectResponse(
                 project.getEndDate(),
                 project.getDescription(),
                 project.getTechStack(),
+                project.getCustomerOrDomain(),
                 project.getRepositoryUrl(),
                 project.getCreatedAt(),
                 project.getUpdatedAt()

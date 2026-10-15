@@ -119,11 +119,14 @@ public class EmbeddingIndexService {
         String repository = project.getRepositoryUrl() == null
                 ? ""
                 : "\nRepository: " + project.getRepositoryUrl();
+        String customerOrDomain = project.getCustomerOrDomain() == null
+                ? ""
+                : "\nCustomer/Domain: " + project.getCustomerOrDomain();
         String content = "Project\n"
                 + "Name: " + project.getName() + "\n"
                 + "Role: " + project.getRole() + "\n"
                 + "Period: " + period + "\n"
-                + "Tech stack: " + project.getTechStack() + repository + "\n"
+                + "Tech stack: " + project.getTechStack() + customerOrDomain + repository + "\n"
                 + "Description: " + project.getDescription();
         return new SourceDocument(SourceType.PROJECT, project.getId(), content);
     }

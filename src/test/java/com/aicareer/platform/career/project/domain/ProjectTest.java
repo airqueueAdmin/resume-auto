@@ -1,5 +1,6 @@
 package com.aicareer.platform.career.project.domain;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.time.Instant;
@@ -9,6 +10,31 @@ import com.aicareer.platform.identity.domain.User;
 import org.junit.jupiter.api.Test;
 
 class ProjectTest {
+
+    @Test
+    void keepsOptionalCustomerOrDomainForCareerDescription() {
+        User user = User.create(
+                "test@example.com",
+                "{bcrypt}test",
+                "Test User",
+                Instant.parse("2026-01-01T00:00:00Z")
+        );
+
+        Project project = Project.create(
+                user,
+                "Payments Platform",
+                "Backend Developer",
+                LocalDate.of(2025, 1, 1),
+                null,
+                "Built payment APIs and improved settlement reliability.",
+                "Java, Spring Boot, PostgreSQL",
+                "Fintech payment domain",
+                null,
+                Instant.parse("2026-01-01T00:00:00Z")
+        );
+
+        assertThat(project.getCustomerOrDomain()).isEqualTo("Fintech payment domain");
+    }
 
     @Test
     void rejectsEndDateBeforeStartDate() {

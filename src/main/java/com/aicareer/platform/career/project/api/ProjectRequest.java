@@ -14,6 +14,7 @@ public record ProjectRequest(
         LocalDate endDate,
         @NotBlank @Size(max = 10000) String description,
         @NotBlank @Size(max = 1000) String techStack,
+        @Size(max = 300) String customerOrDomain,
         @Size(max = 2048)
         @Pattern(regexp = "^$|https?://.+", message = "repositoryUrl must use http or https")
         String repositoryUrl

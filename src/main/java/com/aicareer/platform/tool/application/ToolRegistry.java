@@ -175,6 +175,7 @@ public class ToolRegistry {
                                 "endDate", Map.of("type", "string", "format", "date"),
                                 "description", stringProperty(10_000),
                                 "techStack", stringProperty(1_000),
+                                "customerOrDomain", stringProperty(300),
                                 "repositoryUrl", Map.of(
                                         "type", "string",
                                         "maxLength", 2_048,
