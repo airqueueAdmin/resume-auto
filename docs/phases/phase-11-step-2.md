@@ -63,6 +63,15 @@ chunks using the same source filter before calling the embedding provider, so an
 reported as a grounding validation result and provider failures remain reserved for non-empty
 searches. The full 98-test suite passed after this fix.
 
+Remote CI verification history:
+
+- Run 1 failed in the backend Maven step because the initial Windows-created commit stored
+  `mvnw` as mode `100644`; Linux runners could not execute `./mvnw`.
+- Commit `9d46469` changed `mvnw` to mode `100755`. Run 2 then passed backend tests, frontend build,
+  and Compose validation.
+- Run 2's container job failed during GitHub-hosted runner setup before any job step executed. The
+  local backend/frontend image build passed, so this remains an environment-level CI rerun item.
+
 The vulnerability reports and dependency-review result require a remote CI runner and are therefore
 not marked as locally executed results.
 
