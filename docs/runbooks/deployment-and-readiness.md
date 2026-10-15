@@ -63,6 +63,10 @@ docker image inspect ai-career-platform-backend ai-career-platform-frontend `
   --format '{{.RepoTags}} {{.Id}} {{.Size}}'
 ```
 
+The backend Dockerfile retries Maven dependency resolution and packaging up to five times,
+with a 5-to-25 second backoff, because a transient Maven Central `502 Bad Gateway` must not
+invalidate an otherwise reproducible image build.
+
 ## Backup and restore
 
 Create a plain SQL backup before a release that can apply Flyway migrations. The command uses the
