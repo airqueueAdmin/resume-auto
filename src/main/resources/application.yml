@@ -27,10 +27,9 @@ app:
       access-token-ttl: ${JWT_ACCESS_TOKEN_TTL:PT15M}
       refresh-token-ttl: ${JWT_REFRESH_TOKEN_TTL:P14D}
   ai:
-    provider: ${AI_PROVIDER:ollama}
+    provider: ${AI_PROVIDER:gemini}
     prompt-version: ${AI_PROMPT_VERSION:job-analysis-v1}
-    # Local Ollama structured generation can take longer than a network LLM call,
-    # especially when the model is cold or the retrieved evidence is large.
+    # Provider request timeout; increase this for cold local Ollama models or large responses.
     timeout: ${AI_TIMEOUT:PT120S}
     max-attempts: ${AI_MAX_ATTEMPTS:2}
     retry-delay: ${AI_RETRY_DELAY:PT0.1S}
@@ -48,6 +47,17 @@ app:
       max-output-tokens: ${AI_RESUME_DRAFT_MAX_OUTPUT_TOKENS:4096}
       gemini-thinking-budget: ${AI_RESUME_DRAFT_GEMINI_THINKING_BUDGET:512}
       max-attempts: ${AI_RESUME_DRAFT_MAX_ATTEMPTS:2}
+    self-introduction:
+      prompt-version: ${AI_SELF_INTRODUCTION_PROMPT_VERSION:self-introduction-v5}
+      top-k: ${AI_SELF_INTRODUCTION_TOP_K:8}
+      minimum-similarity: ${AI_SELF_INTRODUCTION_MIN_SIMILARITY:0.45}
+      max-context-characters: ${AI_SELF_INTRODUCTION_MAX_CONTEXT_CHARACTERS:24000}
+      max-output-tokens: ${AI_SELF_INTRODUCTION_MAX_OUTPUT_TOKENS:1800}
+      gemini-thinking-budget: ${AI_SELF_INTRODUCTION_GEMINI_THINKING_BUDGET:0}
+      ollama-fallback-enabled: ${AI_SELF_INTRODUCTION_OLLAMA_FALLBACK_ENABLED:true}
+      max-attempts: ${AI_SELF_INTRODUCTION_MAX_ATTEMPTS:2}
+      ollama-timeout: ${AI_SELF_INTRODUCTION_OLLAMA_TIMEOUT:PT300S}
+      ollama-max-output-tokens: ${AI_SELF_INTRODUCTION_OLLAMA_MAX_OUTPUT_TOKENS:900}
     openai:
       endpoint: ${OPENAI_RESPONSES_URL:https://api.openai.com/v1/responses}
       api-key: ${OPENAI_API_KEY:}

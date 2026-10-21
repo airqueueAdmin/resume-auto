@@ -17,7 +17,7 @@ Completed design and implementation records are maintained separately from this 
 - [Phase 1 completion record](docs/phases/phase-1.md)
 - [Phase 2 completion record](docs/phases/phase-2.md)
 - [Phase 2 Ollama local provider step](docs/phases/phase-2-step-ollama.md)
-- [ADR 0001: Local Ollama provider](docs/adr/0001-local-ollama-as-default-llm-provider.md)
+- [ADR 0015: Gemini as the default text provider](docs/adr/0015-gemini-as-default-text-provider.md)
 - [Phase 3 completion record](docs/phases/phase-3.md)
 - [Phase 3 Step 1 record](docs/phases/phase-3-step-1.md)
 - [Phase 3 Step 2 record](docs/phases/phase-3-step-2.md)
@@ -55,6 +55,9 @@ Completed design and implementation records are maintained separately from this 
 - [Phase 11 Step 3 record](docs/phases/phase-11-step-3.md)
 - [Phase 11 completion record](docs/phases/phase-11.md)
 - [Deployment and readiness runbook](docs/runbooks/deployment-and-readiness.md)
+- [Phase 12 Oracle VM deployment plan](docs/phases/phase-12-plan.md)
+- [Phase 12 Step 1 record](docs/phases/phase-12-step-1.md)
+- [Oracle VM deployment runbook](docs/runbooks/oracle-vm-deployment.md)
 - [ADR 0011: detailed self-introduction sections](docs/adr/0011-detailed-self-introduction-sections.md)
 - [ADR 0012: reproducible full-stack containers](docs/adr/0012-reproducible-full-stack-containers.md)
 - [ADR 0003: validated RAG citations](docs/adr/0003-validated-rag-citations.md)
@@ -86,7 +89,7 @@ The planned Resume UX is a library of approved, immutable versions rather than a
 The first approved grounded draft may create the Resume container automatically. New generated documents
 use a versioned JobKorea-compatible internal template mapped to the user-controlled file export contract.
 
-## Current scope: Phase 11 complete for the approved packaging and operability scope
+## Current scope: Phase 12 Oracle VM deployment in progress
 
 The project currently includes the Spring Boot foundation, identity boundary, user-owned
 Experience/Project/JobPosting resources, and immutable Resume versions:
@@ -118,6 +121,7 @@ Experience/Project/JobPosting resources, and immutable Resume versions:
 - Resume CRUD with user ownership checks
 - immutable ResumeVersion snapshots
 - paginated Resume and ResumeVersion collection APIs
+- company-specific Resume application questions and editable answers
 - sequential version numbering protected by a database row lock
 - JobPosting CRUD with user ownership checks
 - paginated JobPosting collection APIs
@@ -127,7 +131,7 @@ Experience/Project/JobPosting resources, and immutable Resume versions:
 - JWT Bearer security scheme and protected resource documentation
 - Docker Compose PostgreSQL service with healthcheck and named volume
 - Direct OpenAI Responses API adapter and local Ollama adapter behind one LLM port
-- Ollama is the default provider for local development; OpenAI remains opt-in
+- Gemini is the default text generation provider; Ollama and OpenAI remain configurable alternatives
 - Structured Job Description analysis through `POST /api/v1/ai/analyze-job`
 - Versioned classpath prompt (`job-analysis-v1`) and strict JSON Schema output
 - Immutable PostgreSQL JSONB AI analysis artifacts with provider token usage
@@ -182,6 +186,8 @@ Experience/Project/JobPosting resources, and immutable Resume versions:
 - Explicit required-field demo-data helper for local export testing; demo values remain browser-local and
   must be replaced before a real JobKorea upload
 - Career 화면에서 Experience/Project 임베딩 인덱스를 직접 재생성하는 버튼
+- Resume 화면에서 기업별 자기소개서 질문을 저장하고, Experience/Project 근거 기반 AI 답변 초안을
+  검토·수정한 뒤 저장하는 흐름
 
 The following are intentionally not included yet:
 
@@ -287,12 +293,20 @@ Configuration is externalized through environment variables:
 - `POSTGRES_DB`: Docker Compose database name, default `ai_career`
 - `POSTGRES_USER`: Docker Compose database user, default `ai_career`
 - `POSTGRES_PASSWORD`: Docker Compose database password for local development
+- `POSTGRES_BIND_ADDRESS`: Docker Compose PostgreSQL host bind address, default `0.0.0.0`; Oracle
+  deployment sets `127.0.0.1`
 - `POSTGRES_HOST_PORT`: host port mapped to PostgreSQL, default `5432`
+- `BACKEND_BIND_ADDRESS`: Docker Compose backend host bind address, default `0.0.0.0`; Oracle
+  deployment sets `127.0.0.1`
+- `BACKEND_HOST_PORT`: host port mapped to the backend, default `8080`
+- `FRONTEND_BIND_ADDRESS`: Docker Compose frontend host bind address, default `0.0.0.0`; Oracle
+  deployment sets `127.0.0.1`
+- `FRONTEND_HOST_PORT`: host port mapped to the frontend, default `5173`
 - `JWT_ISSUER`: JWT issuer, default `ai-career-platform`
 - `JWT_SECRET_BASE64`: Base64-encoded HMAC secret; use a unique secret outside local development
 - `JWT_ACCESS_TOKEN_TTL`: Access JWT lifetime, default `PT15M`
 - `JWT_REFRESH_TOKEN_TTL`: Refresh Session lifetime, default `P14D`
-- `AI_PROVIDER`: LLM provider, `ollama` or `openai`; default `ollama`
+- `AI_PROVIDER`: text LLM provider, `gemini`, `ollama`, or `openai`; default `gemini`
 - `AI_PROMPT_VERSION`: classpath prompt version, default `job-analysis-v1`
 - `AI_TIMEOUT`: per-request timeout, default `PT120S`; local Ollama structured resume generation can require more than 20 seconds
 - `AI_MAX_ATTEMPTS`: total attempts including the first request, default `2`
@@ -319,8 +333,8 @@ Configuration is externalized through environment variables:
 - `OLLAMA_CHAT_URL`: local Ollama chat URL, default `http://localhost:11434/api/chat`
 - `OLLAMA_MODEL`: local Ollama model, default `llama3.1:8b`
 - `GEMINI_API_URL`: Gemini API base URL, default `https://generativelanguage.googleapis.com/v1beta`
-- `GEMINI_API_KEY`: server-side Gemini API key for OCR and resume-draft generation/fallback
-- `GEMINI_MODEL`: Gemini model for OCR/resume drafts, default `gemini-2.5-flash`
+- `GEMINI_API_KEY`: server-side Gemini API key for text generation, OCR, and resume-draft generation/fallback; empty by default, so set it before using Gemini-backed features
+- `GEMINI_MODEL`: Gemini model for text generation, OCR, and resume drafts, default `gemini-2.5-flash`
 - `GEMINI_TIMEOUT`: per-request Gemini timeout, default `PT90S`
 - `GEMINI_MAX_ATTEMPTS`: total Gemini attempts per request, default `1`
 - `GEMINI_RETRY_DELAY`: delay between transient Gemini retries, default `PT0.1S`
@@ -335,16 +349,21 @@ Configuration is externalized through environment variables:
 - `OPENAI_API_KEY`: server-side provider API key; empty by default for local startup
 - `OPENAI_MODEL`: provider model, default `gpt-4o-mini`
 
-Image-only JobKorea postings use the Gemini API for OCR during import preview. Set `GEMINI_API_KEY`
-on the backend and keep `AI_PROVIDER=ollama` if Ollama should remain the text LLM provider. Each
+Gemini is the default text provider for job analysis, job matching, and company-specific self-introduction
+answer generation. Set `GEMINI_API_KEY` on the backend before using these features. Set
+`AI_PROVIDER=ollama` for local text generation or `AI_PROVIDER=openai` for OpenAI. Gemini-backed
+requests send job posting content and retrieved career evidence to Google's API; configure a provider
+that matches your data-handling requirements.
+
+Image-only JobKorea postings also use the Gemini API for OCR during import preview. Each
 detail image is downloaded by the backend and sent as an independent Gemini OCR request; successful
 chunks are combined in image order. If the key is missing or Gemini cannot read any image, the preview
 keeps the original image URLs and reports an OCR warning instead of silently using the short metadata
 description. Ollama vision models are not required or used.
 
-Resume draft generation uses Gemini by default through `AI_RESUME_DRAFT_PROVIDER=gemini`. The global
-`AI_PROVIDER` remains responsible for job analysis and matching. If Gemini cannot complete a resume
-draft, the configured global provider is used as a bounded fallback. Set
+Resume draft generation uses Gemini by default through `AI_RESUME_DRAFT_PROVIDER=gemini`. If Gemini
+cannot complete a resume draft and the global provider is a different supported provider, that provider
+is used as a bounded fallback. Set
 `AI_RESUME_DRAFT_PROVIDER=configured` to restore the global provider as the resume-draft primary.
 Gemini receives the job posting and retrieved career evidence and may incur provider cost or quota usage.
 The free Gemini allocation can return `503` when quota or provider capacity is unavailable. The current
@@ -356,7 +375,7 @@ keys must never be generated or exposed by the browser.
 For a local PowerShell run, configure the key without committing it:
 
 ```powershell
-$env:AI_PROVIDER = "ollama"
+$env:AI_PROVIDER = "gemini"
 $env:AI_RESUME_DRAFT_PROVIDER = "gemini"
 $env:GEMINI_API_KEY = "your-gemini-api-key"
 ```
@@ -493,9 +512,9 @@ preview. Private hosts, non-HTML responses, oversized pages, and excessive redir
 The service verifies ownership using the authenticated JWT subject before calling the provider. A
 successful response contains the structured summary, role family, seniority, responsibilities,
 required/preferred skills, keywords, provider/model metadata, prompt version, and input/output/total
-token usage. Each successful call creates a new immutable analysis artifact. Local development uses
-Ollama by default and does not require an OpenAI API key. Set `AI_PROVIDER=openai` and configure
-`OPENAI_API_KEY` only when using the paid OpenAI provider.
+token usage. Each successful call creates a new immutable analysis artifact. Gemini is the default and
+requires `GEMINI_API_KEY`. Set `AI_PROVIDER=ollama` for local generation or `AI_PROVIDER=openai` and
+configure `OPENAI_API_KEY` to use OpenAI.
 
 Ollama must be running with the configured model available:
 
@@ -681,11 +700,73 @@ to build validated RAG context.
 | ResumeVersion | `POST /api/v1/resumes/{resumeId}/versions` | Creates the next immutable snapshot |
 | ResumeVersion | `GET /api/v1/resumes/{resumeId}/versions` | Returns paginated snapshots |
 | ResumeVersion | `GET /api/v1/resumes/{resumeId}/versions/{versionId}` | Reads one snapshot |
+| Resume application question | `POST /api/v1/resumes/{resumeId}/application-questions` | Saves a question linked to an owned job posting and its answer |
+| Resume application question | `GET /api/v1/resumes/{resumeId}/application-questions` | Returns paginated company-specific questions |
+| Resume application question | `PUT /api/v1/resumes/{resumeId}/application-questions/{questionId}` | Updates a question or user-reviewed answer |
+| Resume application question | `DELETE /api/v1/resumes/{resumeId}/application-questions/{questionId}` | Deletes a question and answer |
 | Resume draft | `POST /api/v1/ai/resume-drafts/{draftId}/approve` | Approves a grounded draft into the next immutable ResumeVersion |
 | Resume draft | `POST /api/v1/ai/resume-drafts/{draftId}/approve-new` | Creates a new Resume and immutable Version 1 from an approved draft |
 
 There is intentionally no ResumeVersion update or delete endpoint. Editing a resume means creating
 another version; previous content remains available for comparison and audit.
+
+## Company-specific self-introduction answers
+
+The Resume screen supports company-specific self-introduction questions. Select the saved company
+posting for each question, enter the exact question, then select `질문 저장 · AI 작성`. The server
+loads the posting through the authenticated user's ownership scope, searches using the question and
+role title, then sends the posting context and relevant indexed Experience/Project
+evidence to the model. Career citations support candidate claims; the job posting is tailoring context,
+not evidence about the candidate.
+
+```http
+POST /api/v1/ai/generate-self-introduction-answer
+Authorization: Bearer <access-token>
+Content-Type: application/json
+
+{"resumeId":"resume-uuid","questionId":"saved-question-uuid"}
+```
+
+The answer fills the editor after generation, and the cited Career source snapshots can be expanded
+beside it for review. It is a preview until the user selects `답변 저장`;
+the application-question `PUT` endpoint stores the reviewed answer. If generation fails, the saved
+question remains available for retry. If the posting is missing, link one before generation. If the
+career evidence has not been indexed, update it from the Career screen first. Citations identify the
+retrieved source, but they do not by themselves prove that every generated claim is factually correct,
+so user review remains required.
+
+The `self-introduction-v5` prompt plans the answer around the question, key posting requirements, and
+one or two concrete career examples, then writes formal Korean prose connecting demonstrated actions
+and recorded outcomes to the target role. Accepted retrieval results are ordered by explicit posting-term
+overlap and then vector similarity so directly matching domain/technology evidence precedes generic SI
+history. The model returns sentence text and supporting citation IDs separately; the server validates
+the citations and adds inline `[C#]` markers. Gemini token truncation, malformed JSON, and
+invalid grounding trigger the enabled Ollama fallback. Ollama must pass the same checks. The response
+reports the provider and model that produced the accepted draft. `RAG_CONTEXT_EMPTY` means retrieval
+found no sufficiently relevant evidence; `RAG_ANSWER_UNSUPPORTED` means evidence was retrieved but the
+model could not support an answer. These differ from provider response-format failures.
+
+CPU-only Ollama can take longer than Gemini. The fallback requests at most three concise sentences,
+uses `AI_SELF_INTRODUCTION_OLLAMA_MAX_OUTPUT_TOKENS=900` and
+`AI_SELF_INTRODUCTION_OLLAMA_TIMEOUT=PT300S` by default, and is invoked once. Token-truncated Ollama
+output is rejected as incomplete. The success log reports the actual provider, token usage, and latency
+without logging the user's question, source text, or generated answer.
+Self-introduction Ollama requests use an 8,192-token context to leave room for the v5 writing guidance,
+career evidence, and output. If a model groups several sentences in one cited item, the server renders
+each sentence with that item's original citation IDs.
+
+Restart the running backend after changing Java code, schemas, or prompt resources. An IDE process
+started before a rebuild can keep the previous prompt and validation code. On startup, check the
+`Self-introduction AI configured` log for `promptVersion=self-introduction-v5` and
+`fallbackEnabled=true`. An explicit `AI_SELF_INTRODUCTION_PROMPT_VERSION` environment setting overrides
+the default in `application.yml`.
+
+The provider/model/prompt/chunk-count line in the answer editor is visible only when the backend Spring
+profile is `local`. The server returns `diagnosticsVisible`; other profiles hide this technical metadata
+while retaining the cited evidence for review. See [ADR 0018](docs/adr/0018-professional-job-specific-self-introduction-answers.md).
+
+See the [self-introduction defect verification record](docs/verification/2026-10-20-self-introduction-generation.md)
+for the reproduced failure paths, regression tests, and live Gemini/Ollama results.
 
 The primary UI flow will not require users to create an empty Resume first. Approval can create the first
 Resume container automatically, while the existing create endpoint remains available for compatibility.
@@ -725,14 +806,15 @@ annotations. It is not a second manually maintained API specification.
 
 ## Deployment and next direction
 
-Phase 11 now has reproducible full-stack containers, a non-deploying CI workflow for backend tests,
+Phase 11 established reproducible full-stack containers, a non-deploying CI workflow for backend tests,
 frontend builds, Compose validation, container builds, and vulnerability reports, plus a deployment
-and readiness runbook. The application currently generates
+and readiness runbook. Phase 12 now prepares a free Oracle VM deployment using the existing Compose
+topology, host Ollama, and an HTTPS reverse proxy. The application currently generates
 a browser-side PDF from an approved ResumeVersion, lets the user review and download it, and can open the
 JobKorea upload page. Server-side upload, credentials, refresh tokens, cookies, and CAPTCHA/anti-automation
 bypasses are out of scope.
 
-Redis, asynchronous processing, streaming, distributed tracing, cloud deployment, and image publication
-remain deferred until latency, load, cost, privacy, or operational measurements justify them. Agent
-behavior remains deferred until a concrete use case demonstrates that dynamic Tool selection is genuinely
-needed.
+Redis, asynchronous processing, streaming, distributed tracing, image publication, and automatic
+deployment remain deferred until latency, load, cost, privacy, or operational measurements justify
+them. The Oracle VM deployment is intentionally single-host and manually promoted. Agent behavior
+remains deferred until a concrete use case demonstrates that dynamic Tool selection is genuinely needed.

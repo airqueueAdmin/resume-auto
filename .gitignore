@@ -2,6 +2,7 @@ target/
 .mvn/wrapper/maven-wrapper.jar
 *.log
 .env
+.env.oracle
 .idea/
 *.iml
 frontend/.env
@@ -15,5 +16,6 @@ personal-data/
 private-data/
 uploads/
 exports/
+backups/
 *.eml
 *.vcf

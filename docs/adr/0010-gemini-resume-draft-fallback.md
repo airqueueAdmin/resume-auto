@@ -16,7 +16,8 @@ Gemini as its default while the global provider remains unchanged for job analys
 
 Use Gemini as the default primary provider for resume drafts through `AI_RESUME_DRAFT_PROVIDER=gemini`.
 Keep the global `AI_PROVIDER` for job analysis and matching. When Gemini cannot complete a resume draft,
-use the configured global provider as a bounded fallback. `AI_RESUME_DRAFT_PROVIDER=configured` restores
+use the configured global provider as a bounded fallback when it is a different provider. If both are
+Gemini, do not repeat the same request as a fallback. `AI_RESUME_DRAFT_PROVIDER=configured` restores
 the global provider as the resume-draft primary.
 
 - The fallback uses the existing Gemini `generateContent` endpoint and JSON MIME response mode.
@@ -26,7 +27,7 @@ the global provider as the resume-draft primary.
   Gemini rather than being mislabeled as Ollama.
 - Request failures caused by invalid provider configuration are not hidden by fallback.
 - Users who require local-only processing can set `AI_RESUME_DRAFT_PROVIDER=configured` and use
-  `AI_PROVIDER=ollama`.
+  `AI_PROVIDER=ollama`. Gemini is the global default per ADR 0015.
 
 ## Consequences
 

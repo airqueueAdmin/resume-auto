@@ -59,6 +59,10 @@ public class Resume {
         this.updatedAt = now;
     }
 
+    public void touch(Instant now) {
+        this.updatedAt = now;
+    }
+
     public int nextVersionNumber() {
         return latestVersionNumber + 1;
     }

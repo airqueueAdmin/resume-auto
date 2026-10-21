@@ -9,6 +9,8 @@ import com.aicareer.platform.ai.application.RagMatchingService;
 import com.aicareer.platform.ai.application.ResumeDraftApprovalService;
 import com.aicareer.platform.ai.application.ResumeDraftOutcome;
 import com.aicareer.platform.ai.application.ResumeDraftService;
+import com.aicareer.platform.ai.application.SelfIntroductionAnswerOutcome;
+import com.aicareer.platform.ai.application.SelfIntroductionAnswerService;
 import com.aicareer.platform.career.resume.api.ResumeResponse;
 import com.aicareer.platform.career.resume.api.ResumeVersionResponse;
 import io.swagger.v3.oas.annotations.Operation;
@@ -19,6 +21,8 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.core.env.Environment;
+import org.springframework.core.env.Profiles;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -35,17 +39,23 @@ public class AiController {
     private final RagMatchingService ragMatchingService;
     private final ResumeDraftService resumeDraftService;
     private final ResumeDraftApprovalService resumeDraftApprovalService;
+    private final SelfIntroductionAnswerService selfIntroductionAnswerService;
+    private final Environment environment;
 
     public AiController(
             JobAnalysisService jobAnalysisService,
             RagMatchingService ragMatchingService,
             ResumeDraftService resumeDraftService,
-            ResumeDraftApprovalService resumeDraftApprovalService
+            ResumeDraftApprovalService resumeDraftApprovalService,
+            SelfIntroductionAnswerService selfIntroductionAnswerService,
+            Environment environment
     ) {
         this.jobAnalysisService = jobAnalysisService;
         this.ragMatchingService = ragMatchingService;
         this.resumeDraftService = resumeDraftService;
         this.resumeDraftApprovalService = resumeDraftApprovalService;
+        this.selfIntroductionAnswerService = selfIntroductionAnswerService;
+        this.environment = environment;
     }
 
     @PostMapping("/analyze-job")
@@ -85,6 +95,20 @@ public class AiController {
                 request.jobPostingId()
         );
         return ResumeDraftResponse.from(outcome);
+    }
+
+    @PostMapping("/generate-self-introduction-answer")
+    @Operation(summary = "Generate a grounded answer for a saved question and its linked job posting")
+    public SelfIntroductionAnswerResponse generateSelfIntroductionAnswer(
+            @AuthenticationPrincipal Jwt jwt,
+            @Valid @RequestBody GenerateSelfIntroductionAnswerRequest request
+    ) {
+        SelfIntroductionAnswerOutcome outcome = selfIntroductionAnswerService.generate(
+                UUID.fromString(jwt.getSubject()),
+                request.resumeId(),
+                request.questionId()
+        );
+        return SelfIntroductionAnswerResponse.from(outcome, environment.acceptsProfiles(Profiles.of("local")));
     }
 
     @PostMapping("/resume-drafts/{draftId}/approve")

@@ -2,7 +2,9 @@
 
 ## Status
 
-Complete. This is an extension step for the completed Phase 2 direct LLM integration.
+Complete. This is an extension step for the completed Phase 2 direct LLM integration. Its historical
+Ollama default was superseded by [ADR 0015](../adr/0015-gemini-as-default-text-provider.md); select
+`AI_PROVIDER=ollama` explicitly to use Ollama for text generation.
 
 ## Objective
 
@@ -12,7 +14,8 @@ an OpenAI API key or paid API usage.
 ## Design decisions
 
 - Keep the application-level `LlmClient` port unchanged as the provider boundary.
-- Select `ollama` or `openai` through `AI_PROVIDER`; default to `ollama` for local development.
+- Select `ollama` or `openai` through `AI_PROVIDER`; Ollama is the local option. Gemini is the current
+  default per ADR 0015.
 - Keep provider HTTP and JSON details in infrastructure adapters.
 - Use Ollama's `/api/chat` endpoint with `stream: false` and the same Job Analysis JSON Schema used
   by the OpenAI adapter.

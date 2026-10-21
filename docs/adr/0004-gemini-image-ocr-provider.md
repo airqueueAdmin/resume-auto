@@ -14,7 +14,8 @@ workloads still need to remain available through Ollama.
 
 Use the Gemini API as the image OCR provider, independently of `AI_PROVIDER`:
 
-- `AI_PROVIDER=ollama` continues to select Ollama for text LLM requests.
+- `AI_PROVIDER` selects text generation independently of OCR; see [ADR 0015](0015-gemini-as-default-text-provider.md)
+  for the current default and the Ollama/OpenAI alternatives.
 - `GEMINI_API_KEY` authenticates backend-only OCR requests.
 - Each image is downloaded and sent as one Gemini `generateContent` request.
 - Successful image results are combined in source image order; a failed image does not discard other

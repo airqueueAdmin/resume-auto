@@ -7,6 +7,19 @@ The current migration history contains the identity, Experience/Project, Resume/
 JobPosting, immutable AI job analysis, pgvector embedding chunks, immutable grounded job matches, and
 immutable grounded resume drafts. New domain changes continue with forward-only migrations.
 
+`V13__create_resume_application_questions.sql` stores user-authored company-specific application
+questions and answers separately from immutable `ResumeVersion` snapshots. AI-generated answers are
+previewed and require an explicit user save through the question API.
+
+`V14__index_resume_application_questions_by_created_at.sql` replaces the original V13
+`(resume_id, updated_at, id)` index with `(resume_id, created_at, id)` to support the question API's
+default list order. V13 remains unchanged for databases that already applied it.
+
+`V15__link_resume_application_questions_to_job_postings.sql` links each company-specific question to
+one saved JobPosting. The new column remains nullable for questions created before V15; the API
+requires a user-owned active posting for new and updated questions, and generation requires a linked
+posting.
+
 `V6__create_embedding_chunks.sql` enables the PostgreSQL `vector` extension and stores 768-dimensional
 Ollama embeddings. Each chunk has an explicit foreign key to exactly one `experiences` or `projects`
 row; the initial implementation stores one searchable source snapshot per source row. The migration

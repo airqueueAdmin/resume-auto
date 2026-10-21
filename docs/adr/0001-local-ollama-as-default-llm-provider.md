@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted
+Superseded by [ADR 0015](0015-gemini-as-default-text-provider.md).
 
 ## Context
 

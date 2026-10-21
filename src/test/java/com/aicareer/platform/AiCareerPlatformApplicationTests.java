@@ -144,7 +144,7 @@ class AiCareerPlatformApplicationTests {
     @Test
     void flywayAppliesIdentityCareerResumeJobPostingAiMatchingResumeDraftAndToolMigrations() throws Exception {
         assertThat(flyway.info().pending()).isEmpty();
-        assertThat(flyway.info().applied()).hasSize(12);
+        assertThat(flyway.info().applied()).hasSize(15);
 
         try (Connection connection = dataSource.getConnection();
                 Statement statement = connection.createStatement();
@@ -155,10 +155,23 @@ class AiCareerPlatformApplicationTests {
                         and table_name in ('users', 'refresh_sessions', 'experiences', 'projects',
                                            'resumes', 'resume_versions', 'job_postings', 'ai_job_analyses',
                                            'embedding_chunks', 'ai_job_matches', 'ai_resume_drafts', 'tool_approvals',
-                                           'jobkorea_export_audits')
+                                           'jobkorea_export_audits', 'resume_application_questions')
                         """)) {
             assertThat(resultSet.next()).isTrue();
-            assertThat(resultSet.getInt(1)).isEqualTo(13);
+            assertThat(resultSet.getInt(1)).isEqualTo(14);
+        }
+
+        try (Connection connection = dataSource.getConnection();
+                Statement statement = connection.createStatement();
+                ResultSet resultSet = statement.executeQuery("""
+                        select indexdef
+                        from pg_indexes
+                        where schemaname = 'public'
+                          and tablename = 'resume_application_questions'
+                          and indexname = 'idx_resume_application_questions_resume_created'
+                        """)) {
+            assertThat(resultSet.next()).isTrue();
+            assertThat(resultSet.getString(1)).contains("(resume_id, created_at, id)");
         }
     }
 
@@ -1335,6 +1348,143 @@ class AiCareerPlatformApplicationTests {
         assertThat(versionsAfter.statusCode()).isEqualTo(200);
         assertThat(versionsAfter.body()).contains("\"size\":1", "\"totalElements\":2", "\"totalPages\":2");
         assertThat(attemptedVersionUpdate.statusCode()).isEqualTo(405);
+    }
+
+    @Test
+    void companySpecificResumeQuestionsSupportDraftAnswersAndOwnershipIsolation() throws Exception {
+        String ownerToken = accessTokenForNewUser();
+        String otherUserToken = accessTokenForNewUser();
+        HttpResponse<String> resume = post("/api/v1/resumes", """
+                {
+                  "name": "Company Application Resume",
+                  "content": "Backend resume content"
+                }
+                """, ownerToken);
+        String resumeId = jsonValue(resume.body(), "id");
+        HttpResponse<String> posting = post("/api/v1/job-postings", """
+                {
+                  "title": "Backend Engineer",
+                  "companyName": "Example Corp",
+                  "description": "Build Java APIs and PostgreSQL services."
+                }
+                """, ownerToken);
+        String jobPostingId = jsonValue(posting.body(), "id");
+
+        HttpResponse<String> invalid = post(
+                "/api/v1/resumes/%s/application-questions".formatted(resumeId),
+                "{\"jobPostingId\":\"%s\",\"question\":\"\",\"answer\":\"\"}".formatted(jobPostingId),
+                ownerToken
+        );
+        HttpResponse<String> created = post(
+                "/api/v1/resumes/%s/application-questions".formatted(resumeId),
+                """
+                {
+                  "jobPostingId": "%s",
+                  "question": "지원동기와 입사 후 목표를 작성해주세요.",
+                  "answer": "초안 답변"
+                }
+                """.formatted(jobPostingId),
+                ownerToken
+        );
+        String questionId = jsonValue(created.body(), "id");
+        HttpResponse<String> listed = get(
+                "/api/v1/resumes/%s/application-questions?page=0&size=20".formatted(resumeId),
+                ownerToken
+        );
+        HttpResponse<String> updated = put(
+                "/api/v1/resumes/%s/application-questions/%s".formatted(resumeId, questionId),
+                """
+                {
+                  "jobPostingId": "%s",
+                  "question": "입사 후 기여하고 싶은 점을 작성해주세요.",
+                  "answer": "검토한 최종 답변"
+                }
+                """.formatted(jobPostingId),
+                ownerToken
+        );
+        HttpResponse<String> otherGet = get(
+                "/api/v1/resumes/%s/application-questions?page=0&size=20".formatted(resumeId),
+                otherUserToken
+        );
+        HttpResponse<String> otherUpdate = put(
+                "/api/v1/resumes/%s/application-questions/%s".formatted(resumeId, questionId),
+                "{\"jobPostingId\":\"%s\",\"question\":\"탈취 시도\",\"answer\":\"탈취 시도\"}".formatted(jobPostingId),
+                otherUserToken
+        );
+        HttpResponse<String> otherCreate = post(
+                "/api/v1/resumes/%s/application-questions".formatted(resumeId),
+                "{\"jobPostingId\":\"%s\",\"question\":\"탈취 시도\",\"answer\":\"\"}".formatted(jobPostingId),
+                otherUserToken
+        );
+        HttpResponse<String> otherDelete = delete(
+                "/api/v1/resumes/%s/application-questions/%s".formatted(resumeId, questionId),
+                otherUserToken
+        );
+        HttpResponse<String> deleted = delete(
+                "/api/v1/resumes/%s/application-questions/%s".formatted(resumeId, questionId),
+                ownerToken
+        );
+        HttpResponse<String> afterDelete = get(
+                "/api/v1/resumes/%s/application-questions?page=0&size=20".formatted(resumeId),
+                ownerToken
+        );
+
+        assertThat(resume.statusCode()).isEqualTo(201);
+        assertThat(invalid.statusCode()).isEqualTo(400);
+        assertThat(invalid.body()).contains("VALIDATION_ERROR", "question");
+        assertThat(created.statusCode()).isEqualTo(201);
+        assertThat(created.body()).contains("지원동기", "초안 답변");
+        assertThat(listed.statusCode()).isEqualTo(200);
+        assertThat(listed.body()).contains("totalElements\":1", "초안 답변");
+        assertThat(updated.statusCode()).isEqualTo(200);
+        assertThat(updated.body()).contains("검토한 최종 답변");
+        assertThat(otherGet.statusCode()).isEqualTo(404);
+        assertThat(otherCreate.statusCode()).isEqualTo(404);
+        assertThat(otherUpdate.statusCode()).isEqualTo(404);
+        assertThat(otherDelete.statusCode()).isEqualTo(404);
+        assertThat(deleted.statusCode()).isEqualTo(204);
+        assertThat(afterDelete.statusCode()).isEqualTo(200);
+        assertThat(afterDelete.body()).contains("totalElements\":0");
+    }
+
+    @Test
+    void selfIntroductionAnswerRequiresOwnedResumeAndIndexedCareerEvidence() throws Exception {
+        String ownerToken = accessTokenForNewUser();
+        String otherUserToken = accessTokenForNewUser();
+        HttpResponse<String> resume = post("/api/v1/resumes", """
+                {"name":"Company Application Resume","content":"Backend resume content"}
+                """, ownerToken);
+        String resumeId = jsonValue(resume.body(), "id");
+        HttpResponse<String> posting = post("/api/v1/job-postings", """
+                {"title":"Backend Engineer","companyName":"Example Corp","description":"Build Java APIs."}
+                """, ownerToken);
+        String jobPostingId = jsonValue(posting.body(), "id");
+        HttpResponse<String> question = post(
+                "/api/v1/resumes/%s/application-questions".formatted(resumeId),
+                """
+                {"jobPostingId":"%s","question":"지원동기를 작성해주세요.","answer":""}
+                """.formatted(jobPostingId),
+                ownerToken
+        );
+        String questionId = jsonValue(question.body(), "id");
+        String endpoint = "/api/v1/ai/generate-self-introduction-answer";
+        String requestBody = """
+                {"resumeId":"%s","questionId":"%s"}
+                """.formatted(resumeId, questionId);
+
+        HttpResponse<String> crossUser = post(endpoint, requestBody, otherUserToken);
+        HttpResponse<String> noEvidence = post(endpoint, requestBody, ownerToken);
+        HttpResponse<String> invalid = post(endpoint, """
+                {"resumeId":"%s","questionId":null}
+                """.formatted(resumeId), ownerToken);
+        HttpResponse<String> unauthenticated = post(endpoint, requestBody);
+
+        assertThat(resume.statusCode()).isEqualTo(201);
+        assertThat(crossUser.statusCode()).isEqualTo(404);
+        assertThat(noEvidence.statusCode()).isEqualTo(422);
+        assertThat(noEvidence.body()).contains("RAG_CONTEXT_EMPTY");
+        assertThat(invalid.statusCode()).isEqualTo(400);
+        assertThat(unauthenticated.statusCode()).isEqualTo(401);
     }
 
     @Test

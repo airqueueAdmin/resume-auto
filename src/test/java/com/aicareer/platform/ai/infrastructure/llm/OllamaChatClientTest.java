@@ -18,7 +18,9 @@ import com.aicareer.platform.ai.application.AiIntegrationException;
 import com.aicareer.platform.ai.application.LlmCompletion;
 import com.aicareer.platform.ai.application.LlmMatchCompletion;
 import com.aicareer.platform.ai.application.LlmResumeDraftCompletion;
+import com.aicareer.platform.ai.application.LlmSelfIntroductionAnswerCompletion;
 import com.aicareer.platform.ai.application.RetrievedContext;
+import com.aicareer.platform.ai.application.SelfIntroductionJobContext;
 import com.aicareer.platform.ai.infrastructure.config.AiProperties;
 import com.aicareer.platform.ai.infrastructure.config.OllamaProperties;
 import com.aicareer.platform.identity.domain.User;
@@ -186,6 +188,75 @@ class OllamaChatClientTest {
         assertThat(requests).hasValue(1);
         assertThat(requestBody).hasValueSatisfying(body -> assertThat(body)
                 .contains("citationIds", "C1", "career_evidence", "headline"));
+    }
+
+    @Test
+    void sendsSelfIntroductionQuestionAndParsesCitations() throws Exception {
+        server.createContext("/api/chat", exchange -> {
+            requests.incrementAndGet();
+            requestBody.set(new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8));
+            respond(exchange, 200, responseBody(
+                    "test-model",
+                    "{\"sentences\":[{\"text\":\"Java API 경험을 바탕으로 기여하겠습니다.\",\"citationIds\":[\"C1\"]}]}",
+                    23,
+                    31
+            ));
+        });
+
+        RetrievedContext context = new RetrievedContext(
+                "C1",
+                UUID.randomUUID(),
+                SourceType.EXPERIENCE,
+                UUID.randomUUID(),
+                0,
+                "Experience source",
+                "Experience source",
+                0.91,
+                "nomic-embed-text"
+        );
+        LlmSelfIntroductionAnswerCompletion completion = client(2, Duration.ZERO)
+                .generateAnswer(
+                        new SelfIntroductionJobContext(
+                                "Example Corp",
+                                "Backend Developer",
+                                "Build Java APIs and maintain PostgreSQL services."
+                        ),
+                        "지원동기를 작성해주세요.",
+                        java.util.List.of(context)
+                );
+
+        assertThat(completion.answer().sentences()).singleElement().satisfies(sentence -> {
+            assertThat(sentence.text()).contains("Java API");
+            assertThat(sentence.citationIds()).containsExactly("C1");
+        });
+        assertThat(completion.usage().totalTokens()).isEqualTo(54);
+        assertThat(requestBody).hasValueSatisfying(body -> assertThat(body)
+                .contains("company_question", "job_posting", "Example Corp", "sentences", "citationIds", "\"format\""));
+        assertThat(new ObjectMapper().readTree(requestBody.get()).path("format")
+                .path("properties").path("sentences").path("maxItems").asInt()).isEqualTo(3);
+        assertThat(new ObjectMapper().readTree(requestBody.get()).path("options").path("num_ctx").asInt())
+                .isEqualTo(8192);
+    }
+
+    @Test
+    void rejectsTokenLimitedSelfIntroductionEvenIfTheJsonIsValid() throws Exception {
+        server.createContext("/api/chat", exchange -> respond(exchange, 200, new ObjectMapper().writeValueAsString(
+                java.util.Map.of(
+                        "done", true,
+                        "done_reason", "length",
+                        "prompt_eval_count", 10,
+                        "eval_count", 20,
+                        "message", java.util.Map.of("content",
+                                "{\"sentences\":[{\"text\":\"Java API를 개발했습니다.\",\"citationIds\":[\"C1\"]}]}")
+                )
+        )));
+
+        assertThatThrownBy(() -> client(1, Duration.ZERO).generateAnswer(
+                new SelfIntroductionJobContext("Example Corp", "Backend Engineer", "Build Java APIs."),
+                "직무 관련 경험", java.util.List.of()
+        )).isInstanceOf(AiIntegrationException.class)
+                .extracting(error -> ((AiIntegrationException) error).kind())
+                .isEqualTo(AiIntegrationException.Kind.INCOMPLETE_RESPONSE);
     }
 
     private OllamaChatClient client(int maxAttempts, Duration retryDelay) {

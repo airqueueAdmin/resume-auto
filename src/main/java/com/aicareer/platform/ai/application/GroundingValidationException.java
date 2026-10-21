@@ -6,7 +6,9 @@ public class GroundingValidationException extends RuntimeException {
         EMPTY_CONTEXT,
         UNKNOWN_CITATION,
         INVALID_FINDING,
-        UNCITED_FINDING
+        UNCITED_FINDING,
+        ANSWER_UNSUPPORTED,
+        JOB_POSTING_REQUIRED
     }
 
     private final Kind kind;
@@ -19,7 +21,7 @@ public class GroundingValidationException extends RuntimeException {
     public static GroundingValidationException emptyContext() {
         return new GroundingValidationException(
                 Kind.EMPTY_CONTEXT,
-                "No owned career evidence was retrieved for the job posting"
+                "No sufficiently relevant owned career evidence was found for this application question"
         );
     }
 
@@ -33,7 +35,7 @@ public class GroundingValidationException extends RuntimeException {
     public static GroundingValidationException invalidFinding() {
         return new GroundingValidationException(
                 Kind.INVALID_FINDING,
-                "The model returned an empty grounded finding"
+                "The model returned an invalid grounded finding"
         );
     }
 
@@ -41,6 +43,20 @@ public class GroundingValidationException extends RuntimeException {
         return new GroundingValidationException(
                 Kind.UNCITED_FINDING,
                 "The model returned a finding without supporting citations"
+        );
+    }
+
+    public static GroundingValidationException answerUnsupported() {
+        return new GroundingValidationException(
+                Kind.ANSWER_UNSUPPORTED,
+                "Career evidence was retrieved, but the model could not support an answer to this question"
+        );
+    }
+
+    public static GroundingValidationException jobPostingRequired() {
+        return new GroundingValidationException(
+                Kind.JOB_POSTING_REQUIRED,
+                "Link this application question to an active job posting before generating an answer"
         );
     }
 

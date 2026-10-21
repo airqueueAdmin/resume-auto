@@ -5,6 +5,7 @@ public class AiIntegrationException extends RuntimeException {
     public enum Kind {
         UNAVAILABLE,
         REQUEST_FAILED,
+        INCOMPLETE_RESPONSE,
         INVALID_RESPONSE
     }
 
@@ -33,6 +34,10 @@ public class AiIntegrationException extends RuntimeException {
 
     public static AiIntegrationException invalidResponse(String message, Throwable cause) {
         return new AiIntegrationException(Kind.INVALID_RESPONSE, message, cause);
+    }
+
+    public static AiIntegrationException incompleteResponse(String message, Throwable cause) {
+        return new AiIntegrationException(Kind.INCOMPLETE_RESPONSE, message, cause);
     }
 
     public Kind kind() {

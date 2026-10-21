@@ -16,7 +16,9 @@ import java.util.concurrent.atomic.AtomicReference;
 import com.aicareer.platform.ai.application.AiIntegrationException;
 import com.aicareer.platform.ai.application.LlmCompletion;
 import com.aicareer.platform.ai.application.LlmResumeDraftCompletion;
+import com.aicareer.platform.ai.application.LlmSelfIntroductionAnswerCompletion;
 import com.aicareer.platform.ai.application.RetrievedContext;
+import com.aicareer.platform.ai.application.SelfIntroductionJobContext;
 import com.aicareer.platform.ai.infrastructure.config.AiProperties;
 import com.aicareer.platform.ai.infrastructure.config.OpenAiProperties;
 import com.aicareer.platform.identity.domain.User;
@@ -155,6 +157,52 @@ class OpenAiResponsesClientTest {
         assertThat(requests).hasValue(1);
         assertThat(requestBody).hasValueSatisfying(body -> assertThat(body)
                 .contains("resume_draft", "citationIds", "resume-draft-v1", "\"store\":false"));
+    }
+
+    @Test
+    void sendsSelfIntroductionQuestionAndParsesStructuredOutput() throws Exception {
+        server.createContext("/responses", exchange -> {
+            requests.incrementAndGet();
+            requestBody.set(new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8));
+            respond(exchange, 200, responseBody(
+                    "resp_self_intro_123",
+                    "{\"sentences\":[{\"text\":\"Java API 경험을 바탕으로 기여하겠습니다.\",\"citationIds\":[\"C1\"]}]}",
+                    23,
+                    31,
+                    54
+            ));
+        });
+
+        RetrievedContext context = new RetrievedContext(
+                "C1",
+                java.util.UUID.randomUUID(),
+                SourceType.EXPERIENCE,
+                java.util.UUID.randomUUID(),
+                0,
+                "Experience source",
+                "Experience source",
+                0.91,
+                "nomic-embed-text"
+        );
+        LlmSelfIntroductionAnswerCompletion completion = client(2, Duration.ZERO)
+                .generateAnswer(
+                        new SelfIntroductionJobContext(
+                                "Example Corp",
+                                "Backend Developer",
+                                "Build Java APIs and maintain PostgreSQL services."
+                        ),
+                        "지원동기를 작성해주세요.",
+                        java.util.List.of(context)
+                );
+
+        assertThat(completion.providerResponseId()).isEqualTo("resp_self_intro_123");
+        assertThat(completion.answer().sentences()).singleElement().satisfies(sentence -> {
+            assertThat(sentence.text()).contains("Java API");
+            assertThat(sentence.citationIds()).containsExactly("C1");
+        });
+        assertThat(completion.usage().totalTokens()).isEqualTo(54);
+        assertThat(requestBody).hasValueSatisfying(body -> assertThat(body)
+                .contains("self_introduction_answer", "company_question", "job_posting", "Example Corp", "self-introduction-v5"));
     }
 
     private OpenAiResponsesClient client(int maxAttempts, Duration retryDelay) {

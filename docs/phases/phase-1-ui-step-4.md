@@ -13,8 +13,8 @@ read-only and editing content creates a new version.
 - Resume metadata rename
 - Resume soft-delete
 - ResumeVersion history list
-- Read-only version snapshot preview
-- New ResumeVersion creation
+- Existing ResumeVersion content loaded into an editor
+- Save-as-next-version flow that preserves the selected snapshot
 - Current latest version indicator
 - Empty, loading, and API error states
 - Responsive two-panel resume workspace
@@ -55,8 +55,9 @@ subject and validates the resume relationship for every version request.
 - Creating a Resume uses the Backend transaction that creates Resume and Version 1 together.
 - Rename is kept separate from content editing because Resume metadata and ResumeVersion content
   have different mutability rules.
-- Existing version content is rendered in a read-only `<pre>` snapshot.
-- The new-version form is separate from the snapshot to prevent accidental mutation semantics.
+- A selected version is loaded into an editor for a familiar resume-editing workflow.
+- Saving always calls the existing next-version API. The selected `ResumeVersion` remains an immutable
+  snapshot; the edited content becomes the next sequential version and is then selected as latest.
 - Version history is ordered by the Backend's latest-version-first contract.
 - Resume content is currently plain text. Rich text, Markdown preview, and AI-generated content are
   intentionally deferred until after the LLM phases define content and provenance requirements.
@@ -74,8 +75,8 @@ subject and validates the resume relationship for every version request.
 - [x] Resume list and creation are connected.
 - [x] Resume rename and soft-delete are connected.
 - [x] ResumeVersion history is connected.
-- [x] Existing versions are presented as read-only snapshots.
-- [x] New versions are created through a separate form.
+- [x] Existing version content can be edited from the selected version.
+- [x] Saving edited content creates the next version without mutating the previous snapshot.
 - [x] Documentation is updated.
 
 ## Next UI step

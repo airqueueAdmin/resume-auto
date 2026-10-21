@@ -86,13 +86,15 @@ class GeminiResumeDraftClientTest {
 
         assertThat(completion.draft().headline().text()).isEqualTo("Backend Developer");
         assertThat(completion.usage().totalTokens()).isEqualTo(30);
-        assertThat(requestBody).contains("systemInstruction", "responseMimeType", "Built APIs");
+        assertThat(requestBody).contains("systemInstruction", "responseFormat", "Built APIs");
         JsonNode request = new ObjectMapper().readTree(requestBody);
-        assertThat(request.path("generationConfig").path("responseSchema").path("properties")
+        JsonNode responseFormat = request.path("generationConfig").path("responseFormat").path("text");
+        assertThat(responseFormat.path("mimeType").asText()).isEqualTo("APPLICATION_JSON");
+        assertThat(responseFormat.path("schema").path("properties")
                 .path("experienceBullets").path("maxItems").asInt()).isEqualTo(2);
-        assertThat(request.path("generationConfig").path("responseSchema").path("properties")
+        assertThat(responseFormat.path("schema").path("properties")
                 .path("selfIntroductionSections").path("minItems").asInt()).isEqualTo(3);
-        assertThat(request.path("generationConfig").path("responseSchema").path("properties")
+        assertThat(responseFormat.path("schema").path("properties")
                 .path("selfIntroductionSections").path("maxItems").asInt()).isEqualTo(3);
         assertThat(request.path("generationConfig").path("thinkingConfig")
                 .path("thinkingBudget").asInt()).isEqualTo(512);

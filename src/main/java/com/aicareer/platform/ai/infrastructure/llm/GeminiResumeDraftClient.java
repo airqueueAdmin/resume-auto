@@ -151,8 +151,12 @@ public class GeminiResumeDraftClient implements LlmResumeDraftClient {
         generationConfig.put("thinkingConfig", Map.of(
                 "thinkingBudget", resumeDraftProperties.geminiThinkingBudget()
         ));
-        generationConfig.put("responseMimeType", "application/json");
-        generationConfig.put("responseSchema", ResumeDraftSchema.definition());
+        generationConfig.put("responseFormat", Map.of(
+                "text", Map.of(
+                        "mimeType", "APPLICATION_JSON",
+                        "schema", ResumeDraftSchema.definition()
+                )
+        ));
         body.put("generationConfig", generationConfig);
 
         try {
@@ -216,13 +220,15 @@ public class GeminiResumeDraftClient implements LlmResumeDraftClient {
     }
 
     private String responseText(JsonNode root) {
+        JsonNode firstCandidate = root.path("candidates").path(0);
         StringBuilder text = new StringBuilder();
-        for (JsonNode candidate : root.path("candidates")) {
-            for (JsonNode part : candidate.path("content").path("parts")) {
-                String value = part.path("text").asText("");
-                if (!value.isBlank()) {
-                    text.append(value);
-                }
+        for (JsonNode part : firstCandidate.path("content").path("parts")) {
+            if (part.path("thought").asBoolean(false)) {
+                continue;
+            }
+            String value = part.path("text").asText("");
+            if (!value.isBlank()) {
+                text.append(value);
             }
         }
         return text.toString().trim();

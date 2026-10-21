@@ -8,7 +8,7 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-ai_career}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-local_password}
     ports:
-      - "${POSTGRES_HOST_PORT:-5432}:5432"
+      - "${POSTGRES_BIND_ADDRESS:-0.0.0.0}:${POSTGRES_HOST_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -30,7 +30,7 @@ services:
       DB_PASSWORD: ${POSTGRES_PASSWORD:-local_password}
       JWT_ISSUER: ${JWT_ISSUER:-ai-career-platform}
       JWT_SECRET_BASE64: ${JWT_SECRET_BASE64:-REDACTED_HISTORY_VALUE}
-      AI_PROVIDER: ${AI_PROVIDER:-ollama}
+      AI_PROVIDER: ${AI_PROVIDER:-gemini}
       AI_RESUME_DRAFT_PROVIDER: ${AI_RESUME_DRAFT_PROVIDER:-gemini}
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
@@ -40,7 +40,7 @@ services:
       JOBKOREA_EXPORT_AUDIT_RETENTION: ${JOBKOREA_EXPORT_AUDIT_RETENTION:-PT720H}
       JOBKOREA_EXPORT_AUDIT_CLEANUP_CRON: ${JOBKOREA_EXPORT_AUDIT_CLEANUP_CRON:-0 0 3 * * *}
     ports:
-      - "${BACKEND_HOST_PORT:-8080}:8080"
+      - "${BACKEND_BIND_ADDRESS:-0.0.0.0}:${BACKEND_HOST_PORT:-8080}:8080"
     extra_hosts:
       - "host.docker.internal:host-gateway"
     depends_on:
@@ -58,7 +58,7 @@ services:
     build:
       context: ./frontend
     ports:
-      - "${FRONTEND_HOST_PORT:-5173}:80"
+      - "${FRONTEND_BIND_ADDRESS:-0.0.0.0}:${FRONTEND_HOST_PORT:-5173}:80"
     depends_on:
       backend:
         condition: service_healthy

@@ -71,12 +71,14 @@ public class GlobalExceptionHandler {
         String code = switch (exception.kind()) {
             case UNAVAILABLE -> "AI_PROVIDER_UNAVAILABLE";
             case REQUEST_FAILED -> "AI_PROVIDER_REQUEST_FAILED";
+            case INCOMPLETE_RESPONSE -> "AI_PROVIDER_INCOMPLETE_RESPONSE";
             case INVALID_RESPONSE -> "AI_PROVIDER_INVALID_RESPONSE";
         };
         String detail = switch (exception.kind()) {
             case UNAVAILABLE -> "The AI provider is temporarily unavailable";
-            case REQUEST_FAILED -> "The AI provider rejected the analysis request";
-            case INVALID_RESPONSE -> "The AI provider returned an invalid analysis response";
+            case REQUEST_FAILED -> "The AI provider rejected the generation request";
+            case INCOMPLETE_RESPONSE -> "The AI provider stopped before completing its response";
+            case INVALID_RESPONSE -> "The AI provider returned a response that could not be processed";
         };
         return error(status, code, detail, request, Map.of());
     }
@@ -112,12 +114,16 @@ public class GlobalExceptionHandler {
             case UNKNOWN_CITATION -> "RAG_CITATION_INVALID";
             case INVALID_FINDING -> "RAG_FINDING_INVALID";
             case UNCITED_FINDING -> "RAG_FINDING_UNCITED";
+            case ANSWER_UNSUPPORTED -> "RAG_ANSWER_UNSUPPORTED";
+            case JOB_POSTING_REQUIRED -> "APPLICATION_JOB_POSTING_REQUIRED";
         };
         String detail = switch (exception.kind()) {
-            case EMPTY_CONTEXT -> "No owned career evidence was retrieved for the job posting";
+            case EMPTY_CONTEXT -> "No sufficiently relevant owned career evidence was found for this application question";
             case UNKNOWN_CITATION -> "The AI response contained an unrecognized source citation";
             case INVALID_FINDING -> "The AI response contained an invalid grounded finding";
             case UNCITED_FINDING -> "The AI response contained a finding without supporting citations";
+            case ANSWER_UNSUPPORTED -> "Career evidence was retrieved but did not support an answer to this question";
+            case JOB_POSTING_REQUIRED -> "Select and save a job posting for this application question before generating an answer";
         };
         return error(HttpStatus.UNPROCESSABLE_ENTITY, code, detail, request, Map.of());
     }
