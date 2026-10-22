@@ -22,6 +22,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.ConstraintViolationException;
 import com.aicareer.platform.identity.application.EmailAlreadyRegisteredException;
+import com.aicareer.platform.identity.application.EmailVerificationException;
 import com.aicareer.platform.identity.application.InvalidCredentialsException;
 import com.aicareer.platform.identity.application.InvalidRefreshTokenException;
 import com.aicareer.platform.identity.application.UserNotFoundException;
@@ -313,6 +314,36 @@ public class GlobalExceptionHandler {
                 request,
                 Map.of()
         );
+    }
+
+    @ExceptionHandler(EmailVerificationException.class)
+    public ResponseEntity<ApiErrorResponse> handleEmailVerification(
+            EmailVerificationException exception,
+            HttpServletRequest request
+    ) {
+        return switch (exception.kind()) {
+            case REQUIRED -> error(
+                    HttpStatus.FORBIDDEN,
+                    "EMAIL_VERIFICATION_REQUIRED",
+                    "Email verification is required before login",
+                    request,
+                    Map.of()
+            );
+            case INVALID_CODE -> error(
+                    HttpStatus.BAD_REQUEST,
+                    "EMAIL_VERIFICATION_INVALID",
+                    "The verification code is invalid or expired",
+                    request,
+                    Map.of()
+            );
+            case DELIVERY_UNAVAILABLE -> error(
+                    HttpStatus.SERVICE_UNAVAILABLE,
+                    "EMAIL_DELIVERY_UNAVAILABLE",
+                    "The verification email could not be delivered",
+                    request,
+                    Map.of()
+            );
+        };
     }
 
     @ExceptionHandler({InvalidCredentialsException.class, InvalidRefreshTokenException.class})

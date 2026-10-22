@@ -1,6 +1,7 @@
 package com.aicareer.platform.career.experience.domain;
 
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.UUID;
 
 import com.aicareer.platform.identity.domain.User;
@@ -29,6 +30,15 @@ public class Experience {
     @Column(nullable = false, length = 200)
     private String role;
 
+    @Column(name = "start_date")
+    private LocalDate startDate;
+
+    @Column(name = "end_date")
+    private LocalDate endDate;
+
+    @Column(name = "currently_employed", nullable = false)
+    private boolean currentlyEmployed;
+
     @Column(nullable = false, columnDefinition = "text")
     private String description;
 
@@ -48,13 +58,20 @@ public class Experience {
             User user,
             String companyName,
             String role,
+            LocalDate startDate,
+            LocalDate endDate,
+            boolean currentlyEmployed,
             String description,
             Instant now
     ) {
+        validatePeriod(startDate, endDate, currentlyEmployed);
         this.id = UUID.randomUUID();
         this.user = user;
         this.companyName = companyName;
         this.role = role;
+        this.startDate = startDate;
+        this.endDate = endDate;
+        this.currentlyEmployed = currentlyEmployed;
         this.description = description;
         this.createdAt = now;
         this.updatedAt = now;
@@ -64,20 +81,30 @@ public class Experience {
             User user,
             String companyName,
             String role,
+            LocalDate startDate,
+            LocalDate endDate,
+            boolean currentlyEmployed,
             String description,
             Instant now
     ) {
-        return new Experience(user, companyName, role, description, now);
+        return new Experience(user, companyName, role, startDate, endDate, currentlyEmployed, description, now);
     }
 
     public void update(
             String companyName,
             String role,
+            LocalDate startDate,
+            LocalDate endDate,
+            boolean currentlyEmployed,
             String description,
             Instant now
     ) {
+        validatePeriod(startDate, endDate, currentlyEmployed);
         this.companyName = companyName;
         this.role = role;
+        this.startDate = startDate;
+        this.endDate = endDate;
+        this.currentlyEmployed = currentlyEmployed;
         this.description = description;
         this.updatedAt = now;
     }
@@ -85,6 +112,15 @@ public class Experience {
     public void softDelete(Instant now) {
         this.deletedAt = now;
         this.updatedAt = now;
+    }
+
+    private static void validatePeriod(LocalDate startDate, LocalDate endDate, boolean currentlyEmployed) {
+        if (currentlyEmployed && endDate != null) {
+            throw new IllegalArgumentException("endDate must be empty when currentlyEmployed is true");
+        }
+        if (startDate != null && endDate != null && endDate.isBefore(startDate)) {
+            throw new IllegalArgumentException("endDate must be on or after startDate");
+        }
     }
 
     public UUID getId() {
@@ -97,6 +133,18 @@ public class Experience {
 
     public String getRole() {
         return role;
+    }
+
+    public LocalDate getStartDate() {
+        return startDate;
+    }
+
+    public LocalDate getEndDate() {
+        return endDate;
+    }
+
+    public boolean isCurrentlyEmployed() {
+        return currentlyEmployed;
     }
 
     public String getDescription() {

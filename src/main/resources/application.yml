@@ -20,6 +20,30 @@ server:
   port: ${SERVER_PORT:8080}
 
 app:
+  identity:
+    signup:
+      terms-version: ${SIGNUP_TERMS_VERSION:2026-10-21}
+      privacy-version: ${SIGNUP_PRIVACY_VERSION:2026-10-21}
+    email-verification:
+      enabled: ${EMAIL_VERIFICATION_ENABLED:false}
+      code-ttl: ${EMAIL_VERIFICATION_CODE_TTL:PT5M}
+      resend-cooldown: ${EMAIL_VERIFICATION_RESEND_COOLDOWN:PT1M}
+      max-attempts: ${EMAIL_VERIFICATION_MAX_ATTEMPTS:5}
+      code-hmac-secret-base64: ${EMAIL_VERIFICATION_HMAC_SECRET_BASE64:REDACTED_HISTORY_VALUE}
+      smtp-host: ${SMTP_HOST:smtp.gmail.com}
+      smtp-port: ${SMTP_PORT:587}
+      smtp-username: ${SMTP_USERNAME:}
+      smtp-password: ${SMTP_PASSWORD:}
+      smtp-start-tls-enabled: ${SMTP_STARTTLS_ENABLED:true}
+      smtp-ssl-enabled: ${SMTP_SSL_ENABLED:false}
+      from-address: ${EMAIL_FROM_ADDRESS:}
+      from-name: ${EMAIL_FROM_NAME:Career Note}
+      rate-limit:
+        enabled: ${EMAIL_VERIFICATION_RATE_LIMIT_ENABLED:true}
+        client-window: ${EMAIL_VERIFICATION_CLIENT_RATE_LIMIT_WINDOW:PT1H}
+        max-client-requests: ${EMAIL_VERIFICATION_MAX_CLIENT_REQUESTS:20}
+        delivery-window: ${EMAIL_VERIFICATION_DELIVERY_RATE_LIMIT_WINDOW:P1D}
+        max-deliveries: ${EMAIL_VERIFICATION_MAX_DELIVERIES:400}
   security:
     jwt:
       issuer: ${JWT_ISSUER:ai-career-platform}

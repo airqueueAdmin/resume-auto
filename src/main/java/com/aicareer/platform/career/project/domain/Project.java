@@ -30,7 +30,7 @@ public class Project {
     @Column(nullable = false, length = 200)
     private String role;
 
-    @Column(name = "start_date", nullable = false)
+    @Column(name = "start_date")
     private LocalDate startDate;
 
     @Column(name = "end_date")
@@ -169,7 +169,7 @@ public class Project {
     }
 
     private static void validateDateRange(LocalDate startDate, LocalDate endDate) {
-        if (endDate != null && endDate.isBefore(startDate)) {
+        if (startDate != null && endDate != null && endDate.isBefore(startDate)) {
             throw new IllegalArgumentException("endDate must be on or after startDate");
         }
     }

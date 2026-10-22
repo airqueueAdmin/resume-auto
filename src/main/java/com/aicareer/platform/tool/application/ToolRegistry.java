@@ -140,6 +140,9 @@ public class ToolRegistry {
                         Map.of(
                                 "companyName", stringProperty(200),
                                 "role", stringProperty(200),
+                                "startDate", Map.of("type", "string", "format", "date"),
+                                "endDate", Map.of("type", "string", "format", "date"),
+                                "currentlyEmployed", Map.of("type", "boolean"),
                                 "description", stringProperty(10_000)
                         )
                 )
@@ -167,7 +170,7 @@ public class ToolRegistry {
                 "Create a Project owned by the authenticated user",
                 true,
                 objectSchema(
-                        List.of("name", "role", "startDate", "description", "techStack"),
+                        List.of("name", "role", "description", "techStack"),
                         Map.of(
                                 "name", stringProperty(200),
                                 "role", stringProperty(200),

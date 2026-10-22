@@ -1,6 +1,6 @@
-# AI Career Platform
+# Career Note
 
-Backend foundation for an AI-assisted career platform.
+Backend foundation for an AI-assisted career service.
 
 ## Phase records
 
@@ -329,6 +329,26 @@ Configuration is externalized through environment variables:
 - `RATE_LIMIT_ENABLED`: enable the local in-memory API rate limiter, default `true`
 - `RATE_LIMIT_WINDOW`: rate-limit window duration, default `PT1M`
 - `RATE_LIMIT_MAX_REQUESTS`: maximum requests per bucket per window, default `60`
+- `SIGNUP_TERMS_VERSION`: terms version recorded for new signup consent, default `2026-10-21`
+- `SIGNUP_PRIVACY_VERSION`: privacy-policy version recorded for new signup consent, default `2026-10-21`
+- `EMAIL_VERIFICATION_ENABLED`: require email-code verification before login; local default `false`,
+  Oracle deployment default `true`
+- `EMAIL_VERIFICATION_HMAC_SECRET_BASE64`: independent Base64-encoded secret used to HMAC verification
+  codes; use at least 32 random decoded bytes outside local development
+- `EMAIL_VERIFICATION_CODE_TTL`: verification code lifetime, default `PT5M`
+- `EMAIL_VERIFICATION_RESEND_COOLDOWN`: minimum interval between delivered codes, default `PT1M`
+- `EMAIL_VERIFICATION_MAX_ATTEMPTS`: failed code attempts before invalidation, default `5`
+- `SMTP_HOST`: SMTP endpoint, default `smtp.gmail.com`
+- `SMTP_PORT`: SMTP submission port, default `587`
+- `SMTP_USERNAME` / `SMTP_PASSWORD`: dedicated Gmail address and its Google app password
+- `SMTP_STARTTLS_ENABLED`: require STARTTLS, default `true`
+- `SMTP_SSL_ENABLED`: use implicit SMTP SSL instead of STARTTLS, default `false`
+- `EMAIL_FROM_ADDRESS`: sender address; with Gmail, keep it equal to `SMTP_USERNAME`
+- `EMAIL_FROM_NAME`: display name for verification mail, default `Career Note`
+- `EMAIL_VERIFICATION_MAX_CLIENT_REQUESTS`: signup/resend requests allowed per client window, default `20`
+- `EMAIL_VERIFICATION_CLIENT_RATE_LIMIT_WINDOW`: per-client request window, default `PT1H`
+- `EMAIL_VERIFICATION_MAX_DELIVERIES`: actual verification messages allowed per delivery window, default `400`
+- `EMAIL_VERIFICATION_DELIVERY_RATE_LIMIT_WINDOW`: global delivery window, default `P1D`
 - `MANAGEMENT_HEALTH_PROBES_ENABLED`: enable liveness/readiness health groups, default `true`
 - `OLLAMA_CHAT_URL`: local Ollama chat URL, default `http://localhost:11434/api/chat`
 - `OLLAMA_MODEL`: local Ollama model, default `llama3.1:8b`
@@ -462,7 +482,10 @@ $env:DB_URL = "jdbc:postgresql://localhost:55435/ai_career"
 
 | Endpoint | Purpose | Authentication |
 | --- | --- | --- |
-| `POST /api/v1/auth/signup` | Create a user | Public |
+| `GET /api/v1/auth/signup-policy` | Return the active signup policy versions and verification capability | Public |
+| `POST /api/v1/auth/signup` | Create an active or email-verification-pending user | Public |
+| `POST /api/v1/auth/verify-email` | Verify the six-digit signup code and activate the account | Public |
+| `POST /api/v1/auth/resend-verification` | Request another code without revealing account existence | Public |
 | `POST /api/v1/auth/login` | Issue Access JWT and Refresh Session token | Public |
 | `POST /api/v1/auth/refresh` | Rotate a Refresh Session and issue new tokens | Public, refresh token required |
 | `POST /api/v1/auth/logout` | Revoke a Refresh Session | Public, refresh token required |
@@ -471,6 +494,17 @@ $env:DB_URL = "jdbc:postgresql://localhost:55435/ai_career"
 Access JWTs are short-lived and stateless. Logout revokes the persisted Refresh Session, but an
 already-issued Access JWT remains valid until its expiration time. Refresh token plaintext values
 are returned only to the client; the database stores their SHA-256 hashes.
+
+Signup requires explicit `termsAccepted: true` and `privacyAccepted: true`. The server records the
+configured policy versions and acceptance time in `user_consents`; it does not trust a client-supplied
+policy version. Password confirmation is enforced in the browser while password length is enforced
+again by the API. When email verification is enabled, the account remains
+`PENDING_EMAIL_VERIFICATION` until a six-digit code is confirmed. Only an HMAC of the code is stored;
+codes expire after five minutes, are invalidated after five failed attempts, and can be resent after
+the configured cooldown. The Oracle VM deployment enables this flow and uses a dedicated Gmail account
+through authenticated SMTP submission on port 587 with required STARTTLS. Signup and resend requests
+are limited per client, and actual message delivery has a separate global cap below Gmail's free-account
+daily limit. These counters are local to one backend process and reset when it restarts.
 
 ## Career resource behavior
 

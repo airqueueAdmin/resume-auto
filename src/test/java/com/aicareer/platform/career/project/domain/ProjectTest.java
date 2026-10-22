@@ -12,6 +12,31 @@ import org.junit.jupiter.api.Test;
 class ProjectTest {
 
     @Test
+    void createsProjectWithoutPeriod() {
+        User user = User.create(
+                "period-optional@example.com",
+                "{bcrypt}test",
+                "Test User",
+                Instant.parse("2026-01-01T00:00:00Z")
+        );
+
+        Project project = Project.create(
+                user,
+                "Project",
+                "Developer",
+                null,
+                null,
+                "Description",
+                "Java",
+                null,
+                Instant.parse("2026-01-01T00:00:00Z")
+        );
+
+        assertThat(project.getStartDate()).isNull();
+        assertThat(project.getEndDate()).isNull();
+    }
+
+    @Test
     void keepsOptionalCustomerOrDomainForCareerDescription() {
         User user = User.create(
                 "test@example.com",

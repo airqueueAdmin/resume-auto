@@ -7,6 +7,7 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.sql.Connection;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.Statement;
 import java.sql.Timestamp;
@@ -117,7 +118,7 @@ class AiCareerPlatformApplicationTests {
 
         assertThat(openApi.statusCode()).isEqualTo(200);
         assertThat(openApi.body())
-                .contains("AI Career Platform API")
+                .contains("Career Note API")
                 .contains("/api/v1/auth/login")
                 .contains("/api/v1/job-postings")
                 .contains("/api/v1/resumes")
@@ -144,7 +145,7 @@ class AiCareerPlatformApplicationTests {
     @Test
     void flywayAppliesIdentityCareerResumeJobPostingAiMatchingResumeDraftAndToolMigrations() throws Exception {
         assertThat(flyway.info().pending()).isEmpty();
-        assertThat(flyway.info().applied()).hasSize(15);
+        assertThat(flyway.info().applied()).hasSize(18);
 
         try (Connection connection = dataSource.getConnection();
                 Statement statement = connection.createStatement();
@@ -155,10 +156,11 @@ class AiCareerPlatformApplicationTests {
                         and table_name in ('users', 'refresh_sessions', 'experiences', 'projects',
                                            'resumes', 'resume_versions', 'job_postings', 'ai_job_analyses',
                                            'embedding_chunks', 'ai_job_matches', 'ai_resume_drafts', 'tool_approvals',
-                                           'jobkorea_export_audits', 'resume_application_questions')
+                                           'jobkorea_export_audits', 'resume_application_questions',
+                                           'user_consents', 'email_verification_codes')
                         """)) {
             assertThat(resultSet.next()).isTrue();
-            assertThat(resultSet.getInt(1)).isEqualTo(14);
+            assertThat(resultSet.getInt(1)).isEqualTo(16);
         }
 
         try (Connection connection = dataSource.getConnection();
@@ -871,12 +873,38 @@ class AiCareerPlatformApplicationTests {
                 {
                   "email": "%s",
                   "password": "%s",
-                  "displayName": "Test User"
+                  "displayName": "Test User",
+                  "termsAccepted": true,
+                  "privacyAccepted": true
                 }
                 """.formatted(email, password));
 
         assertThat(signup.statusCode()).isEqualTo(201);
-        assertThat(signup.body()).contains(email, "Test User");
+        assertThat(signup.body()).contains(email, "\"verificationRequired\":false");
+
+        HttpResponse<String> signupPolicy = get("/api/v1/auth/signup-policy", null);
+        assertThat(signupPolicy.statusCode()).isEqualTo(200);
+        assertThat(signupPolicy.body()).contains(
+                "\"termsVersion\":\"2026-10-21\"",
+                "\"privacyVersion\":\"2026-10-21\"",
+                "\"emailVerificationRequired\":false"
+        );
+
+        try (Connection connection = dataSource.getConnection();
+                PreparedStatement statement = connection.prepareStatement("""
+                        select count(*)
+                        from user_consents consent
+                        join users user_account on user_account.id = consent.user_id
+                        where user_account.email = ?
+                          and consent.terms_version = '2026-10-21'
+                          and consent.privacy_version = '2026-10-21'
+                        """)) {
+            statement.setString(1, email);
+            try (ResultSet resultSet = statement.executeQuery()) {
+                assertThat(resultSet.next()).isTrue();
+                assertThat(resultSet.getInt(1)).isEqualTo(1);
+            }
+        }
 
         HttpResponse<String> login = post("/api/v1/auth/login", """
                 {
@@ -902,7 +930,9 @@ class AiCareerPlatformApplicationTests {
                 {
                   "email": "%s",
                   "password": "correct-password-123",
-                  "displayName": "Test User"
+                  "displayName": "Test User",
+                  "termsAccepted": true,
+                  "privacyAccepted": true
                 }
                 """.formatted(email);
 
@@ -921,7 +951,9 @@ class AiCareerPlatformApplicationTests {
                 {
                   "email": "%s",
                   "password": "correct-password-123",
-                  "displayName": "Test User"
+                  "displayName": "Test User",
+                  "termsAccepted": true,
+                  "privacyAccepted": true
                 }
                 """.formatted(email));
 
@@ -947,7 +979,9 @@ class AiCareerPlatformApplicationTests {
                 {
                   "email": "%s",
                   "password": "%s",
-                  "displayName": "Test User"
+                  "displayName": "Test User",
+                  "termsAccepted": true,
+                  "privacyAccepted": true
                 }
                 """.formatted(email, password));
 
@@ -995,7 +1029,33 @@ class AiCareerPlatformApplicationTests {
                 """);
 
         assertThat(response.statusCode()).isEqualTo(400);
-        assertThat(response.body()).contains("VALIDATION_ERROR", "email", "password");
+        assertThat(response.body()).contains(
+                "VALIDATION_ERROR",
+                "email",
+                "password",
+                "termsAccepted",
+                "privacyAccepted"
+        );
+    }
+
+    @Test
+    void signupRejectsExplicitlyDeclinedRequiredPolicies() throws Exception {
+        HttpResponse<String> response = post("/api/v1/auth/signup", """
+                {
+                  "email": "declined-policy@example.com",
+                  "password": "correct-password-123",
+                  "displayName": "Policy User",
+                  "termsAccepted": false,
+                  "privacyAccepted": false
+                }
+                """);
+
+        assertThat(response.statusCode()).isEqualTo(400);
+        assertThat(response.body()).contains(
+                "VALIDATION_ERROR",
+                "termsAccepted",
+                "privacyAccepted"
+        );
     }
 
     @Test
@@ -1094,6 +1154,63 @@ class AiCareerPlatformApplicationTests {
         assertThat(page.body()).contains("\"totalElements\":1");
         assertThat(deleted.statusCode()).isEqualTo(204);
         assertThat(afterDelete.statusCode()).isEqualTo(404);
+    }
+
+    @Test
+    void careerPeriodsAreOptionalAndCurrentEmploymentIsPreserved() throws Exception {
+        String accessToken = accessTokenForNewUser();
+
+        HttpResponse<String> experienceWithoutPeriod = post("/api/v1/experiences", """
+                {
+                  "companyName": "No Period Company",
+                  "role": "Backend Developer",
+                  "description": "Period is intentionally omitted."
+                }
+                """, accessToken);
+        HttpResponse<String> currentExperience = post("/api/v1/experiences", """
+                {
+                  "companyName": "Current Company",
+                  "role": "Backend Developer",
+                  "startDate": "2025-01-01",
+                  "endDate": null,
+                  "currentlyEmployed": true,
+                  "description": "Currently employed."
+                }
+                """, accessToken);
+        HttpResponse<String> projectWithoutPeriod = post("/api/v1/projects", """
+                {
+                  "name": "No Period Project",
+                  "role": "Backend Developer",
+                  "description": "Project period is intentionally omitted.",
+                  "techStack": "Java"
+                }
+                """, accessToken);
+        HttpResponse<String> invalidCurrentExperience = post("/api/v1/experiences", """
+                {
+                  "companyName": "Invalid Company",
+                  "role": "Backend Developer",
+                  "startDate": "2025-01-01",
+                  "endDate": "2025-12-31",
+                  "currentlyEmployed": true,
+                  "description": "An end date conflicts with current employment."
+                }
+                """, accessToken);
+
+        assertThat(experienceWithoutPeriod.statusCode()).isEqualTo(201);
+        assertThat(experienceWithoutPeriod.body()).contains(
+                "\"startDate\":null",
+                "\"endDate\":null",
+                "\"currentlyEmployed\":false"
+        );
+        assertThat(currentExperience.statusCode()).isEqualTo(201);
+        assertThat(currentExperience.body()).contains(
+                "\"startDate\":\"2025-01-01\"",
+                "\"endDate\":null",
+                "\"currentlyEmployed\":true"
+        );
+        assertThat(projectWithoutPeriod.statusCode()).isEqualTo(201);
+        assertThat(projectWithoutPeriod.body()).contains("\"startDate\":null", "\"endDate\":null");
+        assertThat(invalidCurrentExperience.statusCode()).isEqualTo(400);
     }
 
     @Test
@@ -1681,7 +1798,9 @@ class AiCareerPlatformApplicationTests {
                 {
                   "email": "%s",
                   "password": "%s",
-                  "displayName": "Step 4 User"
+                  "displayName": "Step 4 User",
+                  "termsAccepted": true,
+                  "privacyAccepted": true
                 }
                 """.formatted(email, password));
         assertThat(signup.statusCode()).isEqualTo(201);

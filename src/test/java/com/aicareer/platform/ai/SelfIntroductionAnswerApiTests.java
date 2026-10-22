@@ -135,7 +135,13 @@ class SelfIntroductionAnswerApiTests {
 
     private SavedQuestion savedQuestion() throws Exception {
         String email = "self-intro-" + UUID.randomUUID() + "@example.com";
-        Map<String, String> account = Map.of("email", email, "password", "Test-password-1234!", "displayName", "Test User");
+        Map<String, Object> account = Map.of(
+                "email", email,
+                "password", "Test-password-1234!",
+                "displayName", "Test User",
+                "termsAccepted", true,
+                "privacyAccepted", true
+        );
         post("/api/v1/auth/signup", account, null, 201);
         String token = post("/api/v1/auth/login", account, null, 200).path("accessToken").asText();
         post("/api/v1/experiences", Map.of("companyName", "Career Corp", "role", "Backend Engineer",

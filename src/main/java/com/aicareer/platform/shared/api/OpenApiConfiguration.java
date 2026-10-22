@@ -10,7 +10,7 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 @OpenAPIDefinition(
         info = @Info(
-                title = "AI Career Platform API",
+                title = "Career Note API",
                 version = "v1",
                 description = "Backend API for managing career source data, structured job analysis, user-scoped vector retrieval, and grounded job matching."
         )

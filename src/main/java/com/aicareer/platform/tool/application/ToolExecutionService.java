@@ -80,6 +80,9 @@ public class ToolExecutionService implements ToolCallExecutor {
                         new ExperienceRequest(
                                 toolArguments.companyName(),
                                 toolArguments.role(),
+                                toolArguments.startDate(),
+                                toolArguments.endDate(),
+                                Boolean.TRUE.equals(toolArguments.currentlyEmployed()),
                                 toolArguments.description()
                         )
                 )));

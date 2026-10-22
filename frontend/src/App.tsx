@@ -5,21 +5,26 @@ import { jsPDF } from 'jspdf'
 
 type User = { id: string; email: string; displayName: string }
 type AuthenticationResponse = { user: User; accessToken: string; refreshToken: string }
+type SignupPolicy = { termsVersion: string; privacyVersion: string; emailVerificationRequired: boolean }
+type SignupResponse = { email: string; verificationRequired: boolean; verificationExpiresAt: string | null }
 type Experience = {
   id: string
   companyName: string
   role: string
+  startDate: string | null
+  endDate: string | null
+  currentlyEmployed: boolean
   description: string
   createdAt: string
   updatedAt: string
 }
 type PageResponse<T> = { content: T[]; page: number; size: number; totalElements: number; totalPages: number; first: boolean; last: boolean }
-type ExperienceForm = { companyName: string; role: string; description: string }
+type ExperienceForm = { companyName: string; role: string; startDate: string; endDate: string; currentlyEmployed: boolean; description: string }
 type Project = {
   id: string
   name: string
   role: string
-  startDate: string
+  startDate: string | null
   endDate: string | null
   description: string
   techStack: string
@@ -120,6 +125,9 @@ function App() {
     <Routes>
       <Route path="/login" element={user ? <Navigate to="/" replace /> : <AuthPage mode="login" onAuthenticated={handleAuthenticated} />} />
       <Route path="/signup" element={user ? <Navigate to="/" replace /> : <AuthPage mode="signup" onAuthenticated={handleAuthenticated} />} />
+      <Route path="/verify-email" element={user ? <Navigate to="/" replace /> : <EmailVerificationPage />} />
+      <Route path="/terms" element={<PolicyPage type="terms" />} />
+      <Route path="/privacy" element={<PolicyPage type="privacy" />} />
       <Route path="*" element={user ? <Dashboard user={user} onLogout={handleLogout} /> : <Navigate to="/login" replace />} />
     </Routes>
   )
@@ -127,26 +135,66 @@ function App() {
 
 function AuthPage({ mode, onAuthenticated }: { mode: 'login' | 'signup'; onAuthenticated: (result: AuthenticationResponse) => void }) {
   const navigate = useNavigate()
+  const location = useLocation()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
   const [displayName, setDisplayName] = useState('')
+  const [termsAccepted, setTermsAccepted] = useState(false)
+  const [privacyAccepted, setPrivacyAccepted] = useState(false)
+  const [signupPolicy, setSignupPolicy] = useState<SignupPolicy | null>(null)
+  const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
   const [isSubmitting, setIsSubmitting] = useState(false)
   const isLogin = mode === 'login'
+
+  useEffect(() => {
+    if (isLogin) return
+    request<SignupPolicy>('/v1/auth/signup-policy').then(setSignupPolicy).catch(() => setSignupPolicy(null))
+  }, [isLogin])
+
+  function validateSignup() {
+    const errors: Record<string, string> = {}
+    if (displayName.trim().length < 2) errors.displayName = '이름은 2자 이상 입력해주세요.'
+    if (password.length < 12) errors.password = '비밀번호는 12자 이상 입력해주세요.'
+    if (password.length > 72) errors.password = '비밀번호는 72자를 초과할 수 없습니다.'
+    if (confirmPassword !== password) errors.confirmPassword = '비밀번호가 일치하지 않습니다.'
+    if (!termsAccepted) errors.termsAccepted = '이용약관에 동의해주세요.'
+    if (!privacyAccepted) errors.privacyAccepted = '개인정보 수집·이용에 동의해주세요.'
+    setFieldErrors(errors)
+    return Object.keys(errors).length === 0
+  }
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setError('')
+    setFieldErrors({})
+    if (!isLogin && !validateSignup()) return
     setIsSubmitting(true)
     try {
       if (!isLogin) {
-        await request<User>('/v1/auth/signup', { method: 'POST', body: JSON.stringify({ email, password, displayName }) })
+        const signup = await request<SignupResponse>('/v1/auth/signup', { method: 'POST', body: JSON.stringify({ email: email.trim(), password, displayName: displayName.trim(), termsAccepted, privacyAccepted }) })
+        if (signup.verificationRequired) {
+          navigate(`/verify-email?email=${encodeURIComponent(signup.email)}`)
+          return
+        }
       }
-      const result = await request<AuthenticationResponse>('/v1/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) })
+      const result = await request<AuthenticationResponse>('/v1/auth/login', { method: 'POST', body: JSON.stringify({ email: email.trim(), password }) })
       onAuthenticated(result)
       navigate('/')
     } catch (submissionError) {
-      setError(submissionError instanceof Error ? submissionError.message : '인증에 실패했습니다.')
+      const apiError = submissionError as ApiError
+      setFieldErrors(apiError.fieldErrors ?? {})
+      if (apiError.code === 'EMAIL_VERIFICATION_REQUIRED') {
+        navigate(`/verify-email?email=${encodeURIComponent(email.trim())}`)
+        return
+      }
+      setError(apiError.code === 'EMAIL_ALREADY_REGISTERED'
+        ? '이미 가입된 이메일입니다. 로그인해 주세요.'
+        : apiError.code === 'RATE_LIMIT_EXCEEDED'
+          ? '요청이 많습니다. 잠시 후 다시 시도해 주세요.'
+          : apiError.message || '인증에 실패했습니다.')
     } finally {
       setIsSubmitting(false)
     }
@@ -155,28 +203,132 @@ function AuthPage({ mode, onAuthenticated }: { mode: 'login' | 'signup'; onAuthe
   return (
     <main className="auth-layout">
       <section className="auth-brand-panel">
-        <span className="eyebrow">AI CAREER PLATFORM</span>
-        <h1>Don't<br /><em>Touch</em></h1>
-        <p>Don't Touch</p>
+        <span className="auth-brand-kicker">YOUR CAREER, IN ONE PLACE</span>
+        <h1>Career<br /><em>Note</em></h1>
+        <p>경력을 정리하고, 나에게 맞는 기회를 더 빠르게 준비하세요.</p>
+        <ul className="auth-benefits" aria-label="서비스 주요 기능">
+          <li><span>01</span><div><strong>경력을 한 곳에</strong><small>직무 경력과 프로젝트를 안전하게 기록합니다.</small></div></li>
+          <li><span>02</span><div><strong>공고에 맞춰 준비</strong><small>저장한 채용공고와 내 경력을 연결합니다.</small></div></li>
+          <li><span>03</span><div><strong>검토 가능한 초안</strong><small>자동으로 만든 결과도 근거와 함께 직접 확인합니다.</small></div></li>
+        </ul>
         <div className="brand-mark" aria-hidden="true">↗</div>
       </section>
       <section className="auth-form-panel">
         <div className="auth-form-wrap">
           <span className="eyebrow">{isLogin ? 'WELCOME BACK' : 'GET STARTED'}</span>
           <h2>{isLogin ? '다시 만나서 반가워요' : '커리어 공간을 시작하세요'}</h2>
-          <p className="muted">{isLogin ? '계정에 로그인해 작업을 이어가세요.' : '계정을 안전하게 관리합니다.'}</p>
+          <p className="muted auth-form-intro">{isLogin ? '계정에 로그인해 작업을 이어가세요.' : '1분 안에 시작할 수 있어요. 나중에 내용을 수정할 수 있습니다.'}</p>
+          {isLogin && new URLSearchParams(location.search).get('verified') === '1' && <p className="form-success" role="status">이메일 확인이 완료되었습니다. 이제 로그인할 수 있어요.</p>}
           <form onSubmit={submit} className="auth-form">
-            {!isLogin && <label>이름<input value={displayName} onChange={(event) => setDisplayName(event.target.value)} placeholder="홍길동" required maxLength={100} /></label>}
-            <label>이메일<input type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@example.com" required /></label>
-            <label>비밀번호<input type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="12자 이상" required minLength={isLogin ? 1 : 12} /></label>
+            {!isLogin && <label><span>이름</span><input autoComplete="name" value={displayName} onChange={(event) => { setDisplayName(event.target.value); setFieldErrors((current) => ({ ...current, displayName: '' })) }} placeholder="홍길동" required minLength={2} maxLength={100} />{fieldErrors.displayName && <small className="field-error">{fieldErrors.displayName}</small>}</label>}
+            <label><span>이메일</span><input autoComplete="email" type="email" value={email} onChange={(event) => { setEmail(event.target.value); setFieldErrors((current) => ({ ...current, email: '' })) }} placeholder="you@example.com" required maxLength={320} />{fieldErrors.email && <small className="field-error">{fieldErrors.email}</small>}</label>
+            <label><span>비밀번호</span><div className="password-input-wrap"><input autoComplete={isLogin ? 'current-password' : 'new-password'} type={showPassword ? 'text' : 'password'} value={password} onChange={(event) => { setPassword(event.target.value); setFieldErrors((current) => ({ ...current, password: '', confirmPassword: '' })) }} placeholder={isLogin ? '비밀번호를 입력하세요' : '12~72자'} required minLength={isLogin ? 1 : 12} maxLength={72} /><button className="password-toggle" type="button" onClick={() => setShowPassword((current) => !current)} aria-label={showPassword ? '비밀번호 숨기기' : '비밀번호 보기'}>{showPassword ? '숨기기' : '보기'}</button></div>{!isLogin && <small className={password.length >= 12 ? 'form-hint valid-hint' : 'form-hint'}>{password.length >= 12 ? '✓ 사용 가능한 길이입니다.' : '12자 이상 입력하고 다른 서비스와 다른 비밀번호를 사용하세요.'}</small>}{fieldErrors.password && <small className="field-error">{fieldErrors.password}</small>}</label>
+            {!isLogin && <label><span>비밀번호 확인</span><input autoComplete="new-password" type={showPassword ? 'text' : 'password'} value={confirmPassword} onChange={(event) => { setConfirmPassword(event.target.value); setFieldErrors((current) => ({ ...current, confirmPassword: '' })) }} placeholder="비밀번호를 다시 입력하세요" required maxLength={72} />{confirmPassword && !fieldErrors.confirmPassword && <small className={confirmPassword === password ? 'form-hint valid-hint' : 'form-hint mismatch-hint'}>{confirmPassword === password ? '✓ 비밀번호가 일치합니다.' : '비밀번호가 아직 일치하지 않습니다.'}</small>}{fieldErrors.confirmPassword && <small className="field-error">{fieldErrors.confirmPassword}</small>}</label>}
+            {!isLogin && <fieldset className="consent-group"><legend>필수 동의</legend><label className="consent-check"><input type="checkbox" checked={termsAccepted} onChange={(event) => { setTermsAccepted(event.target.checked); setFieldErrors((current) => ({ ...current, termsAccepted: '' })) }} /><span><Link to="/terms" target="_blank">이용약관</Link>에 동의합니다.</span></label>{fieldErrors.termsAccepted && <small className="field-error">{fieldErrors.termsAccepted}</small>}<label className="consent-check"><input type="checkbox" checked={privacyAccepted} onChange={(event) => { setPrivacyAccepted(event.target.checked); setFieldErrors((current) => ({ ...current, privacyAccepted: '' })) }} /><span><Link to="/privacy" target="_blank">개인정보 수집·이용 안내</Link>에 동의합니다.</span></label>{fieldErrors.privacyAccepted && <small className="field-error">{fieldErrors.privacyAccepted}</small>}{signupPolicy && <small className="policy-version">약관 {signupPolicy.termsVersion} · 개인정보 {signupPolicy.privacyVersion}</small>}</fieldset>}
             {error && <p className="form-error" role="alert">{error}</p>}
-            <button className="primary-button" disabled={isSubmitting} type="submit">{isSubmitting ? '처리 중...' : isLogin ? '로그인' : '계정 만들기'}</button>
+            <button className="primary-button auth-submit" disabled={isSubmitting} type="submit">{isSubmitting ? '처리 중...' : isLogin ? '로그인하고 계속하기' : '계정 만들고 시작하기'}</button>
           </form>
+          <p className="auth-trust-note"><span>✓</span> 입력한 커리어 데이터는 내 계정 안에서만 관리됩니다.</p>
           <p className="auth-switch">{isLogin ? '처음 방문하셨나요?' : '이미 계정이 있으신가요?'} <Link to={isLogin ? '/signup' : '/login'}>{isLogin ? '회원가입' : '로그인'}</Link></p>
         </div>
       </section>
     </main>
   )
+}
+
+function EmailVerificationPage() {
+  const navigate = useNavigate()
+  const location = useLocation()
+  const email = new URLSearchParams(location.search).get('email')?.trim() ?? ''
+  const [code, setCode] = useState('')
+  const [error, setError] = useState('')
+  const [message, setMessage] = useState('')
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [resendSeconds, setResendSeconds] = useState(60)
+
+  useEffect(() => {
+    if (resendSeconds <= 0) return
+    const timer = window.setInterval(() => setResendSeconds((current) => Math.max(0, current - 1)), 1000)
+    return () => window.clearInterval(timer)
+  }, [resendSeconds > 0])
+
+  async function verify(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    if (!/^\d{6}$/.test(code)) {
+      setError('메일에 표시된 숫자 6자리를 입력해주세요.')
+      return
+    }
+    setIsSubmitting(true)
+    setError('')
+    try {
+      await request<void>('/v1/auth/verify-email', {
+        method: 'POST',
+        body: JSON.stringify({ email, code }),
+      })
+      navigate('/login?verified=1', { replace: true })
+    } catch (verificationError) {
+      const apiError = verificationError as ApiError
+      setError(apiError.code === 'EMAIL_VERIFICATION_INVALID'
+        ? '인증코드가 올바르지 않거나 만료되었습니다. 다시 확인해주세요.'
+        : apiError.code === 'RATE_LIMIT_EXCEEDED'
+          ? '요청이 많습니다. 잠시 후 다시 시도해주세요.'
+          : '이메일 확인을 완료하지 못했습니다.')
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  async function resend() {
+    setError('')
+    setMessage('')
+    try {
+      await request<void>('/v1/auth/resend-verification', {
+        method: 'POST',
+        body: JSON.stringify({ email }),
+      })
+      setMessage('새 인증코드를 요청했습니다. 메일함을 확인해주세요.')
+      setResendSeconds(60)
+    } catch (resendError) {
+      const apiError = resendError as ApiError
+      setError(apiError.code === 'RATE_LIMIT_EXCEEDED'
+        ? '재요청이 많습니다. 잠시 후 다시 시도해주세요.'
+        : '인증 메일을 다시 보내지 못했습니다.')
+    }
+  }
+
+  if (!email) return <Navigate to="/signup" replace />
+
+  return <main className="verification-page"><section className="verification-card">
+    <span className="verification-icon" aria-hidden="true">✉</span>
+    <span className="eyebrow">CHECK YOUR EMAIL</span>
+    <h1>이메일을 확인해주세요</h1>
+    <p><strong>{email}</strong>으로 보낸 숫자 6자리를 입력하면 가입이 완료됩니다.</p>
+    <form onSubmit={verify} className="verification-form">
+      <label htmlFor="verification-code">인증코드</label>
+      <input id="verification-code" inputMode="numeric" autoComplete="one-time-code" value={code} onChange={(event) => { setCode(event.target.value.replace(/\D/g, '').slice(0, 6)); setError('') }} placeholder="000000" maxLength={6} autoFocus />
+      {error && <p className="form-error" role="alert">{error}</p>}
+      {message && <p className="form-success" role="status">{message}</p>}
+      <button className="primary-button auth-submit" type="submit" disabled={isSubmitting || code.length !== 6}>{isSubmitting ? '확인 중...' : '인증하고 가입 완료'}</button>
+    </form>
+    <div className="verification-actions"><button className="text-button" type="button" disabled={resendSeconds > 0} onClick={() => void resend()}>{resendSeconds > 0 ? `${resendSeconds}초 후 다시 받기` : '인증코드 다시 받기'}</button><Link to="/signup">이메일 다시 입력</Link></div>
+    <p className="verification-help">메일이 보이지 않으면 스팸함을 확인해주세요. 인증코드는 5분 후 만료됩니다.</p>
+  </section></main>
+}
+
+function PolicyPage({ type }: { type: 'terms' | 'privacy' }) {
+  const isTerms = type === 'terms'
+  return <main className="policy-page"><article className="policy-card"><Link className="policy-back" to="/signup">← 회원가입으로 돌아가기</Link><span className="eyebrow">SERVICE POLICY</span><h1>{isTerms ? '이용약관' : '개인정보 수집·이용 안내'}</h1><p className="policy-effective">시행일: 2026년 10월 21일</p>{isTerms ? <>
+    <section><h2>1. 서비스 목적</h2><p>사용자가 경력, 프로젝트, 이력서와 채용공고를 정리하고 지원 문서 초안을 준비할 수 있는 작업 공간을 제공합니다.</p></section>
+    <section><h2>2. 계정과 이용 책임</h2><p>사용자는 정확한 정보를 입력하고 계정 접근 정보를 안전하게 관리해야 합니다. 타인의 계정 사용, 서비스 방해, 불법적인 자동 접근은 허용되지 않습니다.</p></section>
+    <section><h2>3. 작성 결과 검토</h2><p>자동으로 준비된 문서는 참고용 초안입니다. 제출 전 사실관계, 표현, 개인정보 포함 여부를 사용자가 직접 확인해야 합니다.</p></section>
+    <section><h2>4. 서비스 변경과 이용 종료</h2><p>안정성 또는 보안을 위해 기능이 변경되거나 일시 중단될 수 있습니다. 사용자는 계정 삭제와 보유 데이터 처리 방법을 운영자에게 요청할 수 있습니다.</p></section>
+  </> : <>
+    <section><h2>1. 수집 항목</h2><p>가입 시 이름과 이메일, 암호화된 비밀번호를 처리합니다. 서비스 이용 중 사용자가 입력한 경력, 프로젝트, 이력서, 채용공고와 보안·오류 대응을 위한 최소 접속 기록을 처리합니다.</p></section>
+    <section><h2>2. 이용 목적</h2><p>계정 식별, 사용자별 데이터 분리, 문서 작성 기능 제공, 보안 사고 예방과 서비스 품질 개선에 사용합니다.</p></section>
+    <section><h2>3. 외부 처리</h2><p>이메일 확인 과정에서는 가입 이메일 주소가 메일 발송 제공업체에 전달됩니다. 사용자가 자동 작성 기능을 실행하면 필요한 입력 일부가 설정된 문서 작성 제공업체에 전달될 수 있습니다. 비밀번호와 로그인 토큰은 전달하지 않습니다.</p></section>
+    <section><h2>4. 보유와 삭제</h2><p>계정과 입력 데이터는 서비스 이용 기간 동안 보관하며, 삭제 요청 시 법령 또는 보안상 보존 의무가 있는 항목을 제외하고 처리 목적에 따라 삭제합니다.</p></section>
+    <section><h2>5. 사용자 권리</h2><p>사용자는 본인 데이터의 조회, 수정, 삭제를 요청할 수 있습니다. 정식 배포 전 운영자 정보와 개인정보 문의 채널을 배포 환경에 맞게 최종 고지해야 합니다.</p></section>
+  </>}</article></main>
 }
 
 function Dashboard({ user, onLogout }: { user: User; onLogout: () => Promise<void> }) {
@@ -194,18 +346,18 @@ function Dashboard({ user, onLogout }: { user: User; onLogout: () => Promise<voi
   return (
     <div className="app-shell">
       <aside className="sidebar">
-        <Link className="logo" to="/">AC<span>•</span></Link>
+        <Link className="logo" to="/" aria-label="Career Note 홈">AC<span>•</span><small>CAREER NOTE</small></Link>
         <div className="sidebar-label">WORKSPACE</div>
         <nav>
-          <Link className={location.pathname === '/' ? 'nav-item active' : 'nav-item'} to="/">Overview <span>⌂</span></Link>
-          <Link className={careerSection ? 'nav-item active' : 'nav-item'} to="/career/experiences">Career <span>↗</span></Link>
-          <Link className={location.pathname === '/resumes' ? 'nav-item active' : 'nav-item'} to="/resumes">Resumes <span>▤</span></Link>
-          <Link className={location.pathname === '/job-postings' ? 'nav-item active' : 'nav-item'} to="/job-postings">Job postings <span>◌</span></Link>
+          <Link className={location.pathname === '/' ? 'nav-item active' : 'nav-item'} to="/"><span className="nav-icon">⌂</span><span className="nav-label">홈</span></Link>
+          <Link className={careerSection ? 'nav-item active' : 'nav-item'} to="/career/experiences"><span className="nav-icon">↗</span><span className="nav-label">커리어</span></Link>
+          <Link className={location.pathname === '/resumes' ? 'nav-item active' : 'nav-item'} to="/resumes"><span className="nav-icon">▤</span><span className="nav-label">이력서</span></Link>
+          <Link className={location.pathname === '/job-postings' ? 'nav-item active' : 'nav-item'} to="/job-postings"><span className="nav-icon">◌</span><span className="nav-label">채용공고</span></Link>
         </nav>
         <div className="sidebar-footer">
           <span className="avatar">{user.displayName.charAt(0)}</span>
           <div><strong>{user.displayName}</strong><small>{user.email}</small></div>
-          <button className="logout-button" onClick={logout} disabled={isLoggingOut} aria-label="로그아웃">↪</button>
+          <button className="logout-button" onClick={logout} disabled={isLoggingOut} aria-label="로그아웃"><span aria-hidden="true">↪</span><small>로그아웃</small></button>
         </div>
       </aside>
       <main className="main-content">
@@ -234,7 +386,7 @@ function CareerPageContent({ section }: { section: CareerSection }) {
     setIndexError('')
     try {
       const result = await request<EmbeddingIndexResponse>('/v1/retrieval/index', { method: 'POST' })
-      setIndexMessage(`AI 검색 데이터 업데이트 완료 · Experiences ${result.indexedExperienceChunks}개 · Projects ${result.indexedProjectChunks}개`)
+      setIndexMessage(`맞춤 검색 데이터 업데이트 완료 · 경력 ${result.indexedExperienceChunks}개 · 프로젝트 ${result.indexedProjectChunks}개`)
     } catch (error) {
       setIndexError(error instanceof Error ? error.message : '경력 데이터를 인덱싱하지 못했습니다.')
     } finally {
@@ -243,14 +395,15 @@ function CareerPageContent({ section }: { section: CareerSection }) {
   }
 
   return <>
+    <div className="career-intro"><div className="journey-step">01</div><div><span className="eyebrow">STEP 1 · CAREER FOUNDATION</span><strong>내 경력을 먼저 채워주세요</strong><p>완벽한 문장보다 실제로 했던 일과 결과를 적는 것이 더 중요합니다.</p></div></div>
     <div className="career-toolbar">
       <nav className="career-tabs" aria-label="Career data sections">
-        <Link className={section === 'experiences' ? 'career-tab active' : 'career-tab'} to="/career/experiences" aria-current={section === 'experiences' ? 'page' : undefined}>Experiences</Link>
-        <Link className={section === 'projects' ? 'career-tab active' : 'career-tab'} to="/career/projects" aria-current={section === 'projects' ? 'page' : undefined}>Projects</Link>
+        <Link className={section === 'experiences' ? 'career-tab active' : 'career-tab'} to="/career/experiences" aria-current={section === 'experiences' ? 'page' : undefined}>경력</Link>
+        <Link className={section === 'projects' ? 'career-tab active' : 'career-tab'} to="/career/projects" aria-current={section === 'projects' ? 'page' : undefined}>프로젝트</Link>
       </nav>
       <div className="career-index-actions">
-        <button className="secondary-button compact-button" onClick={() => void indexCareerEvidence()} disabled={isIndexing} aria-describedby="career-index-help">{isIndexing ? 'AI 검색 데이터 만드는 중...' : 'AI 검색용 경력 데이터 업데이트'}</button>
-        <small id="career-index-help">Experience·Project를 채용공고 매칭에 사용할 검색 데이터로 변환합니다. 저장·수정 후 다시 실행하세요.</small>
+        <button className="secondary-button compact-button" onClick={() => void indexCareerEvidence()} disabled={isIndexing} aria-describedby="career-index-help">{isIndexing ? '맞춤 검색 데이터 만드는 중...' : '맞춤 검색 데이터 업데이트'}</button>
+        <small id="career-index-help">Experience·Project를 채용공고 매칭에 사용할 검색 데이터로 변환합니다.</small>
       </div>
     </div>
     {indexMessage && <p className="career-index-message" role="status">{indexMessage}</p>}
@@ -298,11 +451,11 @@ function OverviewContent({ user }: { user: User }) {
   const completedWorkspaceSections = Object.values(counts).filter((count) => count !== null && count > 0).length
 
   return <>
-    <header className="topbar"><div><span className="eyebrow">YOUR WORKSPACE</span><h1>안녕하세요, {user.displayName}님</h1></div></header>
-    <section className="hero-card"><div><span className="eyebrow">CAREER SIGNALS</span><h2>당신의 다음 기회를<br /><em>준비하는 중입니다.</em></h2><p>경험과 프로젝트를 쌓아두면, 채용공고와 연결해드립니다.</p></div><div className="hero-orbit" aria-hidden="true"><span>+</span><span>✦</span><span>→</span></div></section>
-    <section className="stats-grid" aria-busy={isLoading}><StatCard label="Experiences" value={displayCount(counts.experiences)} action="경험 추가" to="/career/experiences" /><StatCard label="Projects" value={displayCount(counts.projects)} action="프로젝트 추가" to="/career/projects" /><StatCard label="Resumes" value={displayCount(counts.resumes)} action="이력서 만들기" to="/resumes" /></section>
+    <header className="topbar"><div><span className="eyebrow">YOUR WORKSPACE</span><h1>안녕하세요, {user.displayName}님</h1><p className="topbar-subtitle">오늘은 어디부터 준비해볼까요?</p></div><span className="status-pill"><span />내 작업 공간</span></header>
+    <section className="hero-card"><div className="hero-card-content"><span className="eyebrow">START HERE</span><h2>당신의 다음 기회를<br /><em>차근차근 준비해요.</em></h2><p>경력을 먼저 기록하고 관심 공고를 저장하면, 공고에 맞는 초안을 알아서 준비합니다.</p><div className="hero-actions"><Link className="hero-action-primary" to="/career/experiences">경력 기록하기 <span>→</span></Link><Link className="hero-action-secondary" to="/job-postings">공고 저장하기</Link></div></div><div className="hero-orbit" aria-hidden="true"><span>+</span><span>✦</span><span>→</span></div></section>
+    <section className="stats-grid" aria-busy={isLoading}><StatCard label="경력" value={displayCount(counts.experiences)} action="경력 추가" to="/career/experiences" /><StatCard label="프로젝트" value={displayCount(counts.projects)} action="프로젝트 추가" to="/career/projects" /><StatCard label="이력서" value={displayCount(counts.resumes)} action="이력서 만들기" to="/resumes" /><StatCard label="채용공고" value={displayCount(counts.jobPostings)} action="공고 저장" to="/job-postings" /></section>
     {loadError && <p className="overview-load-error" role="alert">{loadError} <button className="text-button" onClick={() => void loadCounts()}>다시 시도</button></p>}
-    <section className="next-section"><div><span className="eyebrow">NEXT UP</span><h2>작업 공간을 채워보세요</h2><p>경험, 프로젝트, 이력서, 채용공고를 등록하면 준비 현황에 반영됩니다.</p></div><div className="progress-ring" aria-label={`완료한 작업 공간 ${completedWorkspaceSections}개, 전체 4개`}><strong>{isLoading ? '…' : completedWorkspaceSections}</strong><span>/ 4</span></div></section>
+    <section className="next-section"><div><span className="eyebrow">NEXT UP</span><h2>작업 공간을 채워보세요</h2><p>처음이라면 경력 하나만 기록해도 충분합니다. 저장한 데이터는 언제든 수정할 수 있어요.</p><div className="next-actions"><Link className="text-button" to="/career/experiences">첫 경력 기록하기 ↗</Link><Link className="text-button" to="/job-postings">관심 공고 저장하기 ↗</Link></div></div><div className="progress-ring" aria-label={`완료한 작업 공간 ${completedWorkspaceSections}개, 전체 4개`}><strong>{isLoading ? '…' : completedWorkspaceSections}</strong><span>/ 4</span></div></section>
   </>
 }
 
@@ -310,11 +463,13 @@ type TxtFieldDefinition<T extends string> = { key: T; aliases: string[] }
 
 const experienceTxtTemplate = `회사명: Acme Inc.
 직무: Backend Developer
+시작일: 2023-01-01
+종료일: 재직 중
 설명:
 Spring Boot API를 개발했습니다.
 PostgreSQL 성능을 개선했습니다.`
 
-const projectTxtTemplate = `프로젝트명: AI Career Platform
+const projectTxtTemplate = `프로젝트명: Career Portfolio
 역할: Backend Developer
 시작일: 2025-01-01
 종료일: 현재
@@ -324,9 +479,11 @@ Repository URL: https://github.com/example/project
 설명:
 커리어 데이터를 관리하는 서비스를 개발했습니다.`
 
-const experienceTxtFields: TxtFieldDefinition<keyof ExperienceForm>[] = [
+const experienceTxtFields: TxtFieldDefinition<Exclude<keyof ExperienceForm, 'currentlyEmployed'>>[] = [
   { key: 'companyName', aliases: ['회사명', '회사', 'company', 'companyName'] },
   { key: 'role', aliases: ['직무', '역할', '직무 역할', '포지션', 'role', 'position'] },
+  { key: 'startDate', aliases: ['시작일', '입사일', '시작 날짜', 'startDate', 'start date'] },
+  { key: 'endDate', aliases: ['종료일', '퇴사일', '종료 날짜', 'endDate', 'end date'] },
   { key: 'description', aliases: ['설명', '업무 내용', '주요 업무', '성과', 'description'] },
 ]
 
@@ -508,7 +665,7 @@ function JobPostingUrlImportModal({ onClose, onApply }: { onClose: () => void; o
   </div>
 }
 
-const emptyExperienceForm: ExperienceForm = { companyName: '', role: '', description: '' }
+const emptyExperienceForm: ExperienceForm = { companyName: '', role: '', startDate: '', endDate: '', currentlyEmployed: false, description: '' }
 
 function ExperiencePageContent() {
   const [experiences, setExperiences] = useState<Experience[]>([])
@@ -557,7 +714,7 @@ function ExperiencePageContent() {
 
   function startEdit(experience: Experience) {
     setEditingId(experience.id)
-    setForm({ companyName: experience.companyName, role: experience.role, description: experience.description })
+    setForm({ companyName: experience.companyName, role: experience.role, startDate: experience.startDate ?? '', endDate: experience.endDate ?? '', currentlyEmployed: experience.currentlyEmployed, description: experience.description })
     setFieldErrors({})
     setFormError('')
     window.scrollTo({ top: 0, behavior: 'smooth' })
@@ -566,7 +723,19 @@ function ExperiencePageContent() {
   function applyTxtImport(text: string) {
     const { values, matchedFields } = parseLabeledTxt(text, experienceTxtFields)
     if (matchedFields === 0) return '인식할 수 있는 항목이 없습니다. 예시처럼 “항목명: 값” 형식으로 입력해주세요.'
-    setForm((current) => ({ ...current, ...values }))
+    if (values.startDate !== undefined) {
+      const normalized = normalizeImportedDate(values.startDate, false)
+      if (normalized === null) return '시작일은 YYYY-MM-DD 형식으로 입력해주세요.'
+      values.startDate = normalized
+    }
+    let currentlyEmployed = false
+    if (values.endDate !== undefined) {
+      currentlyEmployed = /^(현재|진행중|재직중|present|current|ongoing)$/i.test(values.endDate.trim())
+      const normalized = normalizeImportedDate(values.endDate, true)
+      if (normalized === null) return '종료일은 YYYY-MM-DD 또는 재직 중으로 입력해주세요.'
+      values.endDate = normalized
+    }
+    setForm((current) => ({ ...current, ...values, currentlyEmployed: values.endDate === undefined ? current.currentlyEmployed : currentlyEmployed }))
     setFieldErrors({})
     setFormError('')
     window.scrollTo({ top: 0, behavior: 'smooth' })
@@ -577,7 +746,8 @@ function ExperiencePageContent() {
     const errors: Record<string, string> = {}
     if (!form.companyName.trim()) errors.companyName = '회사명을 입력해주세요.'
     if (!form.role.trim()) errors.role = '직무를 입력해주세요.'
-    if (!form.description.trim()) errors.description = '경험 설명을 입력해주세요.'
+    if (!form.currentlyEmployed && form.endDate && form.startDate && form.endDate < form.startDate) errors.endDate = '종료일은 시작일 이후여야 합니다.'
+    if (!form.description.trim()) errors.description = '경력 설명을 입력해주세요.'
     setFieldErrors(errors)
     return Object.keys(errors).length === 0
   }
@@ -587,7 +757,7 @@ function ExperiencePageContent() {
     setFormError('')
     if (!validateForm()) return
     setIsSubmitting(true)
-    const payload = { companyName: form.companyName.trim(), role: form.role.trim(), description: form.description.trim() }
+    const payload = { companyName: form.companyName.trim(), role: form.role.trim(), startDate: form.startDate || null, endDate: form.currentlyEmployed ? null : form.endDate || null, currentlyEmployed: form.currentlyEmployed, description: form.description.trim() }
     try {
       await request<Experience>(editingId ? `/v1/experiences/${editingId}` : '/v1/experiences', { method: editingId ? 'PUT' : 'POST', body: JSON.stringify(payload) })
       startCreate()
@@ -602,38 +772,40 @@ function ExperiencePageContent() {
   }
 
   async function deleteExperience(id: string) {
-    if (!window.confirm('이 경험을 삭제할까요? 삭제된 경험은 목록에서 숨겨집니다.')) return
+    if (!window.confirm('이 경력을 삭제할까요? 삭제된 경력은 목록에서 숨겨집니다.')) return
     setDeletingId(id)
     try {
       await request<void>(`/v1/experiences/${id}`, { method: 'DELETE' })
       await loadExperiences(page > 0 && experiences.length === 1 ? page - 1 : page)
     } catch (error) {
-      setLoadError(error instanceof Error ? error.message : '경험을 삭제하지 못했습니다.')
+      setLoadError(error instanceof Error ? error.message : '경력을 삭제하지 못했습니다.')
     } finally {
       setDeletingId(null)
     }
   }
 
   return <>
-    <header className="page-heading"><div><span className="eyebrow">CAREER DATA</span><h1>Experiences</h1><p>직무 경험을 기록해두면 향후 채용공고와 연결할 수 있습니다.</p></div><div className="heading-actions"><button className="secondary-button compact-button" onClick={() => setIsImportOpen(true)}>TXT 가져오기</button><button className="primary-button compact-button" onClick={startCreate}>+ 경험 추가</button></div></header>
+    <header className="page-heading"><div><span className="eyebrow">CAREER DATA · HISTORY</span><h1>경력</h1><p>직장에서 맡았던 일과 결과를 기록해두면 채용공고와 연결할 수 있습니다.</p></div><div className="heading-actions"><button className="secondary-button compact-button" onClick={() => setIsImportOpen(true)}>TXT로 빠르게 입력</button><button className="primary-button compact-button" onClick={startCreate}>+ 경력 추가</button></div></header>
     <section className="experience-form-card">
-      <div className="section-title"><div><span className="eyebrow">{editingId ? 'EDIT EXPERIENCE' : 'NEW EXPERIENCE'}</span><h2>{editingId ? '경험 수정' : '새 경험 기록'}</h2></div>{editingId && <button className="text-button" onClick={startCreate}>취소</button>}</div>
+      <div className="section-title"><div><span className="eyebrow">{editingId ? 'EDIT CAREER' : 'NEW CAREER'}</span><h2>{editingId ? '경력 수정' : '새 경력 기록'}</h2><p className="form-helper">회사명, 역할, 설명만 먼저 입력해도 저장할 수 있어요.</p></div>{editingId && <button className="text-button" onClick={startCreate}>취소</button>}</div>
       <form className="experience-form" onSubmit={submitExperience}>
         <FormField label="회사명" value={form.companyName} onChange={(value) => updateField('companyName', value)} error={fieldErrors.companyName} placeholder="예: Acme Inc." />
         <FormField label="직무 / 역할" value={form.role} onChange={(value) => updateField('role', value)} error={fieldErrors.role} placeholder="예: Backend Developer" />
+        <FormField label="시작일 (선택)" type="date" value={form.startDate} onChange={(value) => updateField('startDate', value)} error={fieldErrors.startDate} />
+        <div className="period-end-field"><FormField label="종료일 (선택)" type="date" value={form.endDate} onChange={(value) => updateField('endDate', value)} error={fieldErrors.endDate} disabled={form.currentlyEmployed} /><label className="current-period-check"><input type="checkbox" checked={form.currentlyEmployed} onChange={(event) => setForm((current) => ({ ...current, currentlyEmployed: event.target.checked, endDate: event.target.checked ? '' : current.endDate }))} /><span>재직 중</span></label></div>
         <label className="wide-field">설명<textarea value={form.description} onChange={(event) => updateField('description', event.target.value)} placeholder="담당 업무, 성과, 사용 기술을 기록해주세요." maxLength={10000} rows={4} />{fieldErrors.description && <small className="field-error">{fieldErrors.description}</small>}</label>
         {formError && <p className="form-error wide-field" role="alert">{formError}</p>}
-        <div className="form-actions wide-field"><button className="primary-button compact-button" disabled={isSubmitting} type="submit">{isSubmitting ? '저장 중...' : editingId ? '변경 저장' : '경험 저장'}</button></div>
+        <div className="form-actions wide-field"><button className="primary-button compact-button" disabled={isSubmitting} type="submit">{isSubmitting ? '저장 중...' : editingId ? '변경 저장' : '경력 저장'}</button></div>
       </form>
     </section>
-    <section className="experience-list-section"><div className="list-heading"><div><span className="eyebrow">YOUR EXPERIENCES</span><h2>{totalElements}개의 경험</h2></div><button className="text-button" onClick={() => void loadExperiences(page)}>새로고침</button></div>
-      {isLoading && <div className="list-state">경험 목록을 불러오는 중입니다...</div>}
+    <section className="experience-list-section"><div className="list-heading"><div><span className="eyebrow">YOUR CAREER HISTORY</span><h2>{totalElements}개의 경력</h2></div><button className="text-button" onClick={() => void loadExperiences(page)}>새로고침</button></div>
+      {isLoading && <div className="list-state">경력 목록을 불러오는 중입니다...</div>}
       {!isLoading && loadError && <div className="list-state error-state" role="alert">{loadError}<button className="text-button" onClick={() => void loadExperiences(page)}>다시 시도</button></div>}
-      {!isLoading && !loadError && experiences.length === 0 && <div className="list-state">아직 등록된 경험이 없습니다. 위에서 첫 경험을 기록해보세요.</div>}
-      {!isLoading && !loadError && experiences.length > 0 && <div className="experience-list">{experiences.map((experience) => <article className="experience-item" key={experience.id}><div className="experience-date">CAREER EVIDENCE</div><div className="experience-main"><h3>{experience.role}</h3><strong>{experience.companyName}</strong><p>{experience.description}</p></div><div className="item-actions"><button className="text-button" onClick={() => startEdit(experience)}>수정</button><button className="text-button danger-button" onClick={() => void deleteExperience(experience.id)} disabled={deletingId === experience.id}>{deletingId === experience.id ? '삭제 중' : '삭제'}</button></div></article>)}</div>}
+      {!isLoading && !loadError && experiences.length === 0 && <div className="list-state">아직 등록된 경력이 없습니다. 위에서 첫 경력을 기록해보세요.</div>}
+      {!isLoading && !loadError && experiences.length > 0 && <div className="experience-list">{experiences.map((experience) => { const period = formatCareerPeriod(experience.startDate, experience.endDate, experience.currentlyEmployed ? '재직 중' : null); return <article className={`experience-item${period ? '' : ' no-period'}`} key={experience.id}>{period && <div className="experience-date">{period}</div>}<div className="experience-main"><h3>{experience.role}</h3><strong>{experience.companyName}</strong><p>{experience.description}</p></div><div className="item-actions"><button className="text-button" onClick={() => startEdit(experience)}>수정</button><button className="text-button danger-button" onClick={() => void deleteExperience(experience.id)} disabled={deletingId === experience.id}>{deletingId === experience.id ? '삭제 중' : '삭제'}</button></div></article> })}</div>}
       {!isLoading && !loadError && totalPages > 1 && <div className="pagination"><button className="text-button" disabled={page === 0} onClick={() => void loadExperiences(page - 1)}>← 이전</button><span>{page + 1} / {totalPages}</span><button className="text-button" disabled={page >= totalPages - 1} onClick={() => void loadExperiences(page + 1)}>다음 →</button></div>}
     </section>
-    {isImportOpen && <TxtImportModal title="경험 TXT 가져오기" template={experienceTxtTemplate} onClose={() => setIsImportOpen(false)} onApply={applyTxtImport} />}
+    {isImportOpen && <TxtImportModal title="경력 TXT 가져오기" template={experienceTxtTemplate} onClose={() => setIsImportOpen(false)} onApply={applyTxtImport} />}
   </>
 }
 
@@ -686,7 +858,7 @@ function ProjectPageContent() {
 
   function startEdit(project: Project) {
     setEditingId(project.id)
-    setForm({ name: project.name, role: project.role, startDate: project.startDate, endDate: project.endDate ?? '', description: project.description, techStack: project.techStack, customerOrDomain: project.customerOrDomain ?? '', repositoryUrl: project.repositoryUrl ?? '' })
+    setForm({ name: project.name, role: project.role, startDate: project.startDate ?? '', endDate: project.endDate ?? '', description: project.description, techStack: project.techStack, customerOrDomain: project.customerOrDomain ?? '', repositoryUrl: project.repositoryUrl ?? '' })
     setFieldErrors({})
     setFormError('')
     window.scrollTo({ top: 0, behavior: 'smooth' })
@@ -716,7 +888,6 @@ function ProjectPageContent() {
     const errors: Record<string, string> = {}
     if (!form.name.trim()) errors.name = '프로젝트명을 입력해주세요.'
     if (!form.role.trim()) errors.role = '역할을 입력해주세요.'
-    if (!form.startDate) errors.startDate = '시작일을 입력해주세요.'
     if (form.endDate && form.startDate && form.endDate < form.startDate) errors.endDate = '종료일은 시작일 이후여야 합니다.'
     if (!form.description.trim()) errors.description = '프로젝트 설명을 입력해주세요.'
     if (!form.techStack.trim()) errors.techStack = '기술 스택을 입력해주세요.'
@@ -730,7 +901,7 @@ function ProjectPageContent() {
     setFormError('')
     if (!validateForm()) return
     setIsSubmitting(true)
-    const payload = { ...form, name: form.name.trim(), role: form.role.trim(), description: form.description.trim(), techStack: form.techStack.trim(), customerOrDomain: form.customerOrDomain.trim() || null, repositoryUrl: form.repositoryUrl.trim() || null, endDate: form.endDate || null }
+    const payload = { ...form, name: form.name.trim(), role: form.role.trim(), startDate: form.startDate || null, endDate: form.endDate || null, description: form.description.trim(), techStack: form.techStack.trim(), customerOrDomain: form.customerOrDomain.trim() || null, repositoryUrl: form.repositoryUrl.trim() || null }
     try {
       await request<Project>(editingId ? `/v1/projects/${editingId}` : '/v1/projects', { method: editingId ? 'PUT' : 'POST', body: JSON.stringify(payload) })
       const nextPage = editingId ? page : 0
@@ -759,17 +930,17 @@ function ProjectPageContent() {
   }
 
   return <>
-    <header className="page-heading"><div><span className="eyebrow">CAREER DATA</span><h1>Projects</h1><p>직접 만든 프로젝트와 기술 스택을 기록해두세요.</p></div><div className="heading-actions"><button className="secondary-button compact-button" onClick={() => setIsImportOpen(true)}>TXT 가져오기</button><button className="primary-button compact-button" onClick={startCreate}>+ 프로젝트 추가</button></div></header>
+    <header className="page-heading"><div><span className="eyebrow">CAREER DATA · PROJECT</span><h1>프로젝트</h1><p>직접 만든 결과물과 사용한 기술을 기록해두면 나만의 근거가 됩니다.</p></div><div className="heading-actions"><button className="secondary-button compact-button" onClick={() => setIsImportOpen(true)}>TXT로 빠르게 입력</button><button className="primary-button compact-button" onClick={startCreate}>+ 프로젝트 추가</button></div></header>
     <section className="experience-form-card">
-      <div className="section-title"><div><span className="eyebrow">{editingId ? 'EDIT PROJECT' : 'NEW PROJECT'}</span><h2>{editingId ? '프로젝트 수정' : '새 프로젝트 기록'}</h2></div>{editingId && <button className="text-button" onClick={startCreate}>취소</button>}</div>
+      <div className="section-title"><div><span className="eyebrow">{editingId ? 'EDIT PROJECT' : 'NEW PROJECT'}</span><h2>{editingId ? '프로젝트 수정' : '새 프로젝트 기록'}</h2><p className="form-helper">프로젝트명과 역할부터 시작하고, 나머지는 나중에 보완해도 괜찮습니다.</p></div>{editingId && <button className="text-button" onClick={startCreate}>취소</button>}</div>
       <form className="experience-form" onSubmit={submitProject}>
-        <FormField label="프로젝트명" value={form.name} onChange={(value) => updateField('name', value)} error={fieldErrors.name} placeholder="예: AI Career Platform" />
+        <FormField label="프로젝트명" value={form.name} onChange={(value) => updateField('name', value)} error={fieldErrors.name} placeholder="예: Career Portfolio" />
         <FormField label="역할" value={form.role} onChange={(value) => updateField('role', value)} error={fieldErrors.role} placeholder="예: Backend Developer" />
-        <FormField label="시작일" type="date" value={form.startDate} onChange={(value) => updateField('startDate', value)} error={fieldErrors.startDate} />
+        <FormField label="시작일 (선택)" type="date" value={form.startDate} onChange={(value) => updateField('startDate', value)} error={fieldErrors.startDate} />
         <FormField label="종료일 (선택)" type="date" value={form.endDate} onChange={(value) => updateField('endDate', value)} error={fieldErrors.endDate} />
-        <FormField label="고객사 / Domain (선택)" value={form.customerOrDomain} onChange={(value) => updateField('customerOrDomain', value)} error={fieldErrors.customerOrDomain} placeholder="예: 금융권 결제 플랫폼, B2B SaaS" />
+        <FormField label="고객사 / 업무 도메인 (선택)" value={form.customerOrDomain} onChange={(value) => updateField('customerOrDomain', value)} error={fieldErrors.customerOrDomain} placeholder="예: 금융권 결제 플랫폼, B2B SaaS" />
         <FormField label="기술 스택" value={form.techStack} onChange={(value) => updateField('techStack', value)} error={fieldErrors.techStack} placeholder="예: Java, Spring Boot, PostgreSQL" />
-        <FormField label="Repository URL (선택)" value={form.repositoryUrl} onChange={(value) => updateField('repositoryUrl', value)} error={fieldErrors.repositoryUrl} placeholder="https://github.com/..." />
+        <FormField label="저장소 URL (선택)" value={form.repositoryUrl} onChange={(value) => updateField('repositoryUrl', value)} error={fieldErrors.repositoryUrl} placeholder="https://github.com/..." />
         <label className="wide-field">설명<textarea value={form.description} onChange={(event) => updateField('description', event.target.value)} placeholder="문제, 구현 내용, 성과를 기록해주세요." maxLength={10000} rows={4} />{fieldErrors.description && <small className="field-error">{fieldErrors.description}</small>}</label>
         {formError && <p className="form-error wide-field" role="alert">{formError}</p>}
         <div className="form-actions wide-field"><button className="primary-button compact-button" disabled={isSubmitting} type="submit">{isSubmitting ? '저장 중...' : editingId ? '변경 저장' : '프로젝트 저장'}</button></div>
@@ -779,7 +950,7 @@ function ProjectPageContent() {
       {isLoading && <div className="list-state">프로젝트 목록을 불러오는 중입니다...</div>}
       {!isLoading && loadError && <div className="list-state error-state" role="alert">{loadError}<button className="text-button" onClick={() => void loadProjects(page)}>다시 시도</button></div>}
       {!isLoading && !loadError && projects.length === 0 && <div className="list-state">아직 등록된 프로젝트가 없습니다. 위에서 첫 프로젝트를 기록해보세요.</div>}
-      {!isLoading && !loadError && projects.length > 0 && <div className="experience-list">{projects.map((project) => <article className="experience-item" key={project.id}><div className="experience-date">{project.startDate}<span>→</span>{project.endDate ?? '현재'}</div><div className="experience-main"><h3>{project.name}</h3><strong>{project.role}</strong>{project.customerOrDomain && <div className="job-source-label">{project.customerOrDomain}</div>}<p>{project.description}</p><div className="tech-stack">{project.techStack}</div>{project.repositoryUrl && <a className="repo-link" href={project.repositoryUrl} target="_blank" rel="noreferrer">Repository ↗</a>}</div><div className="item-actions"><button className="text-button" onClick={() => startEdit(project)}>수정</button><button className="text-button danger-button" onClick={() => void deleteProject(project.id)} disabled={deletingId === project.id}>{deletingId === project.id ? '삭제 중' : '삭제'}</button></div></article>)}</div>}
+      {!isLoading && !loadError && projects.length > 0 && <div className="experience-list">{projects.map((project) => { const period = formatCareerPeriod(project.startDate, project.endDate, project.startDate && !project.endDate ? '진행 중' : null); return <article className={`experience-item${period ? '' : ' no-period'}`} key={project.id}>{period && <div className="experience-date">{period}</div>}<div className="experience-main"><h3>{project.name}</h3><strong>{project.role}</strong>{project.customerOrDomain && <div className="job-source-label">{project.customerOrDomain}</div>}<p>{project.description}</p><div className="tech-stack">{project.techStack}</div>{project.repositoryUrl && <a className="repo-link" href={project.repositoryUrl} target="_blank" rel="noreferrer">Repository ↗</a>}</div><div className="item-actions"><button className="text-button" onClick={() => startEdit(project)}>수정</button><button className="text-button danger-button" onClick={() => void deleteProject(project.id)} disabled={deletingId === project.id}>{deletingId === project.id ? '삭제 중' : '삭제'}</button></div></article> })}</div>}
       {!isLoading && !loadError && totalPages > 1 && <div className="pagination"><button className="text-button" disabled={page === 0} onClick={() => void loadProjects(page - 1)}>← 이전</button><span>{page + 1} / {totalPages}</span><button className="text-button" disabled={page >= totalPages - 1} onClick={() => void loadProjects(page + 1)}>다음 →</button></div>}
     </section>
     {isImportOpen && <TxtImportModal title="프로젝트 TXT 가져오기" template={projectTxtTemplate} onClose={() => setIsImportOpen(false)} onApply={applyTxtImport} />}
@@ -963,30 +1134,38 @@ function formatJobKoreaDate(value: string) {
   return value ? value.replaceAll('-', '.') : '입력 필요'
 }
 
-function formatCareerPeriod(startDate: string | null | undefined, endDate: string | null | undefined) {
-  if (!startDate) return '입력 필요'
-  return `${formatJobKoreaDate(startDate)} ~ ${endDate ? formatJobKoreaDate(endDate) : '현재'}`
+function formatCareerPeriod(startDate: string | null | undefined, endDate: string | null | undefined, ongoingLabel: string | null = null) {
+  if (!startDate && !endDate) return ongoingLabel
+  if (!startDate) return `~ ${formatJobKoreaDate(endDate ?? '')}`
+  if (!endDate) return ongoingLabel ? `${formatJobKoreaDate(startDate)} ~ ${ongoingLabel}` : formatJobKoreaDate(startDate)
+  return `${formatJobKoreaDate(startDate)} ~ ${formatJobKoreaDate(endDate)}`
 }
 
 function buildCareerDescription(projects: Project[], experiences: Experience[]) {
-  const projectSections = projects.map((project) => [
-    `[프로젝트] ${project.name}`,
-    `① 프로젝트 명: ${project.name}`,
-    `② 고객사/Domain: ${project.customerOrDomain?.trim() || '입력 필요 (Project에 고객사 / Domain을 입력해주세요.)'}`,
-    `③ 수행 기간: ${formatCareerPeriod(project.startDate, project.endDate)}`,
-    `④ 업무 내용 및 성과: ${project.description.trim() || '입력 필요'}`,
-    `⑤ 담당 역할: ${project.role}`,
-    `⑥ 보유/활용 Skill: ${project.techStack}`,
-  ].join('\n'))
-  const experienceSections = experiences.map((experience) => [
-    `[경력] ${experience.companyName}`,
-    `① 프로젝트 명: 입력 필요 (Experience에 프로젝트명이 없습니다.)`,
-    `② 고객사/Domain: ${experience.companyName}`,
-    '③ 수행 기간: 입력 필요 (Experience에 경력 기간이 없습니다.)',
-    `④ 업무 내용 및 성과: ${experience.description.trim() || '입력 필요'}`,
-    `⑤ 담당 역할: ${experience.role}`,
-    '⑥ 보유/활용 Skill: 입력 필요 (Experience에 기술 스택이 없습니다.)',
-  ].join('\n'))
+  const projectSections = projects.map((project) => {
+    const period = formatCareerPeriod(project.startDate, project.endDate, project.startDate && !project.endDate ? '진행 중' : null)
+    return [
+      `[프로젝트] ${project.name}`,
+      `① 프로젝트 명: ${project.name}`,
+      `② 고객사/Domain: ${project.customerOrDomain?.trim() || '입력 필요 (Project에 고객사 / Domain을 입력해주세요.)'}`,
+      period ? `③ 수행 기간: ${period}` : null,
+      `④ 업무 내용 및 성과: ${project.description.trim() || '입력 필요'}`,
+      `⑤ 담당 역할: ${project.role}`,
+      `⑥ 보유/활용 Skill: ${project.techStack}`,
+    ].filter((line): line is string => line !== null).join('\n')
+  })
+  const experienceSections = experiences.map((experience) => {
+    const period = formatCareerPeriod(experience.startDate, experience.endDate, experience.currentlyEmployed ? '재직 중' : null)
+    return [
+      `[경력] ${experience.companyName}`,
+      `① 프로젝트 명: 입력 필요 (Experience에 프로젝트명이 없습니다.)`,
+      `② 고객사/Domain: ${experience.companyName}`,
+      period ? `③ 수행 기간: ${period}` : null,
+      `④ 업무 내용 및 성과: ${experience.description.trim() || '입력 필요'}`,
+      `⑤ 담당 역할: ${experience.role}`,
+      '⑥ 보유/활용 Skill: 입력 필요 (Experience에 기술 스택이 없습니다.)',
+    ].filter((line): line is string => line !== null).join('\n')
+  })
   return [...projectSections, ...experienceSections].join('\n\n')
 }
 
@@ -1017,7 +1196,7 @@ function emptyJobKoreaPortfolio(): JobKoreaPortfolio {
 function defaultJobKoreaSelfIntroductions(parsed: ParsedResumeExport): JobKoreaSelfIntroduction[] {
   if (parsed.selfIntroductions.length > 0) return parsed.selfIntroductions
   const defaults = Array.from({ length: 3 }, (): JobKoreaSelfIntroduction => ({ title: '', content: '' }))
-  if (parsed.summary) defaults[0] = { title: '직무 역량과 경험', content: parsed.summary }
+  if (parsed.summary) defaults[0] = { title: '직무 역량과 경력', content: parsed.summary }
   return defaults
 }
 
@@ -1300,7 +1479,7 @@ function JobKoreaExportModal({
       if (missing.length > 0) errors.push(`자기소개서 ${index + 1}: ${missing.join(', ')} 입력 필요`)
       if (item.title.trim().length > 50) errors.push(`자기소개서 ${index + 1}: 제목은 최대 50자까지 입력할 수 있습니다.`)
     })
-    if (!reviewConfirmed) errors.push('개인정보와 AI 생성 내용을 검토했다는 확인이 필요합니다.')
+    if (!reviewConfirmed) errors.push('개인정보와 자동 생성 내용을 검토했다는 확인이 필요합니다.')
     if (errors.length > 0) {
       setStatus(errors.join(' · '))
       return
@@ -1401,7 +1580,7 @@ function JobKoreaExportModal({
   return <div className="modal-backdrop" role="presentation">
     <section className="resume-export-modal" role="dialog" aria-modal="true" aria-labelledby="jobkorea-export-title">
       <div className="modal-heading"><div><span className="eyebrow">JOBKOREA FILE EXPORT</span><h2 id="jobkorea-export-title">JobKorea 업로드 파일 만들기</h2></div><button className="modal-close" onClick={onClose} aria-label="닫기">×</button></div>
-      <p className="modal-description">승인된 immutable Version {version.versionNumber}를 JobKorea 표준 항목 순서로 변환해 PDF를 생성합니다. AI 생성 내용은 희망직무·자기소개서·경력기술서·스킬에 자동 배치하고, 계정에 없는 개인정보·학력·근무조건은 직접 입력합니다.</p>
+      <p className="modal-description">승인된 이력서 버전 {version.versionNumber}를 JobKorea 표준 항목 순서로 변환해 PDF를 생성합니다. 자동으로 만든 내용은 희망직무·자기소개서·경력기술서·스킬에 배치하고, 계정에 없는 개인정보·학력·근무조건은 직접 입력합니다.</p>
       <div className="export-contract-note"><strong>파일 계약</strong><span>PDF 1개 · 5MB 이하 · JobKorea 업로드 페이지에서 직접 제출</span></div>
 
       <div className="export-section"><div className="export-section-heading"><div><span className="eyebrow">PROFILE</span><h3>인적사항</h3></div><div className="heading-actions"><span className="export-required-note">* 필수</span><button className="secondary-button compact-button" type="button" onClick={fillRequiredDemoData}>필수 데모 데이터 채우기</button></div></div><div className="export-form-grid">
@@ -1462,7 +1641,7 @@ function JobKoreaExportModal({
         {renderAdditionalSection('교육이수', 'trainings')}
         {renderAdditionalSection('자격증', 'certificates')}
         {renderAdditionalSection('수상', 'awards')}
-        <div className="export-subsection"><div className="export-subsection-heading"><strong>해외 근무 경험</strong><button className="text-button" type="button" onClick={() => setProfile((current) => ({ ...current, overseas: [...current.overseas, emptyJobKoreaOverseasExperience()] }))}>해외 근무 경험 추가하기</button></div>{profile.overseas.length === 0 && <p className="export-empty">선택 입력 항목입니다.</p>}<div className="export-repeat-list">{profile.overseas.map((experience, index) => <div className="export-repeat-item" key={`overseas-${index}`}><div className="export-repeat-heading"><strong>해외 근무 경험 {index + 1}</strong><button className="text-button danger-button" type="button" onClick={() => setProfile((current) => ({ ...current, overseas: current.overseas.filter((_, itemIndex) => itemIndex !== index) }))}>삭제</button></div><div className="export-form-grid"><label>국가<input value={experience.country} onChange={(event) => updateOverseas(index, 'country', event.target.value)} placeholder="미국" /></label><label>회사·기관<input value={experience.organization} onChange={(event) => updateOverseas(index, 'organization', event.target.value)} /></label><label>시작년월<input type="month" value={experience.startMonth} onChange={(event) => updateOverseas(index, 'startMonth', event.target.value)} /></label><label>종료년월<input type="month" value={experience.endMonth} onChange={(event) => updateOverseas(index, 'endMonth', event.target.value)} /></label><label className="export-profile-wide">내용<textarea value={experience.description} onChange={(event) => updateOverseas(index, 'description', event.target.value)} rows={3} /></label></div></div>)}</div></div>
+        <div className="export-subsection"><div className="export-subsection-heading"><strong>해외 근무 경력</strong><button className="text-button" type="button" onClick={() => setProfile((current) => ({ ...current, overseas: [...current.overseas, emptyJobKoreaOverseasExperience()] }))}>해외 근무 경력 추가하기</button></div>{profile.overseas.length === 0 && <p className="export-empty">선택 입력 항목입니다.</p>}<div className="export-repeat-list">{profile.overseas.map((experience, index) => <div className="export-repeat-item" key={`overseas-${index}`}><div className="export-repeat-heading"><strong>해외 근무 경력 {index + 1}</strong><button className="text-button danger-button" type="button" onClick={() => setProfile((current) => ({ ...current, overseas: current.overseas.filter((_, itemIndex) => itemIndex !== index) }))}>삭제</button></div><div className="export-form-grid"><label>국가<input value={experience.country} onChange={(event) => updateOverseas(index, 'country', event.target.value)} placeholder="미국" /></label><label>회사·기관<input value={experience.organization} onChange={(event) => updateOverseas(index, 'organization', event.target.value)} /></label><label>시작년월<input type="month" value={experience.startMonth} onChange={(event) => updateOverseas(index, 'startMonth', event.target.value)} /></label><label>종료년월<input type="month" value={experience.endMonth} onChange={(event) => updateOverseas(index, 'endMonth', event.target.value)} /></label><label className="export-profile-wide">내용<textarea value={experience.description} onChange={(event) => updateOverseas(index, 'description', event.target.value)} rows={3} /></label></div></div>)}</div></div>
         <div className="export-subsection"><div className="export-subsection-heading"><strong>어학</strong><button className="text-button" type="button" onClick={() => setProfile((current) => ({ ...current, languages: [...current.languages, emptyJobKoreaLanguage()] }))}>추가</button></div>{profile.languages.length === 0 && <p className="export-empty">선택 입력 항목입니다.</p>}<div className="export-repeat-list">{profile.languages.map((language, index) => <div className="export-repeat-item" key={`language-${index}`}><div className="export-repeat-heading"><strong>어학 {index + 1}</strong><button className="text-button danger-button" type="button" onClick={() => setProfile((current) => ({ ...current, languages: current.languages.filter((_, itemIndex) => itemIndex !== index) }))}>삭제</button></div><div className="export-form-grid"><label>언어<input value={language.language} onChange={(event) => updateLanguage(index, 'language', event.target.value)} placeholder="영어" /></label><label>수준<input value={language.level} onChange={(event) => updateLanguage(index, 'level', event.target.value)} placeholder="비즈니스 회화" /></label><label>점수·등급<input value={language.score} onChange={(event) => updateLanguage(index, 'score', event.target.value)} placeholder="TOEIC 900" /></label></div></div>)}</div></div>
         <div className="export-subsection"><div className="export-subsection-heading"><strong>포트폴리오</strong><button className="text-button" type="button" onClick={() => setProfile((current) => ({ ...current, portfolios: [...current.portfolios, emptyJobKoreaPortfolio()] }))}>추가</button></div>{profile.portfolios.length === 0 && <p className="export-empty">선택 입력 항목입니다.</p>}<div className="export-repeat-list">{profile.portfolios.map((portfolio, index) => <div className="export-repeat-item" key={`portfolio-${index}`}><div className="export-repeat-heading"><strong>포트폴리오 {index + 1}</strong><button className="text-button danger-button" type="button" onClick={() => setProfile((current) => ({ ...current, portfolios: current.portfolios.filter((_, itemIndex) => itemIndex !== index) }))}>삭제</button></div><div className="export-form-grid"><label>제목<input value={portfolio.title} onChange={(event) => updatePortfolio(index, 'title', event.target.value)} /></label><label>URL<input type="url" value={portfolio.url} onChange={(event) => updatePortfolio(index, 'url', event.target.value)} placeholder="https://" /></label><label className="export-profile-wide">설명<textarea value={portfolio.description} onChange={(event) => updatePortfolio(index, 'description', event.target.value)} rows={3} /></label></div></div>)}</div></div>
       </div>
@@ -1489,7 +1668,7 @@ function JobKoreaExportModal({
         <p className="export-help export-profile-wide">최대 3개까지 입력할 수 있습니다. 쉼표 또는 줄바꿈으로 구분합니다.</p>
       </div></div>
 
-      <label className="export-review-check"><input type="checkbox" checked={reviewConfirmed} onChange={(event) => { setReviewConfirmed(event.target.checked); if (event.target.checked) setStatus('') }} /><span><strong>다운로드 전 확인</strong><br />개인정보와 AI 생성 문구를 직접 검토했으며, 필요한 내용을 수정한 뒤 JobKorea에 직접 업로드하겠습니다.</span></label>
+      <label className="export-review-check"><input type="checkbox" checked={reviewConfirmed} onChange={(event) => { setReviewConfirmed(event.target.checked); if (event.target.checked) setStatus('') }} /><span><strong>다운로드 전 확인</strong><br />개인정보와 자동 생성 문구를 직접 검토했으며, 필요한 내용을 수정한 뒤 JobKorea에 직접 업로드하겠습니다.</span></label>
       <p className="export-profile-warning" role="note">JobKorea 로그인 정보·쿠키·업로드 세션은 이 서비스에 전송되지 않습니다. JobKorea의 개인정보 동의와 최종 제출은 JobKorea 화면에서 직접 진행하세요.</p>
 
       <div className="resume-export-preview-shell"><div ref={previewRef} style={{ boxSizing: 'border-box', width: '794px', minHeight: '1123px', padding: '26px 30px', background: '#ffffff', color: '#202820', fontFamily: 'Arial, "Malgun Gothic", sans-serif' }}>
@@ -1512,7 +1691,7 @@ function JobKoreaExportModal({
         {renderAdditionalPreview('교육이수', profile.trainings)}
         {renderAdditionalPreview('자격증', profile.certificates)}
         {renderAdditionalPreview('수상', profile.awards)}
-        {profile.overseas.length > 0 && <JobKoreaPreviewSection title="해외 근무 경험">{profile.overseas.map((experience, index) => <div key={`preview-overseas-${index}`} style={{ marginBottom: index === profile.overseas.length - 1 ? 0 : '9px' }}><strong>{experience.country || '국가 입력 필요'}</strong>{experience.organization && ` · ${experience.organization}`}<br />{experience.startMonth || experience.endMonth ? `${formatJobKoreaMonth(experience.startMonth)} ~ ${formatJobKoreaMonth(experience.endMonth)}` : ''}{experience.description && <div style={{ whiteSpace: 'pre-wrap' }}>{experience.description}</div>}</div>)}</JobKoreaPreviewSection>}
+        {profile.overseas.length > 0 && <JobKoreaPreviewSection title="해외 근무 경력">{profile.overseas.map((experience, index) => <div key={`preview-overseas-${index}`} style={{ marginBottom: index === profile.overseas.length - 1 ? 0 : '9px' }}><strong>{experience.country || '국가 입력 필요'}</strong>{experience.organization && ` · ${experience.organization}`}<br />{experience.startMonth || experience.endMonth ? `${formatJobKoreaMonth(experience.startMonth)} ~ ${formatJobKoreaMonth(experience.endMonth)}` : ''}{experience.description && <div style={{ whiteSpace: 'pre-wrap' }}>{experience.description}</div>}</div>)}</JobKoreaPreviewSection>}
         {profile.languages.length > 0 && <JobKoreaPreviewSection title="어학">{profile.languages.map((language, index) => <div key={`preview-language-${index}`} style={{ marginBottom: index === profile.languages.length - 1 ? 0 : '7px' }}><strong>{language.language || '언어 미입력'}</strong>{language.level && ` · ${language.level}`}{language.score && ` · ${language.score}`}</div>)}</JobKoreaPreviewSection>}
         {profile.portfolios.length > 0 && <JobKoreaPreviewSection title="포트폴리오">{profile.portfolios.map((portfolio, index) => <div key={`preview-portfolio-${index}`} style={{ marginBottom: index === profile.portfolios.length - 1 ? 0 : '9px' }}><strong>{portfolio.title || '포트폴리오'}</strong>{portfolio.url && <><br />{portfolio.url}</>}{portfolio.description && <div style={{ whiteSpace: 'pre-wrap' }}>{portfolio.description}</div>}</div>)}</JobKoreaPreviewSection>}
         {(profile.veteran || profile.employmentProtection || profile.employmentSupport || profile.disability || profile.militaryStatus) && <JobKoreaPreviewSection title="취업우대 · 병역">{[profile.veteran && '보훈대상', profile.employmentProtection && '취업보호 대상', profile.employmentSupport && '고용지원금 대상', profile.disability && '장애'].filter(Boolean).join(' · ')}{profile.militaryStatus && <><strong>{[profile.veteran, profile.employmentProtection, profile.employmentSupport, profile.disability].some(Boolean) ? ' · ' : ''}{profile.militaryStatus}</strong>{profile.militaryDetails && ` · ${profile.militaryDetails}`}{(profile.enlistmentDate || profile.dischargeDate) && <><br />{formatJobKoreaMonth(profile.enlistmentDate)} ~ {formatJobKoreaMonth(profile.dischargeDate)}</>}</>}</JobKoreaPreviewSection>}
@@ -1567,7 +1746,7 @@ function ResumeDraftReviewModal({
         <DraftSection title="경력기술서" lines={[...draft.draft.experienceBullets, ...draft.draft.projectBullets]} />
         <DraftSection title="스킬" lines={draft.draft.skills} />
       </div>
-      <p className="export-profile-warning">AI가 작성한 문장은 반드시 직접 검토하세요. 승인하면 새 immutable Resume과 Version 1이 생성됩니다.</p>
+      <p className="export-profile-warning">자동으로 작성된 문장은 반드시 직접 검토하세요. 승인하면 새 이력서와 첫 번째 버전이 생성됩니다.</p>
       <div className="modal-actions"><button className="text-button" onClick={onClose}>취소</button><button className="primary-button compact-button" onClick={onApprove} disabled={isApproving}>{isApproving ? 'JobKorea 이력서 준비 중...' : '검토 완료 · JobKorea 양식으로 계속'}</button></div>
     </section>
   </div>
@@ -1720,7 +1899,7 @@ function ResumePageContent({ user }: { user: User }) {
   const selectedResume = resumes.find((resume) => resume.id === selectedResumeId)
 
   return <>
-    <header className="page-heading"><div><span className="eyebrow">CAREER DOCUMENTS</span><h1>Resumes</h1><p>본문을 버전으로 보존하면서 이력서를 발전시켜보세요.</p></div></header>
+    <header className="page-heading"><div><span className="eyebrow">CAREER DOCUMENTS</span><h1>이력서</h1><p>내 경력을 바탕으로 이력서를 만들고, 수정할 때마다 버전으로 보존하세요.</p></div><div className="page-tip"><span>TIP</span><strong>처음에는 짧게 시작해도 괜찮아요.</strong><small>이후 경력과 공고에 맞춰 새 버전을 만들 수 있습니다.</small></div></header>
     {formError && <p className="form-error resume-global-error" role="alert">{formError}</p>}
     <section className="resume-layout">
       <aside className="resume-list-panel">
@@ -1728,17 +1907,17 @@ function ResumePageContent({ user }: { user: User }) {
         {isLoading && <div className="list-state">이력서를 불러오는 중입니다...</div>}
         {!isLoading && loadError && <div className="list-state error-state">{loadError}</div>}
         {!isLoading && !loadError && resumes.length === 0 && <div className="list-state">아직 이력서가 없습니다.</div>}
-        {!isLoading && !loadError && resumes.length > 0 && <div className="resume-list">{resumes.map((resume) => <button className={resume.id === selectedResumeId ? 'resume-list-item selected' : 'resume-list-item'} key={resume.id} onClick={() => selectResume(resume)}><strong>{resume.name}</strong><span>Latest v{resume.latestVersionNumber}</span></button>)}</div>}
-        <form className="new-resume-form" onSubmit={createResume}><span className="eyebrow">NEW RESUME</span><input value={form.name} onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))} placeholder="이력서 이름" maxLength={200} /><textarea value={form.content} onChange={(event) => setForm((current) => ({ ...current, content: event.target.value }))} placeholder="첫 번째 이력서 내용을 입력하세요." maxLength={100000} rows={5} /><button className="primary-button compact-button" disabled={isSubmitting} type="submit">{isSubmitting ? '생성 중...' : '이력서 생성'}</button></form>
+        {!isLoading && !loadError && resumes.length > 0 && <div className="resume-list">{resumes.map((resume) => <button className={resume.id === selectedResumeId ? 'resume-list-item selected' : 'resume-list-item'} key={resume.id} onClick={() => selectResume(resume)}><strong>{resume.name}</strong><span>최신 v{resume.latestVersionNumber}</span></button>)}</div>}
+        <form className="new-resume-form" onSubmit={createResume}><span className="eyebrow">NEW RESUME</span><strong className="form-card-title">첫 이력서 만들기</strong><small className="form-helper">이름과 현재 이력서 내용을 입력하면 Version 1이 만들어집니다.</small><input value={form.name} onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))} placeholder="예: 백엔드 개발자 이력서" maxLength={200} /><textarea value={form.content} onChange={(event) => setForm((current) => ({ ...current, content: event.target.value }))} placeholder="경력, 프로젝트, 기술을 자유롭게 입력하세요." maxLength={100000} rows={5} /><button className="primary-button compact-button" disabled={isSubmitting} type="submit">{isSubmitting ? '생성 중...' : '이력서 만들기'}</button></form>
       </aside>
       <section className="resume-detail-panel">
-        {!selectedResume && <div className="resume-empty"><span className="eyebrow">RESUME WORKSPACE</span><h2>이력서를 선택하거나<br />새로 만들어보세요.</h2><p>첫 생성 시 Resume과 ResumeVersion 1이 함께 만들어집니다.</p></div>}
+        {!selectedResume && <div className="resume-empty"><span className="empty-state-icon">✦</span><span className="eyebrow">RESUME WORKSPACE</span><h2>이력서를 선택하거나<br />새로 만들어보세요.</h2><p>왼쪽에서 이름과 내용을 입력하면 첫 번째 버전이 만들어집니다.</p></div>}
         {selectedResume && <>
           <div className="resume-detail-header"><div><span className="eyebrow">RESUME WORKSPACE</span><h2>{selectedResume.name}</h2><span className="version-count">현재 최신 버전 v{selectedResume.latestVersionNumber}</span></div><button className="text-button danger-button" onClick={() => void deleteResume()} disabled={isDeleting}>{isDeleting ? '삭제 중' : '이력서 삭제'}</button></div>
           <div className="rename-row"><input value={renameName} onChange={(event) => setRenameName(event.target.value)} maxLength={200} /><button className="text-button" onClick={() => void renameResume()} disabled={isSubmitting}>이름 저장</button></div>
           <div className="version-section"><div className="section-title"><div><span className="eyebrow">VERSION HISTORY</span><h2>버전 기록</h2></div><span className="version-count">{versions.length}개 버전</span></div>
             {isLoadingVersions && <div className="list-state">버전을 불러오는 중입니다...</div>}
-            {!isLoadingVersions && versions.length > 0 && <div className="version-list">{versions.map((version) => <button className={selectedVersion?.id === version.id ? 'version-item selected' : 'version-item'} key={version.id} onClick={() => selectVersion(version)}><strong>Version {version.versionNumber}</strong><span>{new Date(version.createdAt).toLocaleString('ko-KR')}</span></button>)}</div>}
+            {!isLoadingVersions && versions.length > 0 && <div className="version-list">{versions.map((version) => <button className={selectedVersion?.id === version.id ? 'version-item selected' : 'version-item'} key={version.id} onClick={() => selectVersion(version)}><strong>버전 {version.versionNumber}</strong><span>{new Date(version.createdAt).toLocaleString('ko-KR')}</span></button>)}</div>}
           </div>
           {selectedVersion && <div className="version-preview"><div className="section-title"><div><span className="eyebrow">EDITING VERSION</span><h2>Version {selectedVersion.versionNumber}</h2></div><div className="version-preview-actions"><span className="immutable-badge">기존 버전 보존</span><button className="secondary-button compact-button" onClick={() => setIsExportOpen(true)}>JobKorea 파일 생성</button></div></div><form className="new-version-form" onSubmit={saveVersion}><textarea value={versionContent} onChange={(event) => setVersionContent(event.target.value)} placeholder="이력서 내용을 입력하세요." maxLength={100000} rows={12} /><span className="version-count">저장하면 기존 Version {selectedVersion.versionNumber}는 보존되고 Version {selectedResume.latestVersionNumber + 1}로 저장됩니다.</span><button className="primary-button compact-button" disabled={isSubmitting} type="submit">{isSubmitting ? '저장 중...' : `Version ${selectedResume.latestVersionNumber + 1} 저장`}</button></form></div>}
           <ResumeApplicationQuestions key={selectedResume.id} resumeId={selectedResume.id} />
@@ -1908,18 +2087,18 @@ function ResumeApplicationQuestions({ resumeId }: { resumeId: string }) {
         : errorCode === 'RAG_ANSWER_UNSUPPORTED'
           ? 'Career 근거는 검색했지만 질문에 답할 내용을 확인하지 못했습니다. 질문과 관련된 구체적인 역할·행동·결과를 Career에 추가해주세요.'
         : errorCode === 'RAG_CITATION_INVALID' || errorCode === 'RAG_FINDING_UNCITED' || errorCode === 'RAG_FINDING_INVALID'
-          ? 'AI 답변을 근거와 연결하지 못해 초안을 표시하지 않았습니다. 다시 시도하거나 검색된 Career 근거가 질문에 맞는지 확인해주세요.'
+          ? '자동 작성된 답변을 근거와 연결하지 못해 초안을 표시하지 않았습니다. 다시 시도하거나 검색된 Career 근거가 질문에 맞는지 확인해주세요.'
         : errorCode === 'AI_PROVIDER_INVALID_RESPONSE'
-          ? 'AI 답변의 형식을 처리하지 못했습니다. 잠시 후 다시 시도해주세요.'
+          ? '작성된 답변의 형식을 처리하지 못했습니다. 잠시 후 다시 시도해주세요.'
           : errorCode === 'AI_PROVIDER_INCOMPLETE_RESPONSE'
-            ? 'AI 답변이 출력 토큰 한도에 도달했습니다. 답변 길이를 줄이거나 출력 토큰 설정을 늘려주세요.'
+            ? '답변 생성이 길이 한도에 도달했습니다. 답변 길이를 줄인 뒤 다시 시도해주세요.'
           : errorCode === 'AI_PROVIDER_REQUEST_FAILED'
-            ? 'AI 제공자가 생성 요청을 거절했습니다. API 키, 모델 설정, 요청 한도를 확인해주세요.'
+            ? '자동 작성 서비스가 요청을 처리하지 못했습니다. 연결 키, 모델 설정, 요청 한도를 확인해주세요.'
             : errorCode === 'AI_PROVIDER_UNAVAILABLE'
-              ? 'AI 제공자에 연결하지 못했습니다. 네트워크와 Ollama 실행 상태를 확인한 뒤 다시 시도해주세요.'
+              ? '자동 작성 서비스에 연결하지 못했습니다. 네트워크와 Ollama 실행 상태를 확인한 뒤 다시 시도해주세요.'
               : detail
       setError(questionSaved
-        ? `질문과 기업공고는 저장됐지만 AI 답변 생성에 실패했습니다. ${reason}`
+        ? `질문과 기업공고는 저장됐지만 자동 답변 생성에 실패했습니다. ${reason}`
         : `질문을 저장하지 못했습니다. (${detail})`)
     } finally {
       setGeneratingId(null)
@@ -1991,7 +2170,7 @@ function ResumeApplicationQuestions({ resumeId }: { resumeId: string }) {
 
   return <section className="application-question-section">
     <div className="section-title"><div><span className="eyebrow">COMPANY APPLICATION</span><h2>기업별 자기소개서 질문</h2></div><span className="version-count">{items.length}개 항목</span></div>
-    <p className="application-question-help">각 질문을 해당 기업공고와 연결하세요. AI는 공고 내용과 질문에 맞는 Experience·Project 근거를 검색해 답변 초안을 작성합니다. 내용을 검토·수정한 뒤 답변을 저장하세요.</p>
+    <p className="application-question-help">각 질문을 해당 기업공고와 연결하세요. 저장한 경력과 프로젝트에서 질문에 맞는 근거를 찾아 답변 초안을 자동으로 작성합니다. 내용을 검토·수정한 뒤 답변을 저장하세요.</p>
     {!isLoading && jobPostings.length === 0 && <p className="application-question-empty">연결할 기업공고가 없습니다. <Link to="/job-postings">채용공고 메뉴에서 먼저 공고를 등록하세요.</Link></p>}
     {error && <p className="form-error" role="alert">{error}</p>}
     {isLoading && <div className="list-state">질문을 불러오는 중입니다...</div>}
@@ -2000,11 +2179,11 @@ function ResumeApplicationQuestions({ resumeId }: { resumeId: string }) {
       <div className="application-question-heading"><strong>질문 {index + 1}{item.id ? '' : ' · 새 항목'}</strong><button className="text-button danger-button" type="button" onClick={() => void deleteQuestion(item)} disabled={deletingId === item.localKey || savingId === item.localKey || generatingId === item.localKey}>{deletingId === item.localKey ? '삭제 중...' : '삭제'}</button></div>
       <label>연결할 기업공고<select value={item.jobPostingId} onChange={(event) => updateJobPosting(item.localKey, event.target.value)} disabled={savingId === item.localKey || generatingId === item.localKey}><option value="">기업공고 선택</option>{jobPostings.map((posting) => <option key={posting.id} value={posting.id}>{posting.companyName} · {posting.title}</option>)}</select></label>
       <label>기업 질문<textarea value={item.question} onChange={(event) => updateItem(item.localKey, 'question', event.target.value)} disabled={savingId === item.localKey || generatingId === item.localKey} maxLength={2000} rows={3} placeholder="예: 지원동기와 입사 후 이루고 싶은 목표를 작성해주세요." /></label>
-      {item.id && (item.question.trim() !== item.savedQuestion || item.jobPostingId !== item.savedJobPostingId) && <small className="application-question-citations">질문이나 기업공고가 변경되었습니다. 저장하면 선택한 공고를 기준으로 AI가 새 답변을 작성합니다.</small>}
-      <label>답변<textarea value={item.answer} onChange={(event) => updateItem(item.localKey, 'answer', event.target.value)} disabled={!item.id || savingId === item.localKey || generatingId === item.localKey} maxLength={100000} rows={8} placeholder={item.id ? 'AI 초안을 검토하거나 직접 작성해주세요.' : '질문을 저장하면 AI가 초안을 작성합니다.'} /></label>
-      {draftProviders[item.localKey] && <small className="application-question-citations">AI 초안: {draftProviders[item.localKey].provider} · {draftProviders[item.localKey].model} · prompt {draftProviders[item.localKey].promptVersion} · 근거 청크 {draftProviders[item.localKey].retrievedChunkCount}개</small>}
+      {item.id && (item.question.trim() !== item.savedQuestion || item.jobPostingId !== item.savedJobPostingId) && <small className="application-question-citations">질문이나 기업공고가 변경되었습니다. 저장하면 선택한 공고를 기준으로 새 답변을 작성합니다.</small>}
+      <label>답변<textarea value={item.answer} onChange={(event) => updateItem(item.localKey, 'answer', event.target.value)} disabled={!item.id || savingId === item.localKey || generatingId === item.localKey} maxLength={100000} rows={8} placeholder={item.id ? '자동으로 만든 초안을 검토하거나 직접 작성해주세요.' : '질문을 저장하면 초안이 자동으로 작성됩니다.'} /></label>
+      {draftProviders[item.localKey] && <small className="application-question-citations">자동 생성 정보: {draftProviders[item.localKey].provider} · {draftProviders[item.localKey].model} · prompt {draftProviders[item.localKey].promptVersion} · 근거 청크 {draftProviders[item.localKey].retrievedChunkCount}개</small>}
       {draftCitations[item.localKey]?.length > 0 && <details className="application-question-evidence"><summary>문장 인용 [C1]과 Career 근거 {draftCitations[item.localKey].length}개 대조하기</summary><p>답변의 각 [C#] 표시와 아래 원문을 대조해 사실이 맞는지 검토하세요. 인용 자체가 주장의 정확성을 보증하지는 않습니다.</p>{draftCitations[item.localKey].map((citation) => <div className="application-question-evidence-item" key={citation.citationId}><strong>{citation.citationId} · {citation.sourceType}</strong><pre>{citation.content}</pre></div>)}</details>}
-      <div className="application-question-actions"><button className="secondary-button compact-button" type="button" onClick={() => void saveQuestionAndGenerate(item)} disabled={savingId === item.localKey || generatingId === item.localKey || jobPostings.length === 0}>{savingId === item.localKey ? '질문 저장 중...' : generatingId === item.localKey ? 'AI 답변 작성 중...' : '질문 저장 · AI 작성'}</button>{item.id && <button className="primary-button compact-button" type="button" onClick={() => void saveAnswer(item)} disabled={savingId === item.localKey || generatingId === item.localKey || item.question.trim() !== item.savedQuestion || item.jobPostingId !== item.savedJobPostingId}>{savingId === item.localKey ? '저장 중...' : '답변 저장'}</button>}</div>
+      <div className="application-question-actions"><button className="secondary-button compact-button" type="button" onClick={() => void saveQuestionAndGenerate(item)} disabled={savingId === item.localKey || generatingId === item.localKey || jobPostings.length === 0}>{savingId === item.localKey ? '질문 저장 중...' : generatingId === item.localKey ? '답변 작성 중...' : '질문 저장 · 답변 자동 작성'}</button>{item.id && <button className="primary-button compact-button" type="button" onClick={() => void saveAnswer(item)} disabled={savingId === item.localKey || generatingId === item.localKey || item.question.trim() !== item.savedQuestion || item.jobPostingId !== item.savedJobPostingId}>{savingId === item.localKey ? '저장 중...' : '답변 저장'}</button>}</div>
     </article>)}</div>}
     {!isLoading && <div className="application-question-add"><button className="secondary-button compact-button" type="button" onClick={addQuestion}>+ 자기소개서 항목 추가</button></div>}
   </section>
@@ -2151,14 +2330,14 @@ function JobPostingPageContent({ user }: { user: User }) {
   }
 
   return <>
-    <header className="page-heading"><div><span className="eyebrow">OPPORTUNITIES</span><h1>Job postings</h1><p>관심 있는 채용공고를 URL로 가져오거나 직접 기록해두세요. 이력서 생성 전 Career 메뉴에서 AI 검색 데이터를 업데이트해주세요.</p></div><div className="heading-actions"><button className="secondary-button compact-button" onClick={() => setIsImportOpen(true)}>URL로 가져오기</button><button className="primary-button compact-button" onClick={startCreate}>+ 공고 추가</button></div></header>
+    <header className="page-heading"><div><span className="eyebrow">OPPORTUNITIES</span><h1>채용공고</h1><p>관심 있는 공고를 저장하면 내 경력과 비교하고 맞춤형 이력서 초안을 만들 수 있습니다.</p></div><div className="heading-actions"><button className="secondary-button compact-button" onClick={() => setIsImportOpen(true)}>URL로 빠르게 입력</button><button className="primary-button compact-button" onClick={startCreate}>+ 공고 추가</button></div></header>
     <section className="experience-form-card">
-      <div className="section-title"><div><span className="eyebrow">{editingId ? 'EDIT JOB POSTING' : 'NEW JOB POSTING'}</span><h2>{editingId ? '채용공고 수정' : '새 채용공고 기록'}</h2></div>{editingId && <button className="text-button" onClick={startCreate}>취소</button>}</div>
+      <div className="section-title"><div><span className="eyebrow">{editingId ? 'EDIT JOB POSTING' : 'NEW JOB POSTING'}</span><h2>{editingId ? '채용공고 수정' : '새 채용공고 기록'}</h2><p className="form-helper">URL을 가져오거나 공고 원문을 붙여 넣으면 필요한 내용을 알아서 정리합니다.</p></div>{editingId && <button className="text-button" onClick={startCreate}>취소</button>}</div>
       <form className="experience-form" onSubmit={submitJobPosting}>
         <FormField label="공고 제목" value={form.title} onChange={(value) => updateField('title', value)} error={fieldErrors.title} placeholder="예: Senior Backend Engineer" />
         <FormField label="회사명" value={form.companyName} onChange={(value) => updateField('companyName', value)} error={fieldErrors.companyName} placeholder="예: Acme Inc." />
-        <FormField label="Source URL (선택)" value={form.sourceUrl} onChange={(value) => updateField('sourceUrl', value)} error={fieldErrors.sourceUrl} placeholder="https://jobs.example.com/..." />
-        <label className="wide-field">Job Description<textarea value={form.description} onChange={(event) => updateField('description', event.target.value)} placeholder="채용공고 원문을 붙여 넣어주세요." maxLength={100000} rows={8} />{fieldErrors.description && <small className="field-error">{fieldErrors.description}</small>}</label>
+        <FormField label="원문 URL (선택)" value={form.sourceUrl} onChange={(value) => updateField('sourceUrl', value)} error={fieldErrors.sourceUrl} placeholder="https://jobs.example.com/..." />
+        <label className="wide-field">채용공고 내용<textarea value={form.description} onChange={(event) => updateField('description', event.target.value)} placeholder="채용공고 원문을 붙여 넣어주세요." maxLength={100000} rows={8} />{fieldErrors.description && <small className="field-error">{fieldErrors.description}</small>}</label>
         {formError && <p className="form-error wide-field" role="alert">{formError}</p>}
         <div className="form-actions wide-field"><button className="primary-button compact-button" disabled={isSubmitting} type="submit">{isSubmitting ? '저장 중...' : editingId ? '변경 저장' : '공고 저장'}</button></div>
       </form>
@@ -2183,8 +2362,8 @@ function JobPostingPageContent({ user }: { user: User }) {
   </>
 }
 
-function FormField({ label, value, onChange, error, placeholder, type = 'text' }: { label: string; value: string; onChange: (value: string) => void; error?: string; placeholder?: string; type?: string }) {
-  return <label>{label}<input type={type} value={value} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} />{error && <small className="field-error">{error}</small>}</label>
+function FormField({ label, value, onChange, error, placeholder, type = 'text', disabled = false }: { label: string; value: string; onChange: (value: string) => void; error?: string; placeholder?: string; type?: string; disabled?: boolean }) {
+  return <label>{label}<input type={type} value={value} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} disabled={disabled} />{error && <small className="field-error">{error}</small>}</label>
 }
 
 function StatCard({ label, value, action, to }: { label: string; value: string; action: string; to: string }) {

@@ -105,17 +105,25 @@ public class EmbeddingIndexService {
     }
 
     private SourceDocument experienceDocument(Experience experience) {
+        String period = period(
+                experience.getStartDate(),
+                experience.getEndDate(),
+                experience.isCurrentlyEmployed() ? "currently employed" : null
+        );
         String content = "Experience\n"
                 + "Company: " + experience.getCompanyName() + "\n"
                 + "Role: " + experience.getRole() + "\n"
+                + period
                 + "Description: " + experience.getDescription();
         return new SourceDocument(SourceType.EXPERIENCE, experience.getId(), content);
     }
 
     private SourceDocument projectDocument(Project project) {
-        String period = project.getEndDate() == null
-                ? project.getStartDate() + " - present"
-                : project.getStartDate() + " - " + project.getEndDate();
+        String period = period(
+                project.getStartDate(),
+                project.getEndDate(),
+                project.getStartDate() != null && project.getEndDate() == null ? "present" : null
+        );
         String repository = project.getRepositoryUrl() == null
                 ? ""
                 : "\nRepository: " + project.getRepositoryUrl();
@@ -125,10 +133,23 @@ public class EmbeddingIndexService {
         String content = "Project\n"
                 + "Name: " + project.getName() + "\n"
                 + "Role: " + project.getRole() + "\n"
-                + "Period: " + period + "\n"
+                + period
                 + "Tech stack: " + project.getTechStack() + customerOrDomain + repository + "\n"
                 + "Description: " + project.getDescription();
         return new SourceDocument(SourceType.PROJECT, project.getId(), content);
+    }
+
+    private String period(java.time.LocalDate startDate, java.time.LocalDate endDate, String ongoingLabel) {
+        if (startDate == null && endDate == null) {
+            return ongoingLabel == null ? "" : "Period: " + ongoingLabel + "\n";
+        }
+        if (startDate == null) {
+            return "Period: until " + endDate + "\n";
+        }
+        if (endDate == null) {
+            return ongoingLabel == null ? "Period: from " + startDate + "\n" : "Period: " + startDate + " - " + ongoingLabel + "\n";
+        }
+        return "Period: " + startDate + " - " + endDate + "\n";
     }
 
     private User requireActiveUser(UUID userId) {
