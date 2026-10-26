@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8">
+    <title>Career Note Application Form Fixture</title>
+  </head>
+  <body>
+    <main>
+      <h1>지원서 테스트 양식</h1>
+      <form>
+        <label for="name">이름</label>
+        <input id="name" name="name" required>
+        <label for="motivation">지원동기</label>
+        <textarea id="motivation" name="motivation" maxlength="500" required></textarea>
+        <fieldset>
+          <legend>희망 근무 형태</legend>
+          <select name="workType">
+            <option>정규직</option>
+            <option>계약직</option>
+          </select>
+        </fieldset>
+        <input type="file" name="portfolio">
+        <button type="submit">제출</button>
+      </form>
+    </main>
+  </body>
+</html>

@@ -61,6 +61,10 @@ public class ResumeVersion {
         return resume.getId();
     }
 
+    public String getResumeName() {
+        return resume.getName();
+    }
+
     public int getVersionNumber() {
         return versionNumber;
     }

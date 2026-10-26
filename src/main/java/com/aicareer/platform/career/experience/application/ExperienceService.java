@@ -41,6 +41,8 @@ public class ExperienceService {
                 user,
                 normalize(request.companyName()),
                 normalize(request.role()),
+                normalizeOptional(request.department()),
+                normalizeOptional(request.title()),
                 request.startDate(),
                 request.endDate(),
                 Boolean.TRUE.equals(request.currentlyEmployed()),
@@ -69,6 +71,8 @@ public class ExperienceService {
         experience.update(
                 normalize(request.companyName()),
                 normalize(request.role()),
+                normalizeOptional(request.department()),
+                normalizeOptional(request.title()),
                 request.startDate(),
                 request.endDate(),
                 Boolean.TRUE.equals(request.currentlyEmployed()),

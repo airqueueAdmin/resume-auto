@@ -113,6 +113,8 @@ public class EmbeddingIndexService {
         String content = "Experience\n"
                 + "Company: " + experience.getCompanyName() + "\n"
                 + "Role: " + experience.getRole() + "\n"
+                + optionalLine("Department: ", experience.getDepartment())
+                + optionalLine("Title: ", experience.getTitle())
                 + period
                 + (experience.getTechStack() == null ? "" : "Tech stack: " + experience.getTechStack() + "\n")
                 + "Description: " + experience.getDescription();
@@ -151,6 +153,10 @@ public class EmbeddingIndexService {
             return ongoingLabel == null ? "Period: from " + startDate + "\n" : "Period: " + startDate + " - " + ongoingLabel + "\n";
         }
         return "Period: " + startDate + " - " + endDate + "\n";
+    }
+
+    private String optionalLine(String label, String value) {
+        return value == null || value.isBlank() ? "" : label + value + "\n";
     }
 
     private User requireActiveUser(UUID userId) {

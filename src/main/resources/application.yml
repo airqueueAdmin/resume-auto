@@ -121,6 +121,9 @@ app:
       retention-cleanup-enabled: ${JOBKOREA_EXPORT_AUDIT_RETENTION_CLEANUP_ENABLED:true}
       retention: ${JOBKOREA_EXPORT_AUDIT_RETENTION:PT720H}
       cleanup-cron: ${JOBKOREA_EXPORT_AUDIT_CLEANUP_CRON:0 0 3 * * *}
+  extension:
+    authorization-code-ttl: ${EXTENSION_AUTHORIZATION_CODE_TTL:PT2M}
+    allowed-origin-patterns: ${EXTENSION_ALLOWED_ORIGIN_PATTERNS:chrome-extension://*,http://localhost:5173,http://127.0.0.1:5173}
   rate-limit:
     enabled: ${RATE_LIMIT_ENABLED:true}
     window: ${RATE_LIMIT_WINDOW:PT1M}

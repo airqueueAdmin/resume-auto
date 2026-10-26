@@ -15,5 +15,7 @@ public interface ExperienceRepository extends JpaRepository<Experience, UUID> {
 
     List<Experience> findAllByUser_IdAndDeletedAtIsNull(UUID userId);
 
+    long countByUser_IdAndDeletedAtIsNull(UUID userId);
+
     Optional<Experience> findByIdAndUser_IdAndDeletedAtIsNull(UUID id, UUID userId);
 }

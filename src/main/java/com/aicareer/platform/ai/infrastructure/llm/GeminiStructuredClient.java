@@ -256,13 +256,40 @@ public class GeminiStructuredClient implements LlmClient, LlmMatchClient,
             generationConfig.put("thinkingConfig", Map.of("thinkingBudget", thinkingBudget));
         }
         generationConfig.put("responseMimeType", "application/json");
-        generationConfig.put("responseSchema", responseSchema);
+        generationConfig.put("responseSchema", geminiCompatibleSchema(responseSchema));
         body.put("generationConfig", generationConfig);
         try {
             return objectMapper.writeValueAsString(body);
         } catch (JsonProcessingException exception) {
             throw AiIntegrationException.requestFailed("Could not create Gemini structured generation request", exception);
         }
+    }
+
+    private Map<String, Object> geminiCompatibleSchema(Map<String, Object> schema) {
+        Map<String, Object> compatible = new LinkedHashMap<>();
+        schema.forEach((key, value) -> {
+            if (!"additionalProperties".equals(key)) {
+                compatible.put(key, geminiCompatibleValue(value));
+            }
+        });
+        return compatible;
+    }
+
+    private Object geminiCompatibleValue(Object value) {
+        if (value instanceof Map<?, ?> map) {
+            Map<String, Object> compatible = new LinkedHashMap<>();
+            map.forEach((key, nestedValue) -> {
+                String name = String.valueOf(key);
+                if (!"additionalProperties".equals(name)) {
+                    compatible.put(name, geminiCompatibleValue(nestedValue));
+                }
+            });
+            return compatible;
+        }
+        if (value instanceof List<?> list) {
+            return list.stream().map(this::geminiCompatibleValue).toList();
+        }
+        return value;
     }
 
     private HttpResponse<String> send(String requestBody, String requestId)

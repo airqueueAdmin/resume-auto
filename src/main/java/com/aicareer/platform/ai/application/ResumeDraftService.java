@@ -66,6 +66,69 @@ public class ResumeDraftService {
     @Transactional
     public ResumeDraftOutcome generate(UUID userId, UUID jobPostingId) {
         JobPosting jobPosting = jobPostingService.get(userId, jobPostingId);
+        GeneratedDraft generated = generateDraft(userId, jobPosting);
+        Instant now = clock.instant();
+
+        List<SourceCitation> sourceReferences = sourceReferences(generated.groundedDraft());
+        ResumeDraft saved = resumeDraftRepository.save(ResumeDraft.create(
+                userRepository.getReferenceById(userId),
+                jobPosting,
+                llmResumeDraftClient.provider(),
+                llmResumeDraftClient.model(),
+                llmResumeDraftClient.resumeDraftPromptVersion(),
+                generated.completion().providerResponseId(),
+                objectMapper.valueToTree(generated.groundedDraft()),
+                objectMapper.valueToTree(sourceReferences),
+                generated.contexts().size(),
+                generated.completion().usage(),
+                now
+        ));
+
+        return new ResumeDraftOutcome(
+                saved.getId(),
+                jobPosting.getId(),
+                generated.groundedDraft(),
+                saved.getProvider(),
+                saved.getModel(),
+                saved.getPromptVersion(),
+                generated.completion().usage(),
+                saved.getRetrievedChunkCount(),
+                saved.getCreatedAt()
+        );
+    }
+
+    /**
+     * Generates a review-only draft from a JobKorea page without creating a JobPosting or ResumeDraft.
+     */
+    @Transactional(readOnly = true)
+    public PageResumeDraftOutcome generateForPage(
+            UUID userId,
+            String companyName,
+            String jobTitle,
+            String jobDescription,
+            String sourceUrl
+    ) {
+        JobPosting pagePosting = JobPosting.create(
+                userRepository.getReferenceById(userId),
+                jobTitle.strip(),
+                companyName.strip(),
+                jobDescription.strip(),
+                sourceUrl.strip(),
+                clock.instant()
+        );
+        GeneratedDraft generated = generateDraft(userId, pagePosting);
+        return new PageResumeDraftOutcome(
+                generated.groundedDraft(),
+                llmResumeDraftClient.provider(),
+                llmResumeDraftClient.model(),
+                llmResumeDraftClient.resumeDraftPromptVersion(),
+                generated.completion().usage(),
+                generated.contexts().size(),
+                clock.instant()
+        );
+    }
+
+    private GeneratedDraft generateDraft(UUID userId, JobPosting jobPosting) {
         VectorSearchOutcome retrieval = vectorSearchService.search(
                 userId,
                 retrievalQuery(jobPosting),
@@ -82,34 +145,14 @@ public class ResumeDraftService {
 
         LlmResumeDraftCompletion completion = llmResumeDraftClient.generateResumeDraft(jobPosting, contexts);
         GroundedResumeDraftDocument groundedDraft = ground(completion.draft(), contexts);
-        List<SourceCitation> sourceReferences = sourceReferences(groundedDraft);
-        Instant now = clock.instant();
+        return new GeneratedDraft(groundedDraft, completion, contexts);
+    }
 
-        ResumeDraft saved = resumeDraftRepository.save(ResumeDraft.create(
-                userRepository.getReferenceById(userId),
-                jobPosting,
-                llmResumeDraftClient.provider(),
-                llmResumeDraftClient.model(),
-                llmResumeDraftClient.resumeDraftPromptVersion(),
-                completion.providerResponseId(),
-                objectMapper.valueToTree(groundedDraft),
-                objectMapper.valueToTree(sourceReferences),
-                contexts.size(),
-                completion.usage(),
-                now
-        ));
-
-        return new ResumeDraftOutcome(
-                saved.getId(),
-                jobPosting.getId(),
-                groundedDraft,
-                saved.getProvider(),
-                saved.getModel(),
-                saved.getPromptVersion(),
-                completion.usage(),
-                saved.getRetrievedChunkCount(),
-                saved.getCreatedAt()
-        );
+    private record GeneratedDraft(
+            GroundedResumeDraftDocument groundedDraft,
+            LlmResumeDraftCompletion completion,
+            List<RetrievedContext> contexts
+    ) {
     }
 
     private String retrievalQuery(JobPosting jobPosting) {

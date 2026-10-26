@@ -58,6 +58,12 @@ Completed design and implementation records are maintained separately from this 
 - [Phase 12 Oracle VM deployment plan](docs/phases/phase-12-plan.md)
 - [Phase 12 Step 1 record](docs/phases/phase-12-step-1.md)
 - [Oracle VM deployment runbook](docs/runbooks/oracle-vm-deployment.md)
+- [Phase 13 browser extension plan](docs/phases/phase-13-plan.md)
+- [Phase 13 Step 1 record](docs/phases/phase-13-step-1.md)
+- [Phase 13 Step 2 record](docs/phases/phase-13-step-2.md)
+- [Phase 13 Step 3 record](docs/phases/phase-13-step-3.md)
+- [Phase 13 Step 4 record](docs/phases/phase-13-step-4.md)
+- [Chrome extension prototype README](extension/README.md)
 - [ADR 0011: detailed self-introduction sections](docs/adr/0011-detailed-self-introduction-sections.md)
 - [ADR 0012: reproducible full-stack containers](docs/adr/0012-reproducible-full-stack-containers.md)
 - [ADR 0003: validated RAG citations](docs/adr/0003-validated-rag-citations.md)
@@ -84,6 +90,11 @@ JobKorea integration is complete at its supported public boundary: file generati
 user-controlled download and upload handoff; this platform does not upload or publish the file to
 JobKorea. The currently observed upload contract is one `PDF`, `PNG`, `JPG`, or `JPEG` file no larger
 than 5 MB. JobKorea's public API is a recruitment-information read API, not a personal-resume write API.
+
+The browser extension track starts with JobKorea as its first target. The extension is a thin companion
+for detecting visible application fields, selecting an immutable ResumeVersion, reviewing grounded
+career evidence, and explicitly filling approved text-field suggestions. The existing web service remains
+unchanged for direct access, and users submit applications manually on JobKorea.
 
 The planned Resume UX is a library of approved, immutable versions rather than a blank-document editor.
 The first approved grounded draft may create the Resume container automatically. New generated documents
@@ -181,6 +192,10 @@ Experience/Project/JobPosting resources, and immutable Resume versions:
 - Project records can optionally store a customer/domain value for career-description provenance
 - Experience records can optionally store an explicit tech stack so employment evidence can contribute
   precise skills without extracting them from free-form descriptions
+- Experience records can optionally store the department and title/position; these values are shown in
+  Career, included in retrieval evidence, and mapped into the JobKorea career export
+- JobKorea resume exports use the target company and job title for the saved resume name, PDF heading,
+  and downloaded filename instead of the generic `나의 이력서` label
 - The JobKorea export template can compose an editable career description from owned Experience and
   Project records using project name, customer/domain, period, duties/results, role, and skills
 - Experience start/end dates and current-employment status are mapped into JobKorea career fields;

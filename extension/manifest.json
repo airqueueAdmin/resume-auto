@@ -1,0 +1,36 @@
+{
+  "manifest_version": 3,
+  "name": "Career Note Application Assistant (Prototype)",
+  "description": "Inspect visible application form fields on the current page.",
+  "version": "0.3.0",
+  "action": {
+    "default_title": "Career Note 패널 열기"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "storage"
+  ],
+  "host_permissions": [
+    "http://localhost:5173/*",
+    "http://jobkorea.co.kr/*",
+    "http://*.jobkorea.co.kr/*",
+    "https://jobkorea.co.kr/*",
+    "https://*.jobkorea.co.kr/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": [
+        "http://jobkorea.co.kr/*",
+        "http://*.jobkorea.co.kr/*",
+        "https://jobkorea.co.kr/*",
+        "https://*.jobkorea.co.kr/*"
+      ],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}

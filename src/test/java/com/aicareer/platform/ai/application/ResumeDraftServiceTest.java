@@ -80,6 +80,49 @@ class ResumeDraftServiceTest {
     }
 
     @Test
+    void generatesPagePreviewWithoutSavingTheUnsavedPostingOrDraft() {
+        JobPostingService jobPostingService = org.mockito.Mockito.mock(JobPostingService.class);
+        UserRepository userRepository = org.mockito.Mockito.mock(UserRepository.class);
+        VectorSearchService vectorSearchService = org.mockito.Mockito.mock(VectorSearchService.class);
+        LlmResumeDraftClient llmClient = org.mockito.Mockito.mock(LlmResumeDraftClient.class);
+        ResumeDraftRepository repository = org.mockito.Mockito.mock(ResumeDraftRepository.class);
+        User user = User.create("page-preview@example.com", "hash", "Page Preview", Instant.now());
+        EmbeddingChunkSearchResult result = result();
+
+        when(userRepository.getReferenceById(USER_ID)).thenReturn(user);
+        when(vectorSearchService.search(eq(USER_ID), anyString(), eq(8)))
+                .thenReturn(new VectorSearchOutcome(List.of(result), "nomic-embed-text", 768));
+        when(vectorSearchService.searchAll(USER_ID)).thenReturn(List.of(result));
+        when(llmClient.generateResumeDraft(any(JobPosting.class), anyList())).thenReturn(new LlmResumeDraftCompletion(
+                draft("C1"),
+                new LlmUsage(10, 20, 30),
+                "ollama-page-preview"
+        ));
+        when(llmClient.provider()).thenReturn("ollama");
+        when(llmClient.model()).thenReturn("llama3.1:8b");
+        when(llmClient.resumeDraftPromptVersion()).thenReturn("resume-draft-v1");
+
+        PageResumeDraftOutcome outcome = service(
+                jobPostingService,
+                userRepository,
+                vectorSearchService,
+                llmClient,
+                repository
+        ).generateForPage(
+                USER_ID,
+                "Unsaved Corp",
+                "Platform Backend Engineer",
+                "Java와 PostgreSQL 기반 API 개발 및 운영",
+                "https://www.jobkorea.co.kr/Recruit/GI_Read/123456"
+        );
+
+        assertThat(outcome.draft().headline().text()).isEqualTo("Built Java APIs");
+        assertThat(outcome.retrievedChunkCount()).isEqualTo(1);
+        verify(repository, never()).save(any(ResumeDraft.class));
+        verify(jobPostingService, never()).get(any(), any());
+    }
+
+    @Test
     void rejectsDraftCitationThatWasNotRetrieved() {
         JobPostingService jobPostingService = org.mockito.Mockito.mock(JobPostingService.class);
         UserRepository userRepository = org.mockito.Mockito.mock(UserRepository.class);

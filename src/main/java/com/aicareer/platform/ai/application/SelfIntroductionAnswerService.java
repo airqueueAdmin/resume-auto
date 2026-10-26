@@ -60,16 +60,48 @@ public class SelfIntroductionAnswerService {
             throw GroundingValidationException.jobPostingRequired();
         }
         JobPosting jobPosting = jobPostingService.get(userId, applicationQuestion.getJobPostingId());
-        String question = applicationQuestion.getQuestion();
+        return generateForPosting(userId, jobPosting, applicationQuestion.getQuestion());
+    }
+
+    public SelfIntroductionAnswerOutcome generateForQuestion(
+            UUID userId,
+            UUID jobPostingId,
+            String question
+    ) {
+        JobPosting jobPosting = jobPostingService.get(userId, jobPostingId);
+        return generateForPosting(userId, jobPosting, question.strip());
+    }
+
+    public SelfIntroductionAnswerOutcome generateForPagePosting(
+            UUID userId,
+            SelfIntroductionJobContext jobContext,
+            String question
+    ) {
+        return generateForContext(userId, boundedJobContext(jobContext), question.strip());
+    }
+
+    private SelfIntroductionAnswerOutcome generateForPosting(
+            UUID userId,
+            JobPosting jobPosting,
+            String question
+    ) {
+        return generateForContext(userId, jobContext(jobPosting), question);
+    }
+
+    private SelfIntroductionAnswerOutcome generateForContext(
+            UUID userId,
+            SelfIntroductionJobContext jobContext,
+            String question
+    ) {
         VectorSearchOutcome retrieval = vectorSearchService.search(
                 userId,
-                retrievalQuery(jobPosting, question),
+                retrievalQuery(jobContext, question),
                 properties.topK()
         );
         List<EmbeddingChunkSearchResult> relevantResults = retrieval.results().stream()
                 .filter(result -> result.similarity() >= properties.minimumSimilarity())
                 .toList();
-        List<RetrievedContext> contexts = buildContexts(prioritizePostingEvidence(jobPosting, relevantResults));
+        List<RetrievedContext> contexts = buildContexts(prioritizePostingEvidence(jobContext, relevantResults));
         log.info("Self-introduction evidence retrievedChunks={} acceptedChunks={} minimumSimilarity={} bestSimilarity={}",
                 retrieval.results().size(),
                 contexts.size(),
@@ -84,7 +116,7 @@ public class SelfIntroductionAnswerService {
 
         long generationStarted = System.nanoTime();
         LlmSelfIntroductionAnswerCompletion completion = llmClient.generateAnswer(
-                jobContext(jobPosting),
+                jobContext,
                 question,
                 contexts
         );
@@ -134,18 +166,18 @@ public class SelfIntroductionAnswerService {
         );
     }
 
-    private String retrievalQuery(JobPosting jobPosting, String question) {
-        String query = "자기소개서 질문: " + question + "\n지원 직무: " + jobPosting.getTitle();
+    private String retrievalQuery(SelfIntroductionJobContext jobContext, String question) {
+        String query = "자기소개서 질문: " + question + "\n지원 직무: " + jobContext.title();
         return query.length() <= MAX_RETRIEVAL_QUERY_CHARACTERS
                 ? query
                 : query.substring(0, MAX_RETRIEVAL_QUERY_CHARACTERS);
     }
 
     private List<EmbeddingChunkSearchResult> prioritizePostingEvidence(
-            JobPosting posting, List<EmbeddingChunkSearchResult> results
+            SelfIntroductionJobContext jobContext, List<EmbeddingChunkSearchResult> results
     ) {
         var terms = new LinkedHashSet<String>();
-        var matcher = POSTING_TERM.matcher(posting.getTitle() + "\n" + posting.getDescription());
+        var matcher = POSTING_TERM.matcher(jobContext.title() + "\n" + jobContext.description());
         while (matcher.find() && terms.size() < 32) {
             String term = matcher.group().toLowerCase(Locale.ROOT);
             if (term.length() > 1 && !GENERIC_TERMS.contains(term)) terms.add(term);
@@ -164,14 +196,22 @@ public class SelfIntroductionAnswerService {
     }
 
     private SelfIntroductionJobContext jobContext(JobPosting jobPosting) {
-        String description = jobPosting.getDescription();
+        return boundedJobContext(new SelfIntroductionJobContext(
+                jobPosting.getCompanyName(),
+                jobPosting.getTitle(),
+                jobPosting.getDescription()
+        ));
+    }
+
+    private SelfIntroductionJobContext boundedJobContext(SelfIntroductionJobContext jobContext) {
+        String description = jobContext.description();
         String boundedDescription = description.length() <= MAX_JOB_DESCRIPTION_CHARACTERS
                 ? description
                 : description.substring(0, MAX_JOB_DESCRIPTION_CHARACTERS);
         return new SelfIntroductionJobContext(
-                jobPosting.getCompanyName(),
-                jobPosting.getTitle(),
-                boundedDescription
+                jobContext.companyName().strip(),
+                jobContext.title().strip(),
+                boundedDescription.strip()
         );
     }
 

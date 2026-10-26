@@ -9,6 +9,7 @@ import java.util.stream.Collectors;
 import com.aicareer.platform.ai.application.AiIntegrationException;
 import com.aicareer.platform.ai.application.GroundingValidationException;
 import com.aicareer.platform.career.application.CareerResourceNotFoundException;
+import com.aicareer.platform.extension.application.InvalidExtensionAuthorizationCodeException;
 import com.aicareer.platform.retrieval.application.EmbeddingIntegrationException;
 import com.aicareer.platform.tool.application.ToolApprovalInvalidException;
 import com.aicareer.platform.tool.application.ToolApprovalRequiredException;
@@ -355,6 +356,20 @@ public class GlobalExceptionHandler {
                 HttpStatus.UNAUTHORIZED,
                 "AUTHENTICATION_FAILED",
                 "Authentication failed",
+                request,
+                Map.of()
+        );
+    }
+
+    @ExceptionHandler(InvalidExtensionAuthorizationCodeException.class)
+    public ResponseEntity<ApiErrorResponse> handleInvalidExtensionAuthorizationCode(
+            InvalidExtensionAuthorizationCodeException exception,
+            HttpServletRequest request
+    ) {
+        return error(
+                HttpStatus.UNAUTHORIZED,
+                "EXTENSION_AUTHORIZATION_FAILED",
+                "The extension authorization code is invalid or expired",
                 request,
                 Map.of()
         );

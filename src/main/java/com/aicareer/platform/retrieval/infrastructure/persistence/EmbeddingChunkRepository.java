@@ -128,6 +128,23 @@ public class EmbeddingChunkRepository {
         return Boolean.TRUE.equals(jdbcTemplate.queryForObject(sql, Boolean.class, userId));
     }
 
+    public long countActiveForUser(UUID userId) {
+        Long count = jdbcTemplate.queryForObject(
+                """
+                SELECT COUNT(*)
+                FROM embedding_chunks c
+                LEFT JOIN experiences e ON e.id = c.experience_id
+                LEFT JOIN projects p ON p.id = c.project_id
+                WHERE c.user_id = ?
+                  AND ((c.experience_id IS NOT NULL AND e.deleted_at IS NULL)
+                    OR (c.project_id IS NOT NULL AND p.deleted_at IS NULL))
+                """,
+                Long.class,
+                userId
+        );
+        return count == null ? 0 : count;
+    }
+
     public List<EmbeddingChunkSearchResult> findAllActiveForUser(UUID userId) {
         String sql = """
                 SELECT c.id,

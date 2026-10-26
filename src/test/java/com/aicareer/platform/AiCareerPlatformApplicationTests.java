@@ -145,7 +145,7 @@ class AiCareerPlatformApplicationTests {
     @Test
     void flywayAppliesIdentityCareerResumeJobPostingAiMatchingResumeDraftAndToolMigrations() throws Exception {
         assertThat(flyway.info().pending()).isEmpty();
-        assertThat(flyway.info().applied()).hasSize(19);
+        assertThat(flyway.info().applied()).hasSize(21);
 
         try (Connection connection = dataSource.getConnection();
                 Statement statement = connection.createStatement();
@@ -157,10 +157,11 @@ class AiCareerPlatformApplicationTests {
                                            'resumes', 'resume_versions', 'job_postings', 'ai_job_analyses',
                                            'embedding_chunks', 'ai_job_matches', 'ai_resume_drafts', 'tool_approvals',
                                            'jobkorea_export_audits', 'resume_application_questions',
-                                           'user_consents', 'email_verification_codes')
+                                           'user_consents', 'email_verification_codes',
+                                           'extension_authorization_codes')
                         """)) {
             assertThat(resultSet.next()).isTrue();
-            assertThat(resultSet.getInt(1)).isEqualTo(16);
+            assertThat(resultSet.getInt(1)).isEqualTo(17);
         }
 
         try (Connection connection = dataSource.getConnection();
@@ -1078,6 +1079,8 @@ class AiCareerPlatformApplicationTests {
                 {
                   "companyName": "First Company",
                   "role": "Backend Developer",
+                  "department": "Platform Development Team",
+                  "title": "Senior Engineer",
                   "startDate": "2022-01-01",
                   "endDate": "2023-01-31",
                   "description": "Built APIs and improved database queries."
@@ -1103,6 +1106,8 @@ class AiCareerPlatformApplicationTests {
                 {
                   "companyName": "First Company Updated",
                   "role": "Backend Developer",
+                  "department": "Core Platform Team",
+                  "title": "Lead Engineer",
                   "startDate": "2022-01-01",
                   "endDate": "2023-02-15",
                   "description": "Built APIs and improved database queries at scale.",
@@ -1118,13 +1123,68 @@ class AiCareerPlatformApplicationTests {
         assertThat(page.statusCode()).isEqualTo(200);
         assertThat(page.body()).contains("\"size\":1", "\"totalElements\":2", "\"totalPages\":2");
         assertThat(retrieved.statusCode()).isEqualTo(200);
-        assertThat(retrieved.body()).contains("First Company", "Backend Developer");
+        assertThat(retrieved.body()).contains(
+                "First Company", "Backend Developer", "Platform Development Team", "Senior Engineer");
         assertThat(updated.statusCode()).isEqualTo(200);
-        assertThat(updated.body()).contains("First Company Updated", "Java, Spring Boot, PostgreSQL");
+        assertThat(updated.body()).contains(
+                "First Company Updated", "Core Platform Team", "Lead Engineer", "Java, Spring Boot, PostgreSQL");
         assertThat(deleted.statusCode()).isEqualTo(204);
         assertThat(afterDelete.statusCode()).isEqualTo(404);
         assertThat(afterDelete.body()).contains("RESOURCE_NOT_FOUND");
         assertThat(remaining.body()).contains("\"totalElements\":1");
+    }
+
+    @Test
+    void experiencesAreSortedByMostRecentStartDateDescending() throws Exception {
+        String accessToken = accessTokenForNewUser();
+        post("/api/v1/experiences", """
+                {
+                  "companyName": "Recent Completed Company",
+                  "role": "Backend Developer",
+                  "startDate": "2024-01-01",
+                  "endDate": "2025-01-31",
+                  "description": "Recent completed experience."
+                }
+                """, accessToken);
+        post("/api/v1/experiences", """
+                {
+                  "companyName": "Current Company",
+                  "role": "Senior Backend Developer",
+                  "startDate": "2023-01-01",
+                  "endDate": null,
+                  "currentlyEmployed": true,
+                  "description": "Current experience."
+                }
+                """, accessToken);
+        post("/api/v1/experiences", """
+                {
+                  "companyName": "Period Missing Company",
+                  "role": "Developer",
+                  "startDate": null,
+                  "endDate": null,
+                  "description": "Experience without a period."
+                }
+                """, accessToken);
+        post("/api/v1/experiences", """
+                {
+                  "companyName": "Older Completed Company",
+                  "role": "Junior Developer",
+                  "startDate": "2020-01-01",
+                  "endDate": "2021-12-31",
+                  "description": "Older completed experience."
+                }
+                """, accessToken);
+
+        HttpResponse<String> listed = get("/api/v1/experiences?page=0&size=20", accessToken);
+        var content = new ObjectMapper().readTree(listed.body()).path("content");
+
+        assertThat(listed.statusCode()).isEqualTo(200);
+        assertThat(content).extracting(item -> item.path("companyName").asText()).containsExactly(
+                "Recent Completed Company",
+                "Current Company",
+                "Older Completed Company",
+                "Period Missing Company"
+        );
     }
 
     @Test
@@ -1482,6 +1542,110 @@ class AiCareerPlatformApplicationTests {
     }
 
     @Test
+    void extensionAuthorizationIsOneTimeAndResumeVersionAccessIsScoped() throws Exception {
+        String ownerToken = accessTokenForNewUser();
+        String otherUserToken = accessTokenForNewUser();
+        HttpResponse<String> readinessWithoutCareerData = get(
+                "/api/v1/extension/readiness",
+                ownerToken
+        );
+        HttpResponse<String> resume = post("/api/v1/resumes", """
+                {
+                  "name": "Extension Resume",
+                  "content": "Reviewed backend experience"
+                }
+                """, ownerToken);
+        String resumeId = jsonValue(resume.body(), "id");
+        HttpResponse<String> versions = get(
+                "/api/v1/resumes/%s/versions?page=0&size=20".formatted(resumeId),
+                ownerToken
+        );
+        String versionId = jsonValue(versions.body(), "id");
+
+        HttpResponse<String> unauthenticatedIssue = post(
+                "/api/v1/extension/authorization-codes",
+                "",
+                null
+        );
+        HttpResponse<String> issued = post(
+                "/api/v1/extension/authorization-codes",
+                "",
+                ownerToken
+        );
+        HttpResponse<String> webOriginIssued = postWithOrigin(
+                "/api/v1/extension/authorization-codes",
+                "",
+                ownerToken,
+                "http://localhost:5173"
+        );
+        HttpResponse<String> untrustedOriginIssue = postWithOrigin(
+                "/api/v1/extension/authorization-codes",
+                "",
+                ownerToken,
+                "https://untrusted.example"
+        );
+        String code = jsonValue(issued.body(), "code");
+        HttpResponse<String> exchanged = post(
+                "/api/v1/extension/authorization-codes/exchange",
+                "{\"code\":\"%s\"}".formatted(code),
+                null
+        );
+        String extensionToken = jsonValue(exchanged.body(), "accessToken");
+        HttpResponse<String> replayed = post(
+                "/api/v1/extension/authorization-codes/exchange",
+                "{\"code\":\"%s\"}".formatted(code),
+                null
+        );
+        HttpResponse<String> listed = get(
+                "/api/v1/extension/resume-versions?page=0&size=100",
+                extensionToken
+        );
+        HttpResponse<String> selected = get(
+                "/api/v1/extension/resume-versions/%s".formatted(versionId),
+                extensionToken
+        );
+        HttpResponse<String> crossUser = get(
+                "/api/v1/extension/resume-versions/%s".formatted(versionId),
+                otherUserToken
+        );
+        HttpResponse<String> crossUserAnswer = post(
+                "/api/v1/extension/application-answer",
+                """
+                {
+                  "resumeVersionId": "%s",
+                  "jobPostingId": "%s",
+                  "question": "탈취 시도"
+                }
+                """.formatted(versionId, UUID.randomUUID()),
+                otherUserToken
+        );
+
+        assertThat(unauthenticatedIssue.statusCode()).isEqualTo(401);
+        assertThat(readinessWithoutCareerData.statusCode()).isEqualTo(200);
+        assertThat(readinessWithoutCareerData.body()).contains(
+                "\"experienceCount\":0",
+                "\"projectCount\":0",
+                "\"indexedEvidenceCount\":0",
+                "\"ready\":false"
+        );
+        assertThat(issued.statusCode()).isEqualTo(200);
+        assertThat(issued.body()).contains("expiresInSeconds");
+        assertThat(webOriginIssued.statusCode()).isEqualTo(200);
+        assertThat(webOriginIssued.headers().firstValue("Access-Control-Allow-Origin"))
+                .contains("http://localhost:5173");
+        assertThat(untrustedOriginIssue.statusCode()).isEqualTo(403);
+        assertThat(exchanged.statusCode()).isEqualTo(200);
+        assertThat(exchanged.body()).contains("accessToken").doesNotContain("refreshToken");
+        assertThat(replayed.statusCode()).isEqualTo(401);
+        assertThat(listed.statusCode()).isEqualTo(200);
+        assertThat(listed.body()).contains(versionId, "Extension Resume", "\"totalElements\":1");
+        assertThat(selected.statusCode()).isEqualTo(200);
+        assertThat(selected.body()).contains("Reviewed backend experience", "RESUME_VERSION");
+        assertThat(crossUser.statusCode()).isEqualTo(404);
+        assertThat(crossUserAnswer.statusCode()).isEqualTo(404);
+    }
+
+    @Test
     void companySpecificResumeQuestionsSupportDraftAnswersAndOwnershipIsolation() throws Exception {
         String ownerToken = accessTokenForNewUser();
         String otherUserToken = accessTokenForNewUser();
@@ -1766,6 +1930,22 @@ class AiCareerPlatformApplicationTests {
             builder.header("Authorization", "Bearer " + accessToken);
         }
         return httpClient.send(builder.build(), HttpResponse.BodyHandlers.ofString());
+    }
+
+    private HttpResponse<String> postWithOrigin(
+            String path,
+            String body,
+            String accessToken,
+            String origin
+    ) throws Exception {
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(baseUrl() + path))
+                .header("Content-Type", "application/json")
+                .header("Authorization", "Bearer " + accessToken)
+                .header("Origin", origin)
+                .POST(HttpRequest.BodyPublishers.ofString(body))
+                .build();
+        return httpClient.send(request, HttpResponse.BodyHandlers.ofString());
     }
 
     private HttpResponse<String> put(String path, String body, String accessToken) throws Exception {

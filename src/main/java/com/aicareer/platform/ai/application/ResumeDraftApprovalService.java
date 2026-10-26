@@ -58,6 +58,21 @@ public class ResumeDraftApprovalService {
         return resumeService.create(userId, new CreateResumeRequest(resumeName, content));
     }
 
+    @Transactional
+    public Resume approvePageAsNewResume(
+            UUID userId,
+            String resumeName,
+            GroundedResumeDraftDocument draft
+    ) {
+        if (draft == null) {
+            throw GroundingValidationException.invalidFinding();
+        }
+        return resumeService.create(
+                userId,
+                new CreateResumeRequest(resumeName, format(draft))
+        );
+    }
+
     private GroundedResumeDraftDocument parseDraft(JsonNode draftJson) {
         if (draftJson == null || draftJson.isNull()) {
             throw GroundingValidationException.invalidFinding();

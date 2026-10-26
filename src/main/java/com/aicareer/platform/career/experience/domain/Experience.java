@@ -30,6 +30,12 @@ public class Experience {
     @Column(nullable = false, length = 200)
     private String role;
 
+    @Column(length = 200)
+    private String department;
+
+    @Column(length = 200)
+    private String title;
+
     @Column(name = "start_date")
     private LocalDate startDate;
 
@@ -61,6 +67,8 @@ public class Experience {
             User user,
             String companyName,
             String role,
+            String department,
+            String title,
             LocalDate startDate,
             LocalDate endDate,
             boolean currentlyEmployed,
@@ -73,6 +81,8 @@ public class Experience {
         this.user = user;
         this.companyName = companyName;
         this.role = role;
+        this.department = department;
+        this.title = title;
         this.startDate = startDate;
         this.endDate = endDate;
         this.currentlyEmployed = currentlyEmployed;
@@ -86,6 +96,8 @@ public class Experience {
             User user,
             String companyName,
             String role,
+            String department,
+            String title,
             LocalDate startDate,
             LocalDate endDate,
             boolean currentlyEmployed,
@@ -93,12 +105,28 @@ public class Experience {
             String techStack,
             Instant now
     ) {
-        return new Experience(user, companyName, role, startDate, endDate, currentlyEmployed, description, techStack, now);
+        return new Experience(user, companyName, role, department, title, startDate, endDate, currentlyEmployed, description, techStack, now);
+    }
+
+    public static Experience create(
+            User user,
+            String companyName,
+            String role,
+            LocalDate startDate,
+            LocalDate endDate,
+            boolean currentlyEmployed,
+            String description,
+            String techStack,
+            Instant now
+    ) {
+        return new Experience(user, companyName, role, null, null, startDate, endDate, currentlyEmployed, description, techStack, now);
     }
 
     public void update(
             String companyName,
             String role,
+            String department,
+            String title,
             LocalDate startDate,
             LocalDate endDate,
             boolean currentlyEmployed,
@@ -109,6 +137,8 @@ public class Experience {
         validatePeriod(startDate, endDate, currentlyEmployed);
         this.companyName = companyName;
         this.role = role;
+        this.department = department;
+        this.title = title;
         this.startDate = startDate;
         this.endDate = endDate;
         this.currentlyEmployed = currentlyEmployed;
@@ -141,6 +171,14 @@ public class Experience {
 
     public String getRole() {
         return role;
+    }
+
+    public String getDepartment() {
+        return department;
+    }
+
+    public String getTitle() {
+        return title;
     }
 
     public LocalDate getStartDate() {

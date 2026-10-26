@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Career Note</title>
+    <style>
+      :root { color-scheme: light; font-family: Arial, sans-serif; color: #172033; background: #f8fafc; }
+      body { width: 380px; margin: 0; padding: 18px; }
+      h1 { margin: 0; font-size: 18px; }
+      p { color: #64748b; font-size: 12px; line-height: 1.5; }
+      button { width: 100%; border: 0; border-radius: 8px; padding: 11px 14px; background: #172033; color: #fff; cursor: pointer; font-weight: 700; }
+      button:disabled { cursor: wait; opacity: .55; }
+      label { display: grid; gap: 5px; margin-top: 10px; color: #475569; font-size: 11px; font-weight: 700; }
+      input, textarea, select { width: 100%; box-sizing: border-box; border: 1px solid #dbe4f0; border-radius: 7px; padding: 9px 10px; background: #fff; color: #172033; font: inherit; font-size: 11px; }
+      textarea { min-height: 64px; resize: vertical; line-height: 1.45; }
+      .panel { margin-top: 14px; border-top: 1px solid #e5ebf3; padding-top: 14px; }
+      .panel h2 { margin: 0 0 8px; color: #334155; font-size: 12px; }
+      .actions { display: grid; gap: 7px; margin-top: 10px; }
+      .secondary { background: #eaf0f7; color: #334155; }
+      .muted { color: #94a3b8; font-size: 11px; }
+      #status { margin: 14px 0 8px; color: #2563eb; font-size: 12px; }
+      #fields { display: grid; gap: 8px; max-height: 360px; overflow: auto; padding: 0; list-style: none; }
+      #fields li { border: 1px solid #dbe4f0; border-radius: 8px; padding: 10px; background: #fff; }
+      .field-label { display: block; overflow: hidden; color: #334155; font-size: 12px; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
+      .field-meta { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 6px; color: #64748b; font-size: 10px; }
+      .badge { border-radius: 999px; padding: 3px 6px; background: #eff6ff; color: #1d4ed8; }
+      .empty { padding: 18px 8px; color: #94a3b8; font-size: 12px; text-align: center; }
+    </style>
+  </head>
+  <body>
+    <h1>Career Note · JobKorea</h1>
+    <p>JobKorea 지원 페이지의 필드를 확인하고, 연결된 ResumeVersion의 경력 근거를 검토합니다. 자동 입력·제출은 수행하지 않습니다.</p>
+    <section class="panel">
+      <h2>서비스 연결</h2>
+      <label for="service-base-url">서비스 주소<input id="service-base-url" type="url" value="http://localhost:5173" autocomplete="url"></label>
+      <div class="actions"><button id="open-connect" class="secondary" type="button">서비스에서 연결 코드 발급</button></div>
+      <label for="authorization-code">연결 코드<input id="authorization-code" type="text" inputmode="text" autocomplete="one-time-code" placeholder="서비스에서 발급한 코드"></label>
+      <div class="actions"><button id="exchange" type="button">확장 프로그램 연결</button></div>
+      <div id="connection-status" class="muted" role="status">아직 연결되지 않았습니다.</div>
+    </section>
+    <section class="panel">
+      <h2>사용할 ResumeVersion</h2>
+      <select id="resume-version" disabled><option>먼저 서비스를 연결하세요.</option></select>
+      <label for="job-posting">기준 채용공고<select id="job-posting" disabled><option>먼저 서비스를 연결하세요.</option></select></label>
+      <label for="question">필드 또는 지원 질문<textarea id="question" maxlength="3000" placeholder="예: 지원동기와 입사 후 포부를 작성해주세요."></textarea></label>
+      <label for="max-length">최대 글자 수<input id="max-length" type="number" min="1" max="100000" value="1000"></label>
+      <div class="actions"><button id="load-context" class="secondary" type="button" disabled>경력 근거 불러오기</button></div>
+      <div class="actions"><button id="generate-answer" type="button" disabled>검토용 답변 초안 생성</button></div>
+      <div id="context" class="muted" role="status">선택한 버전의 근거를 확인할 수 있습니다.</div>
+    </section>
+    <section class="panel">
+      <button id="scan" type="button">현재 페이지 필드 검사</button>
+    </section>
+    <div id="status" role="status">검사할 페이지를 열어주세요.</div>
+    <ul id="fields" aria-live="polite"><li class="empty">아직 검사 결과가 없습니다.</li></ul>
+    <script src="popup.js"></script>
+  </body>
+</html>

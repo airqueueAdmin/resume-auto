@@ -118,6 +118,46 @@ Package the frontend, backend, and PostgreSQL stack as reproducible containers, 
 delivery checks and a measured deployment runbook. Keep cloud deployment, distributed infrastructure,
 and image publication out of scope until explicitly authorized and justified by measurements.
 
+### Browser Extension Application Assistance - Authorized Product Track
+
+The Chrome extension is an optional companion client for non-standard company application forms. JobKorea
+is the first target site because the existing service already owns the JobKorea-compatible resume review
+and export flow. It does not replace the existing web application: direct visits to the service URL keep the current Career,
+JobPosting, Resume, ResumeVersion, AI review, and export workflows.
+
+The extension's primary purpose is to assist with a JobKorea posting that the user has not saved in the
+service. Read the currently visible posting as ephemeral request context and do not require or automatically
+create a JobPosting record. The page posting must not be persisted unless the user invokes a separate,
+explicit save action. Do not require a saved ResumeVersion or saved JobPosting selection for page-assisted
+answers.
+
+The extension may read the active application page's visible posting, questions, and form fields, show a
+compact Career Note panel at the bottom-right of supported JobKorea pages, request a review-only resume
+draft or grounded answer from the existing backend using the user's Experience/Project evidence, show
+the generated content and its source context for review, and fill only fields explicitly approved by the
+user. A page-generated draft is ephemeral and must not create a JobPosting, ResumeDraft, Resume, or
+ResumeVersion automatically. Final submission always happens on the target company's site through the
+user's own action.
+
+Grounded generation still requires user-owned Experience or Project data in the service and active retrieval
+evidence built from that data. The extension must show readiness counts, the detected posting's source,
+character counts, and an expandable full-text preview so the user can verify that the page content was read.
+It must guide an unprepared user to the service Career pages and the explicit search-data update action;
+it must not generate unsupported drafts or answers when no grounded evidence is available.
+
+The extension must not collect or automate passwords, cookies, refresh tokens, CAPTCHA, site login,
+automatic submission, or anti-automation controls. It must not automate JobKorea login or upload. Keep
+browser permissions minimal, prefer active-tab or user-granted host access, and keep the backend as the
+source of truth for user data, AI generation, provenance, and audit records. Do not embed backend secrets
+in the extension.
+
+The first extension step is a requirements and field-contract slice: inventory representative non-standard
+application forms, define a normalized question/field model, define authentication and backend boundaries,
+and verify detection behavior with static test pages. Steps 2-3 add one-time service connection,
+ResumeVersion selection, grounded evidence context, and review-only answer proposals with explicit
+text-field fill. Step 4 now includes the JobKorea bottom-right panel and semantic role baseline; live
+JobKorea measurement is still required. Do not automate final submission.
+
 ## Approved Decisions
 
 - Java 25 LTS is the current JDK baseline.
@@ -138,6 +178,9 @@ and image publication out of scope until explicitly authorized and justified by 
 - `EmbeddingChunk` must not use an unconstrained `source_type + source_id` polymorphic FK in the initial schema.
 - Prompt files and structured-output schemas are versioned in Git initially.
 - No AI framework, LLM client, embedding client, fake LLM, Agent, or future abstraction is added before its Phase.
+- The Chrome extension is a thin, user-approved application-assistance client; the existing web service remains the primary UI and source of truth.
+- Extension-assisted answers must be reviewed before insertion, and final application submission remains manual on the target site.
+- Extension authentication uses short-lived, least-privilege access; never store or collect site passwords, cookies, refresh tokens, or backend secrets in the extension.
 
 ## Phase 1 Scope Guardrails
 
@@ -222,7 +265,9 @@ as a Step record and must not replace the final Phase record.
 
 ## Current Next Step
 
-Phases 5-10 are complete for their approved scopes. JobKorea has no supported public personal-resume
+Phases 5-10 are complete for their approved scopes. The JobKorea-first browser extension track has
+completed authentication, read-only context, review-only answer/fill steps, and the automatic bottom-right
+page panel; live semantic adapter measurement and quality evaluation remain next. JobKorea has no supported public personal-resume
 write API for individual use, so Phase 10 ends at reviewed file generation and user-controlled upload
 handoff. Phase 11 Step 1 adds reproducible full-stack Docker packaging and is complete. Phase 11 Step 2
 now has a non-deploying CI quality gate for backend tests, frontend build, Compose validation, container

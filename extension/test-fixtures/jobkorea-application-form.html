@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8">
+    <title>JobKorea representative application fixture</title>
+    <style>
+      body { max-width: 760px; margin: 40px auto; font-family: sans-serif; line-height: 1.6; }
+      label, fieldset { display: grid; gap: 6px; margin: 16px 0; }
+      input, textarea, select { padding: 9px; }
+    </style>
+  </head>
+  <body>
+    <h1>지원서 작성</h1>
+    <label>지원자명<input name="applicantName" autocomplete="name"></label>
+    <label>이메일<input name="email" type="email" autocomplete="email" required></label>
+    <label>휴대폰<input name="mobile" type="tel" autocomplete="tel"></label>
+    <label>지원동기<textarea name="motivation" maxlength="1000" required></textarea></label>
+    <label>경력기술<textarea name="careerDescription" maxlength="2000"></textarea></label>
+    <label>포트폴리오 링크<input name="portfolioUrl" type="url"></label>
+    <fieldset><legend>지원 분야</legend><select name="position"><option>Backend Developer</option></select></fieldset>
+    <button type="submit">지원하기</button>
+  </body>
+</html>

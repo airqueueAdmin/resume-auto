@@ -30,8 +30,10 @@ import static org.springframework.http.HttpStatus.CREATED;
 @SecurityRequirement(name = "bearerAuth")
 public class ExperienceController {
 
-    private static final Sort DEFAULT_SORT = Sort.by(
-            Sort.Order.desc("updatedAt"),
+    private static final Sort CAREER_PERIOD_SORT = Sort.by(
+            Sort.Order.desc("startDate").nullsLast(),
+            Sort.Order.desc("currentlyEmployed"),
+            Sort.Order.desc("endDate").nullsLast(),
             Sort.Order.desc("id")
     );
 
@@ -58,7 +60,7 @@ public class ExperienceController {
     ) {
         PageQuery pageQuery = new PageQuery(page, size);
         return PageResponse.from(
-                experienceService.list(userId(jwt), pageQuery.toPageable(DEFAULT_SORT)),
+                experienceService.list(userId(jwt), pageQuery.toPageable(CAREER_PERIOD_SORT)),
                 ExperienceResponse::from
         );
     }
