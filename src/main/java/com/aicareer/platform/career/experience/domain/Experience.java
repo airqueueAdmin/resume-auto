@@ -42,6 +42,9 @@ public class Experience {
     @Column(nullable = false, columnDefinition = "text")
     private String description;
 
+    @Column(name = "tech_stack", length = 1000)
+    private String techStack;
+
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 
@@ -62,6 +65,7 @@ public class Experience {
             LocalDate endDate,
             boolean currentlyEmployed,
             String description,
+            String techStack,
             Instant now
     ) {
         validatePeriod(startDate, endDate, currentlyEmployed);
@@ -73,6 +77,7 @@ public class Experience {
         this.endDate = endDate;
         this.currentlyEmployed = currentlyEmployed;
         this.description = description;
+        this.techStack = techStack;
         this.createdAt = now;
         this.updatedAt = now;
     }
@@ -85,9 +90,10 @@ public class Experience {
             LocalDate endDate,
             boolean currentlyEmployed,
             String description,
+            String techStack,
             Instant now
     ) {
-        return new Experience(user, companyName, role, startDate, endDate, currentlyEmployed, description, now);
+        return new Experience(user, companyName, role, startDate, endDate, currentlyEmployed, description, techStack, now);
     }
 
     public void update(
@@ -97,6 +103,7 @@ public class Experience {
             LocalDate endDate,
             boolean currentlyEmployed,
             String description,
+            String techStack,
             Instant now
     ) {
         validatePeriod(startDate, endDate, currentlyEmployed);
@@ -106,6 +113,7 @@ public class Experience {
         this.endDate = endDate;
         this.currentlyEmployed = currentlyEmployed;
         this.description = description;
+        this.techStack = techStack;
         this.updatedAt = now;
     }
 
@@ -149,6 +157,10 @@ public class Experience {
 
     public String getDescription() {
         return description;
+    }
+
+    public String getTechStack() {
+        return techStack;
     }
 
     public Instant getCreatedAt() {

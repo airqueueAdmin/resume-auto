@@ -143,7 +143,8 @@ public class ToolRegistry {
                                 "startDate", Map.of("type", "string", "format", "date"),
                                 "endDate", Map.of("type", "string", "format", "date"),
                                 "currentlyEmployed", Map.of("type", "boolean"),
-                                "description", stringProperty(10_000)
+                                "description", stringProperty(10_000),
+                                "techStack", stringProperty(1_000)
                         )
                 )
         ));

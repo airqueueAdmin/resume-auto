@@ -179,9 +179,13 @@ public class AiConfiguration {
     public LlmResumeDraftClient resumeDraftLlmClient(
             LlmClient primaryClient,
             HttpClient aiHttpClient,
+            AiProperties aiProperties,
+            OllamaProperties ollamaProperties,
             GeminiProperties geminiProperties,
             ResumeDraftProperties resumeDraftProperties,
             ObjectMapper objectMapper,
+            JobAnalysisPrompt jobAnalysisPrompt,
+            JobMatchPrompt jobMatchPrompt,
             ResumeDraftPrompt resumeDraftPrompt
     ) {
         LlmResumeDraftClient primaryResumeDraftClient = primaryClient instanceof LlmResumeDraftClient client
@@ -194,13 +198,40 @@ public class AiConfiguration {
                 objectMapper,
                 resumeDraftPrompt
         );
+        AiProperties ollamaRequestProperties = new AiProperties(
+                "ollama",
+                aiProperties.promptVersion(),
+                resumeDraftProperties.ollamaTimeout(),
+                1,
+                aiProperties.retryDelay(),
+                resumeDraftProperties.maxOutputTokens(),
+                aiProperties.temperature()
+        );
+        LlmResumeDraftClient ollamaClient = new OllamaChatClient(
+                aiHttpClient,
+                ollamaRequestProperties,
+                ollamaProperties,
+                objectMapper,
+                jobAnalysisPrompt,
+                jobMatchPrompt,
+                resumeDraftPrompt,
+                resumeDraftProperties.maxOutputTokens(),
+                1
+        );
         String resumeDraftProvider = resumeDraftProperties.provider().trim().toLowerCase();
-        return switch (resumeDraftProvider) {
-            case "gemini" -> new FallbackLlmResumeDraftClient(
-                    geminiClient,
-                    primaryResumeDraftClient == null ? geminiClient : primaryResumeDraftClient,
-                    primaryResumeDraftClient != null && !"gemini".equals(primaryResumeDraftClient.provider())
-            );
+        LlmResumeDraftClient selected = switch (resumeDraftProvider) {
+            case "gemini" -> {
+                boolean configuredProviderIsDifferent = primaryResumeDraftClient != null
+                        && !"gemini".equals(primaryResumeDraftClient.provider());
+                LlmResumeDraftClient fallback = configuredProviderIsDifferent
+                        ? primaryResumeDraftClient
+                        : ollamaClient;
+                yield new FallbackLlmResumeDraftClient(
+                        geminiClient,
+                        fallback,
+                        configuredProviderIsDifferent || resumeDraftProperties.ollamaFallbackEnabled()
+                );
+            }
             case "configured", "ollama", "openai" -> {
                 if (primaryResumeDraftClient == null) {
                     throw new IllegalStateException("Configured AI provider does not support resume drafts");
@@ -216,6 +247,13 @@ public class AiConfiguration {
                     "Unsupported resume draft provider: " + resumeDraftProperties.provider()
             );
         };
+        log.info("Resume draft AI configured primaryProvider={} fallbackEnabled={} promptVersion={} maxOutputTokens={} ollamaTimeout={}",
+                selected.provider(),
+                resumeDraftProperties.ollamaFallbackEnabled(),
+                resumeDraftPrompt.version(),
+                resumeDraftProperties.maxOutputTokens(),
+                resumeDraftProperties.ollamaTimeout());
+        return selected;
     }
 
     private boolean geminiConfigured(GeminiProperties properties) {

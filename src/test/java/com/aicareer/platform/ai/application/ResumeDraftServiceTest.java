@@ -214,7 +214,8 @@ class ResumeDraftServiceTest {
                 llmClient,
                 repository,
                 new ObjectMapper().findAndRegisterModules(),
-                new ResumeDraftProperties("gemini", "resume-draft-v1", 8, 12000, 450, 512, 1),
+                new ResumeDraftProperties("gemini", "resume-draft-v1", 8, 12000, 450, 512, 1,
+                        true, java.time.Duration.ofSeconds(2)),
                 Clock.fixed(Instant.parse("2026-01-01T00:00:00Z"), ZoneOffset.UTC)
         );
     }

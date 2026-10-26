@@ -44,6 +44,10 @@ append-only while retained, then removed by the configured privacy retention job
 immutable ResumeVersion and records only template/result/file-size/time metadata; PDF bytes, profile
 fields, filenames, provider credentials, cookies, and upload sessions are excluded.
 
+`V19__add_experience_tech_stack.sql` adds an optional structured tech stack to Experience. Existing
+rows remain valid with a null value; users are guided to fill it before resume generation so retrieval
+and JobKorea export can use explicit evidence instead of inventing or guessing technologies.
+
 Rules:
 
 - Never edit a versioned migration after it has been applied to a shared environment.

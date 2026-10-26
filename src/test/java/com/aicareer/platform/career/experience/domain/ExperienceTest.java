@@ -28,6 +28,7 @@ class ExperienceTest {
                 null,
                 false,
                 "Description",
+                "Java, Spring Boot",
                 Instant.parse("2026-01-01T00:00:00Z")
         );
 
@@ -37,6 +38,7 @@ class ExperienceTest {
         assertThat(experience.getEndDate()).isNull();
         assertThat(experience.isCurrentlyEmployed()).isFalse();
         assertThat(experience.getDescription()).isEqualTo("Description");
+        assertThat(experience.getTechStack()).isEqualTo("Java, Spring Boot");
     }
 
     @Test
@@ -56,6 +58,7 @@ class ExperienceTest {
                 null,
                 true,
                 "Description",
+                null,
                 Instant.parse("2026-01-01T00:00:00Z")
         );
 
@@ -81,6 +84,7 @@ class ExperienceTest {
                 LocalDate.of(2025, 1, 1),
                 true,
                 "Description",
+                null,
                 Instant.parse("2026-01-01T00:00:00Z")
         ))
                 .isInstanceOf(IllegalArgumentException.class)

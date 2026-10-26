@@ -71,6 +71,8 @@ app:
       max-output-tokens: ${AI_RESUME_DRAFT_MAX_OUTPUT_TOKENS:4096}
       gemini-thinking-budget: ${AI_RESUME_DRAFT_GEMINI_THINKING_BUDGET:512}
       max-attempts: ${AI_RESUME_DRAFT_MAX_ATTEMPTS:2}
+      ollama-fallback-enabled: ${AI_RESUME_DRAFT_OLLAMA_FALLBACK_ENABLED:true}
+      ollama-timeout: ${AI_RESUME_DRAFT_OLLAMA_TIMEOUT:PT300S}
     self-introduction:
       prompt-version: ${AI_SELF_INTRODUCTION_PROMPT_VERSION:self-introduction-v5}
       top-k: ${AI_SELF_INTRODUCTION_TOP_K:8}

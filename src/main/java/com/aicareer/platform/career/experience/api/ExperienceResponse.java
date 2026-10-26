@@ -14,6 +14,7 @@ public record ExperienceResponse(
         LocalDate endDate,
         boolean currentlyEmployed,
         String description,
+        String techStack,
         Instant createdAt,
         Instant updatedAt
 ) {
@@ -27,6 +28,7 @@ public record ExperienceResponse(
                 experience.getEndDate(),
                 experience.isCurrentlyEmployed(),
                 experience.getDescription(),
+                experience.getTechStack(),
                 experience.getCreatedAt(),
                 experience.getUpdatedAt()
         );

@@ -24,9 +24,13 @@ class AiConfigurationTest {
         LlmResumeDraftClient selected = new AiConfiguration().resumeDraftLlmClient(
                 configuredClient,
                 HttpClient.newHttpClient(),
+                aiProperties(),
+                ollamaProperties(),
                 geminiProperties(""),
                 resumeDraftProperties("gemini"),
                 new ObjectMapper(),
+                new com.aicareer.platform.ai.infrastructure.llm.JobAnalysisPrompt("job-analysis-v1", "system"),
+                new com.aicareer.platform.ai.infrastructure.llm.JobMatchPrompt("job-match-v1", "system"),
                 new ResumeDraftPrompt("resume-draft-v4", "system")
         );
 
@@ -40,9 +44,13 @@ class AiConfigurationTest {
         LlmResumeDraftClient selected = new AiConfiguration().resumeDraftLlmClient(
                 configuredClient,
                 HttpClient.newHttpClient(),
+                aiProperties(),
+                ollamaProperties(),
                 geminiProperties(""),
                 resumeDraftProperties("configured"),
                 new ObjectMapper(),
+                new com.aicareer.platform.ai.infrastructure.llm.JobAnalysisPrompt("job-analysis-v1", "system"),
+                new com.aicareer.platform.ai.infrastructure.llm.JobMatchPrompt("job-match-v1", "system"),
                 new ResumeDraftPrompt("resume-draft-v4", "system")
         );
 
@@ -59,7 +67,19 @@ class AiConfigurationTest {
     }
 
     private ResumeDraftProperties resumeDraftProperties(String provider) {
-        return new ResumeDraftProperties(provider, "resume-draft-v4", 8, 12000, 450, 512, 1);
+        return new ResumeDraftProperties(
+                provider, "resume-draft-v4", 8, 12000, 450, 512, 1, true, Duration.ofSeconds(2)
+        );
+    }
+
+    private AiProperties aiProperties() {
+        return new AiProperties(
+                "ollama", "job-analysis-v1", Duration.ofSeconds(2), 1, Duration.ZERO, 1200, 0.1
+        );
+    }
+
+    private OllamaProperties ollamaProperties() {
+        return new OllamaProperties(URI.create("http://localhost:11434/api/chat"), "test-model");
     }
 
     private GeminiProperties geminiProperties(String apiKey) {

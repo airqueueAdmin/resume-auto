@@ -15,11 +15,12 @@ type Experience = {
   endDate: string | null
   currentlyEmployed: boolean
   description: string
+  techStack: string | null
   createdAt: string
   updatedAt: string
 }
 type PageResponse<T> = { content: T[]; page: number; size: number; totalElements: number; totalPages: number; first: boolean; last: boolean }
-type ExperienceForm = { companyName: string; role: string; startDate: string; endDate: string; currentlyEmployed: boolean; description: string }
+type ExperienceForm = { companyName: string; role: string; startDate: string; endDate: string; currentlyEmployed: boolean; description: string; techStack: string }
 type Project = {
   id: string
   name: string
@@ -45,6 +46,7 @@ type ResumeDraftSection = { title: string; content: string; citations: Array<{ c
 type ResumeDraftDocument = { headline: ResumeDraftLine; summary: ResumeDraftLine; selfIntroductionSections: ResumeDraftSection[]; experienceBullets: ResumeDraftLine[]; projectBullets: ResumeDraftLine[]; skills: ResumeDraftLine[] }
 type ResumeDraftResponse = { id: string; jobPostingId: string; draft: ResumeDraftDocument; provider: string; model: string; promptVersion: string; retrievedChunkCount: number; createdAt: string }
 type ResumeCreateForm = { name: string; content: string }
+type ResumeVersionEditor = { headline: string; selfIntroduction: string; careerDescription: string; skills: string }
 type JobPosting = { id: string; title: string; companyName: string; description: string; sourceUrl: string | null; createdAt: string; updatedAt: string }
 type JobPostingForm = { title: string; companyName: string; description: string; sourceUrl: string }
 type JobPostingImportPreview = { sourceUrl: string; title: string; companyName: string; description: string; extractionSource: string; warnings: string[]; imageUrls: string[] }
@@ -54,6 +56,7 @@ type ApiError = Error & { code?: string; fieldErrors?: Record<string, string> }
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? '/api'
 const refreshTokenKey = 'ai-career.refresh-token'
 const jobKoreaTemplateVersion = 'JOBKOREA_STANDARD_V2'
+const maxJobKoreaSkills = 20
 const supportedResumePhotoTypes = new Set(['image/jpeg', 'image/png', 'image/webp'])
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
@@ -226,7 +229,7 @@ function AuthPage({ mode, onAuthenticated }: { mode: 'login' | 'signup'; onAuthe
             {!isLogin && <label><span>비밀번호 확인</span><input autoComplete="new-password" type={showPassword ? 'text' : 'password'} value={confirmPassword} onChange={(event) => { setConfirmPassword(event.target.value); setFieldErrors((current) => ({ ...current, confirmPassword: '' })) }} placeholder="비밀번호를 다시 입력하세요" required maxLength={72} />{confirmPassword && !fieldErrors.confirmPassword && <small className={confirmPassword === password ? 'form-hint valid-hint' : 'form-hint mismatch-hint'}>{confirmPassword === password ? '✓ 비밀번호가 일치합니다.' : '비밀번호가 아직 일치하지 않습니다.'}</small>}{fieldErrors.confirmPassword && <small className="field-error">{fieldErrors.confirmPassword}</small>}</label>}
             {!isLogin && <fieldset className="consent-group"><legend>필수 동의</legend><label className="consent-check"><input type="checkbox" checked={termsAccepted} onChange={(event) => { setTermsAccepted(event.target.checked); setFieldErrors((current) => ({ ...current, termsAccepted: '' })) }} /><span><Link to="/terms" target="_blank">이용약관</Link>에 동의합니다.</span></label>{fieldErrors.termsAccepted && <small className="field-error">{fieldErrors.termsAccepted}</small>}<label className="consent-check"><input type="checkbox" checked={privacyAccepted} onChange={(event) => { setPrivacyAccepted(event.target.checked); setFieldErrors((current) => ({ ...current, privacyAccepted: '' })) }} /><span><Link to="/privacy" target="_blank">개인정보 수집·이용 안내</Link>에 동의합니다.</span></label>{fieldErrors.privacyAccepted && <small className="field-error">{fieldErrors.privacyAccepted}</small>}{signupPolicy && <small className="policy-version">약관 {signupPolicy.termsVersion} · 개인정보 {signupPolicy.privacyVersion}</small>}</fieldset>}
             {error && <p className="form-error" role="alert">{error}</p>}
-            <button className="primary-button auth-submit" disabled={isSubmitting} type="submit">{isSubmitting ? '처리 중...' : isLogin ? '로그인하고 계속하기' : '계정 만들고 시작하기'}</button>
+            <button className="primary-button auth-submit" disabled={isSubmitting} type="submit">{isSubmitting ? '처리 중...' : isLogin ? '로그인' : '계정 만들고 시작하기'}</button>
           </form>
           <p className="auth-trust-note"><span>✓</span> 입력한 커리어 데이터는 내 계정 안에서만 관리됩니다.</p>
           <p className="auth-switch">{isLogin ? '처음 방문하셨나요?' : '이미 계정이 있으신가요?'} <Link to={isLogin ? '/signup' : '/login'}>{isLogin ? '회원가입' : '로그인'}</Link></p>
@@ -395,7 +398,6 @@ function CareerPageContent({ section }: { section: CareerSection }) {
   }
 
   return <>
-    <div className="career-intro"><div className="journey-step">01</div><div><span className="eyebrow">STEP 1 · CAREER FOUNDATION</span><strong>내 경력을 먼저 채워주세요</strong><p>완벽한 문장보다 실제로 했던 일과 결과를 적는 것이 더 중요합니다.</p></div></div>
     <div className="career-toolbar">
       <nav className="career-tabs" aria-label="Career data sections">
         <Link className={section === 'experiences' ? 'career-tab active' : 'career-tab'} to="/career/experiences" aria-current={section === 'experiences' ? 'page' : undefined}>경력</Link>
@@ -465,6 +467,7 @@ const experienceTxtTemplate = `회사명: Acme Inc.
 직무: Backend Developer
 시작일: 2023-01-01
 종료일: 재직 중
+기술 스택: Java, Spring Boot, PostgreSQL
 설명:
 Spring Boot API를 개발했습니다.
 PostgreSQL 성능을 개선했습니다.`
@@ -484,6 +487,7 @@ const experienceTxtFields: TxtFieldDefinition<Exclude<keyof ExperienceForm, 'cur
   { key: 'role', aliases: ['직무', '역할', '직무 역할', '포지션', 'role', 'position'] },
   { key: 'startDate', aliases: ['시작일', '입사일', '시작 날짜', 'startDate', 'start date'] },
   { key: 'endDate', aliases: ['종료일', '퇴사일', '종료 날짜', 'endDate', 'end date'] },
+  { key: 'techStack', aliases: ['기술 스택', '기술', '사용 기술', 'techStack', 'tech stack', 'stack'] },
   { key: 'description', aliases: ['설명', '업무 내용', '주요 업무', '성과', 'description'] },
 ]
 
@@ -665,9 +669,10 @@ function JobPostingUrlImportModal({ onClose, onApply }: { onClose: () => void; o
   </div>
 }
 
-const emptyExperienceForm: ExperienceForm = { companyName: '', role: '', startDate: '', endDate: '', currentlyEmployed: false, description: '' }
+const emptyExperienceForm: ExperienceForm = { companyName: '', role: '', startDate: '', endDate: '', currentlyEmployed: false, description: '', techStack: '' }
 
 function ExperiencePageContent() {
+  const location = useLocation()
   const [experiences, setExperiences] = useState<Experience[]>([])
   const [page, setPage] = useState(0)
   const [totalPages, setTotalPages] = useState(0)
@@ -700,6 +705,14 @@ function ExperiencePageContent() {
 
   useEffect(() => { void loadExperiences(0) }, [])
 
+  useEffect(() => {
+    const editId = new URLSearchParams(location.search).get('edit')
+    if (!editId) return
+    void request<Experience>(`/v1/experiences/${editId}`)
+      .then(startEdit)
+      .catch((error) => setLoadError(error instanceof Error ? error.message : '수정할 경력을 불러오지 못했습니다.'))
+  }, [location.search])
+
   function updateField(field: keyof ExperienceForm, value: string) {
     setForm((current) => ({ ...current, [field]: value }))
     setFieldErrors((current) => ({ ...current, [field]: '' }))
@@ -714,7 +727,7 @@ function ExperiencePageContent() {
 
   function startEdit(experience: Experience) {
     setEditingId(experience.id)
-    setForm({ companyName: experience.companyName, role: experience.role, startDate: experience.startDate ?? '', endDate: experience.endDate ?? '', currentlyEmployed: experience.currentlyEmployed, description: experience.description })
+    setForm({ companyName: experience.companyName, role: experience.role, startDate: experience.startDate ?? '', endDate: experience.endDate ?? '', currentlyEmployed: experience.currentlyEmployed, description: experience.description, techStack: experience.techStack ?? '' })
     setFieldErrors({})
     setFormError('')
     window.scrollTo({ top: 0, behavior: 'smooth' })
@@ -757,7 +770,7 @@ function ExperiencePageContent() {
     setFormError('')
     if (!validateForm()) return
     setIsSubmitting(true)
-    const payload = { companyName: form.companyName.trim(), role: form.role.trim(), startDate: form.startDate || null, endDate: form.currentlyEmployed ? null : form.endDate || null, currentlyEmployed: form.currentlyEmployed, description: form.description.trim() }
+    const payload = { companyName: form.companyName.trim(), role: form.role.trim(), startDate: form.startDate || null, endDate: form.currentlyEmployed ? null : form.endDate || null, currentlyEmployed: form.currentlyEmployed, description: form.description.trim(), techStack: form.techStack.trim() || null }
     try {
       await request<Experience>(editingId ? `/v1/experiences/${editingId}` : '/v1/experiences', { method: editingId ? 'PUT' : 'POST', body: JSON.stringify(payload) })
       startCreate()
@@ -787,12 +800,13 @@ function ExperiencePageContent() {
   return <>
     <header className="page-heading"><div><span className="eyebrow">CAREER DATA · HISTORY</span><h1>경력</h1><p>직장에서 맡았던 일과 결과를 기록해두면 채용공고와 연결할 수 있습니다.</p></div><div className="heading-actions"><button className="secondary-button compact-button" onClick={() => setIsImportOpen(true)}>TXT로 빠르게 입력</button><button className="primary-button compact-button" onClick={startCreate}>+ 경력 추가</button></div></header>
     <section className="experience-form-card">
-      <div className="section-title"><div><span className="eyebrow">{editingId ? 'EDIT CAREER' : 'NEW CAREER'}</span><h2>{editingId ? '경력 수정' : '새 경력 기록'}</h2><p className="form-helper">회사명, 역할, 설명만 먼저 입력해도 저장할 수 있어요.</p></div>{editingId && <button className="text-button" onClick={startCreate}>취소</button>}</div>
+      <div className="section-title"><div><span className="eyebrow">{editingId ? 'EDIT CAREER' : 'NEW CAREER'}</span><h2>{editingId ? '경력 수정' : '새 경력 기록'}</h2><p className="form-helper">기술 스택까지 기록하면 이력서 스킬과 경력기술서에 정확하게 반영됩니다.</p></div>{editingId && <button className="text-button" onClick={startCreate}>취소</button>}</div>
       <form className="experience-form" onSubmit={submitExperience}>
         <FormField label="회사명" value={form.companyName} onChange={(value) => updateField('companyName', value)} error={fieldErrors.companyName} placeholder="예: Acme Inc." />
         <FormField label="직무 / 역할" value={form.role} onChange={(value) => updateField('role', value)} error={fieldErrors.role} placeholder="예: Backend Developer" />
         <FormField label="시작일 (선택)" type="date" value={form.startDate} onChange={(value) => updateField('startDate', value)} error={fieldErrors.startDate} />
         <div className="period-end-field"><FormField label="종료일 (선택)" type="date" value={form.endDate} onChange={(value) => updateField('endDate', value)} error={fieldErrors.endDate} disabled={form.currentlyEmployed} /><label className="current-period-check"><input type="checkbox" checked={form.currentlyEmployed} onChange={(event) => setForm((current) => ({ ...current, currentlyEmployed: event.target.checked, endDate: event.target.checked ? '' : current.endDate }))} /><span>재직 중</span></label></div>
+        <FormField label="기술 스택 (선택)" value={form.techStack} onChange={(value) => updateField('techStack', value)} error={fieldErrors.techStack} placeholder="예: Java, Spring Boot, PostgreSQL" />
         <label className="wide-field">설명<textarea value={form.description} onChange={(event) => updateField('description', event.target.value)} placeholder="담당 업무, 성과, 사용 기술을 기록해주세요." maxLength={10000} rows={4} />{fieldErrors.description && <small className="field-error">{fieldErrors.description}</small>}</label>
         {formError && <p className="form-error wide-field" role="alert">{formError}</p>}
         <div className="form-actions wide-field"><button className="primary-button compact-button" disabled={isSubmitting} type="submit">{isSubmitting ? '저장 중...' : editingId ? '변경 저장' : '경력 저장'}</button></div>
@@ -802,7 +816,7 @@ function ExperiencePageContent() {
       {isLoading && <div className="list-state">경력 목록을 불러오는 중입니다...</div>}
       {!isLoading && loadError && <div className="list-state error-state" role="alert">{loadError}<button className="text-button" onClick={() => void loadExperiences(page)}>다시 시도</button></div>}
       {!isLoading && !loadError && experiences.length === 0 && <div className="list-state">아직 등록된 경력이 없습니다. 위에서 첫 경력을 기록해보세요.</div>}
-      {!isLoading && !loadError && experiences.length > 0 && <div className="experience-list">{experiences.map((experience) => { const period = formatCareerPeriod(experience.startDate, experience.endDate, experience.currentlyEmployed ? '재직 중' : null); return <article className={`experience-item${period ? '' : ' no-period'}`} key={experience.id}>{period && <div className="experience-date">{period}</div>}<div className="experience-main"><h3>{experience.role}</h3><strong>{experience.companyName}</strong><p>{experience.description}</p></div><div className="item-actions"><button className="text-button" onClick={() => startEdit(experience)}>수정</button><button className="text-button danger-button" onClick={() => void deleteExperience(experience.id)} disabled={deletingId === experience.id}>{deletingId === experience.id ? '삭제 중' : '삭제'}</button></div></article> })}</div>}
+      {!isLoading && !loadError && experiences.length > 0 && <div className="experience-list">{experiences.map((experience) => { const period = formatCareerPeriod(experience.startDate, experience.endDate, experience.currentlyEmployed ? '재직 중' : null); return <article className={`experience-item${period ? '' : ' no-period'}`} key={experience.id}>{period && <div className="experience-date">{period}</div>}<div className="experience-main"><h3>{experience.role}</h3><strong>{experience.companyName}</strong><p>{experience.description}</p>{experience.techStack ? <div className="tech-stack">{experience.techStack}</div> : <div className="career-missing-hint">기술 스택을 추가하면 이력서에 반영됩니다.</div>}</div><div className="item-actions"><button className="text-button" onClick={() => startEdit(experience)}>수정</button><button className="text-button danger-button" onClick={() => void deleteExperience(experience.id)} disabled={deletingId === experience.id}>{deletingId === experience.id ? '삭제 중' : '삭제'}</button></div></article> })}</div>}
       {!isLoading && !loadError && totalPages > 1 && <div className="pagination"><button className="text-button" disabled={page === 0} onClick={() => void loadExperiences(page - 1)}>← 이전</button><span>{page + 1} / {totalPages}</span><button className="text-button" disabled={page >= totalPages - 1} onClick={() => void loadExperiences(page + 1)}>다음 →</button></div>}
     </section>
     {isImportOpen && <TxtImportModal title="경력 TXT 가져오기" template={experienceTxtTemplate} onClose={() => setIsImportOpen(false)} onApply={applyTxtImport} />}
@@ -812,6 +826,7 @@ function ExperiencePageContent() {
 const emptyProjectForm: ProjectForm = { name: '', role: '', startDate: '', endDate: '', description: '', techStack: '', customerOrDomain: '', repositoryUrl: '' }
 
 function ProjectPageContent() {
+  const location = useLocation()
   const [projects, setProjects] = useState<Project[]>([])
   const [page, setPage] = useState(0)
   const [totalPages, setTotalPages] = useState(0)
@@ -843,6 +858,14 @@ function ProjectPageContent() {
   }
 
   useEffect(() => { void loadProjects(0) }, [])
+
+  useEffect(() => {
+    const editId = new URLSearchParams(location.search).get('edit')
+    if (!editId) return
+    void request<Project>(`/v1/projects/${editId}`)
+      .then(startEdit)
+      .catch((error) => setLoadError(error instanceof Error ? error.message : '수정할 프로젝트를 불러오지 못했습니다.'))
+  }, [location.search])
 
   function updateField(field: keyof ProjectForm, value: string) {
     setForm((current) => ({ ...current, [field]: value }))
@@ -1044,7 +1067,7 @@ const resumeExportSectionAliases: Record<string, string> = {
 }
 
 function stripResumeCitation(value: string) {
-  return value.replace(/\s+\[[^\]]+\]\s*$/, '').trim()
+  return value.replace(/\s+\[C\d+(?:\s*,\s*C\d+)*\]\s*$/, '').trim()
 }
 
 function parseResumeExport(content: string): ParsedResumeExport {
@@ -1100,6 +1123,14 @@ function parseResumeExport(content: string): ParsedResumeExport {
       continue
     }
 
+    if (labeled && label) {
+      inSelfIntroduction = false
+      currentSelfIntroduction = null
+      currentSection = sectionFor(labeled[1].trim())
+      if (value) currentSection.lines.push(value.replace(/^[-•]\s*/, '').trim())
+      continue
+    }
+
     if (inSelfIntroduction) {
       const selfIntroductionContent = line.replace(/^[-•]\s*/, '').trim()
       if (currentSelfIntroduction) {
@@ -1117,6 +1148,56 @@ function parseResumeExport(content: string): ParsedResumeExport {
   return { headline, summary, selfIntroductions, sections }
 }
 
+const emptyResumeVersionEditor: ResumeVersionEditor = {
+  headline: '',
+  selfIntroduction: '',
+  careerDescription: '',
+  skills: '',
+}
+
+function resumeVersionEditorFromContent(content: string): ResumeVersionEditor {
+  const parsed = parseResumeExport(content)
+  const unclassified = parsed.sections
+    .filter((section) => !['경력기술서', '경력사항', '프로젝트', '기술 및 역량'].includes(section.title))
+    .flatMap((section) => section.lines)
+    .filter(Boolean)
+  const selfIntroduction = [
+    parsed.summary,
+    ...parsed.selfIntroductions.flatMap((section) => [section.title, section.content]),
+    ...unclassified,
+  ].filter(Boolean).join('\n\n')
+  const careerDescription = parsed.sections
+    .filter((section) => ['경력기술서', '경력사항', '프로젝트'].includes(section.title))
+    .flatMap((section) => section.lines)
+    .filter(Boolean)
+    .join('\n')
+  const skills = parsed.sections
+    .filter((section) => section.title === '기술 및 역량')
+    .flatMap((section) => section.lines)
+    .filter(Boolean)
+    .join('\n')
+  return { headline: parsed.headline, selfIntroduction, careerDescription, skills }
+}
+
+function resumeContentFromEditor(editor: ResumeVersionEditor) {
+  const sections = [
+    editor.headline.trim() && `희망직무: ${editor.headline.trim()}`,
+    editor.selfIntroduction.trim() && `자기소개서:\n${editor.selfIntroduction.trim()}`,
+    editor.careerDescription.trim() && `경력기술서:\n${editor.careerDescription.trim()}`,
+    editor.skills.trim() && `스킬:\n${editor.skills.trim()}`,
+  ]
+  return sections.filter(Boolean).join('\n\n')
+}
+
+function resumeContentWithSkills(content: string, skills: string[]) {
+  const skillSection = skills.length > 0 ? `스킬:\n${skills.map((skill) => `- ${skill}`).join('\n')}` : ''
+  const skillHeader = content.match(/^스킬\s*:\s*.*$/im)
+  const contentWithoutSkills = skillHeader?.index === undefined
+    ? content.trim()
+    : content.slice(0, skillHeader.index).trimEnd()
+  return [contentWithoutSkills, skillSection].filter(Boolean).join('\n\n')
+}
+
 function safeResumeFileName(name: string, versionNumber: number) {
   const safeName = name.trim().replace(/[\\/:*?"<>|]+/g, '-').replace(/\s+/g, ' ').slice(0, 80) || 'jobkorea-resume'
   return `${safeName}-v${versionNumber}.pdf`
@@ -1124,6 +1205,97 @@ function safeResumeFileName(name: string, versionNumber: number) {
 
 function splitJobKoreaList(value: string) {
   return value.split(/[,，\n]/).map((item) => item.trim()).filter(Boolean)
+}
+
+const careerSkillPatterns: Array<{ skill: string; pattern: RegExp }> = [
+  { skill: 'Spring Boot', pattern: /\bspring\s*boot\b/i },
+  { skill: 'Spring Security', pattern: /\bspring\s*security\b/i },
+  { skill: 'Spring Batch', pattern: /\bspring\s*batch\b/i },
+  { skill: 'Spring', pattern: /\bspring\b(?!\s*(?:boot|security|batch))/i },
+  { skill: 'Java', pattern: /\bjava\b/i },
+  { skill: 'Kotlin', pattern: /\bkotlin\b/i },
+  { skill: 'JPA', pattern: /\bjpa\b/i },
+  { skill: 'Hibernate', pattern: /\bhibernate\b/i },
+  { skill: 'QueryDSL', pattern: /\bquery\s*dsl\b/i },
+  { skill: 'Maven', pattern: /\bmaven\b/i },
+  { skill: 'Gradle', pattern: /\bgradle\b/i },
+  { skill: 'PostgreSQL', pattern: /\bpostgres(?:ql)?\b/i },
+  { skill: 'MySQL', pattern: /\bmysql\b/i },
+  { skill: 'Oracle', pattern: /\boracle\b/i },
+  { skill: 'MongoDB', pattern: /\bmongo\s*db\b/i },
+  { skill: 'Redis', pattern: /\bredis\b/i },
+  { skill: 'pgvector', pattern: /\bpgvector\b/i },
+  { skill: 'Docker Compose', pattern: /\bdocker\s*compose\b/i },
+  { skill: 'Docker', pattern: /\bdocker\b(?!\s*compose)/i },
+  { skill: 'Kubernetes', pattern: /\bkubernetes\b|\bk8s\b/i },
+  { skill: 'AWS', pattern: /\baws\b|amazon web services/i },
+  { skill: 'GCP', pattern: /\bgcp\b|google cloud/i },
+  { skill: 'Azure', pattern: /\bazure\b/i },
+  { skill: 'GitHub Actions', pattern: /\bgithub\s*actions\b/i },
+  { skill: 'Jenkins', pattern: /\bjenkins\b/i },
+  { skill: 'Git', pattern: /\bgit\b(?!hub)/i },
+  { skill: 'Nginx', pattern: /\bnginx\b/i },
+  { skill: 'Kafka', pattern: /\bkafka\b/i },
+  { skill: 'RabbitMQ', pattern: /\brabbit\s*mq\b/i },
+  { skill: 'REST API', pattern: /\brest(?:ful)?\s*api\b/i },
+  { skill: 'GraphQL', pattern: /\bgraphql\b/i },
+  { skill: 'gRPC', pattern: /\bgrpc\b/i },
+  { skill: 'React', pattern: /\breact(?:\.js|js)?\b/i },
+  { skill: 'TypeScript', pattern: /\btypescript\b/i },
+  { skill: 'JavaScript', pattern: /\bjavascript\b/i },
+  { skill: 'Node.js', pattern: /\bnode(?:\.js|js)\b/i },
+  { skill: 'Python', pattern: /\bpython\b/i },
+  { skill: 'FastAPI', pattern: /\bfastapi\b/i },
+  { skill: 'Django', pattern: /\bdjango\b/i },
+  { skill: 'Elasticsearch', pattern: /\belasticsearch\b/i },
+  { skill: 'Prometheus', pattern: /\bprometheus\b/i },
+  { skill: 'Grafana', pattern: /\bgrafana\b/i },
+  { skill: 'LLM', pattern: /\bllm\b/i },
+  { skill: 'RAG', pattern: /\brag\b/i },
+  { skill: 'OpenAI API', pattern: /\bopenai(?:\s*api)?\b/i },
+  { skill: 'Gemini API', pattern: /\bgemini(?:\s*api)?\b/i },
+  { skill: 'Ollama', pattern: /\bollama\b/i },
+]
+
+function splitExplicitSkills(value: string) {
+  return value
+    .split(/[,，\n;|·]+|\s+\/\s+/)
+    .map((item) => item.trim().replace(/^[-•]+\s*/, ''))
+    .filter((item) => item.length > 0 && item.length <= 50)
+}
+
+function skillKey(value: string) {
+  return value.toLocaleLowerCase('en-US').replace(/[^a-z0-9가-힣+#]+/g, '')
+}
+
+function mergeUniqueSkills(...collections: string[][]) {
+  const merged: string[] = []
+  const seen = new Set<string>()
+  for (const skill of collections.flat()) {
+    const normalized = skill.trim()
+    const key = skillKey(normalized)
+    if (!key || seen.has(key)) continue
+    seen.add(key)
+    merged.push(normalized)
+  }
+  return merged
+}
+
+function mergeJobKoreaSkills(...collections: string[][]) {
+  return mergeUniqueSkills(...collections).slice(0, maxJobKoreaSkills)
+}
+
+function collectCareerSkills(resumeSkills: string[], projects: Project[], experiences: Experience[]) {
+  const explicitProjectSkills = projects.flatMap((project) => splitExplicitSkills(project.techStack))
+  const explicitExperienceSkills = experiences.flatMap((experience) => splitExplicitSkills(experience.techStack ?? ''))
+  const evidenceText = [
+    ...projects.flatMap((project) => [project.description, project.role]),
+    ...experiences.flatMap((experience) => [experience.techStack ?? '', experience.description, experience.role]),
+  ].join('\n')
+  const mentionedSkills = careerSkillPatterns
+    .filter(({ pattern }) => pattern.test(evidenceText))
+    .map(({ skill }) => skill)
+  return mergeUniqueSkills(resumeSkills, explicitProjectSkills, explicitExperienceSkills, mentionedSkills)
 }
 
 function formatJobKoreaMonth(value: string) {
@@ -1163,7 +1335,7 @@ function buildCareerDescription(projects: Project[], experiences: Experience[]) 
       period ? `③ 수행 기간: ${period}` : null,
       `④ 업무 내용 및 성과: ${experience.description.trim() || '입력 필요'}`,
       `⑤ 담당 역할: ${experience.role}`,
-      '⑥ 보유/활용 Skill: 입력 필요 (Experience에 기술 스택이 없습니다.)',
+      `⑥ 보유/활용 Skill: ${experience.techStack?.trim() || '입력 필요 (Career > 경력에서 기술 스택을 추가해주세요.)'}`,
     ].filter((line): line is string => line !== null).join('\n')
   })
   return [...projectSections, ...experienceSections].join('\n\n')
@@ -1175,6 +1347,22 @@ function emptyJobKoreaEducation(): JobKoreaEducation {
 
 function emptyJobKoreaCareer(): JobKoreaCareer {
   return { companyName: '', hideCompanyName: false, department: '', startMonth: '', endMonth: '', isCurrent: false, title: '', job: '', salary: '', duties: '' }
+}
+
+function toJobKoreaMonth(value: string | null) {
+  return value?.slice(0, 7) ?? ''
+}
+
+function jobKoreaCareerFromExperience(experience: Experience): JobKoreaCareer {
+  return {
+    ...emptyJobKoreaCareer(),
+    companyName: experience.companyName,
+    startMonth: toJobKoreaMonth(experience.startDate),
+    endMonth: experience.currentlyEmployed ? '' : toJobKoreaMonth(experience.endDate),
+    isCurrent: experience.currentlyEmployed,
+    job: experience.role,
+    duties: experience.description,
+  }
 }
 
 function emptyJobKoreaAdditionalRecord(): JobKoreaAdditionalRecord {
@@ -1204,12 +1392,99 @@ function JobKoreaPreviewSection({ title, children }: { title: string; children: 
   return <section style={{ marginTop: '10px', border: '1px solid #aeb6ae', fontSize: '11px' }}><h3 style={{ margin: 0, padding: '8px 10px', background: '#dfe5df', color: '#202820', fontSize: '12px' }}>{title}</h3><div style={{ padding: '9px 12px', lineHeight: 1.6 }}>{children}</div></section>
 }
 
+type CareerReadinessIssue = { key: string; source: string; field: string; guidance: string; path: string }
+
+function findCareerReadinessIssues(experiences: Experience[], projects: Project[]) {
+  const issues: CareerReadinessIssue[] = []
+  experiences.forEach((experience) => {
+    const source = `${experience.companyName} · ${experience.role}`
+    const path = `/career/experiences?edit=${experience.id}`
+    if (!experience.techStack?.trim()) issues.push({ key: `experience-tech-${experience.id}`, source, field: '기술 스택', guidance: '사용 기술을 쉼표로 구분해 입력하면 스킬과 경력기술서 근거로 사용됩니다.', path })
+    if (!experience.startDate) issues.push({ key: `experience-start-${experience.id}`, source, field: '시작일', guidance: 'JobKorea 경력 기간에 사용할 시작일을 입력해주세요.', path })
+    if (!experience.currentlyEmployed && !experience.endDate) issues.push({ key: `experience-end-${experience.id}`, source, field: '종료일', guidance: '재직 중이 아니라면 종료일을 입력해주세요.', path })
+  })
+  projects.forEach((project) => {
+    const source = `${project.name} · ${project.role}`
+    const path = `/career/projects?edit=${project.id}`
+    if (!project.customerOrDomain?.trim()) issues.push({ key: `project-domain-${project.id}`, source, field: '고객사 / Domain', guidance: '프로젝트가 적용된 고객사나 서비스 도메인을 입력해주세요.', path })
+    if (!project.startDate) issues.push({ key: `project-start-${project.id}`, source, field: '시작일', guidance: '경력기술서에 사용할 프로젝트 시작일을 입력해주세요.', path })
+  })
+  return issues
+}
+
+function CareerDataReviewModal({ title, continueLabel, reindexBeforeContinue = false, onClose, onContinue }: { title: string; continueLabel: string; reindexBeforeContinue?: boolean; onClose: () => void; onContinue: () => void }) {
+  const [experiences, setExperiences] = useState<Experience[]>([])
+  const [projects, setProjects] = useState<Project[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState('')
+  const [continueError, setContinueError] = useState('')
+  const [isPreparing, setIsPreparing] = useState(false)
+  const [acknowledged, setAcknowledged] = useState(false)
+
+  async function loadReadiness() {
+    setIsLoading(true)
+    setError('')
+    try {
+      const [loadedExperiences, loadedProjects] = await Promise.all([
+        requestAllPages<Experience>('/v1/experiences'),
+        requestAllPages<Project>('/v1/projects'),
+      ])
+      setExperiences(loadedExperiences)
+      setProjects(loadedProjects)
+    } catch (loadError) {
+      setError(loadError instanceof Error ? loadError.message : 'Career 데이터를 점검하지 못했습니다.')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  useEffect(() => { void loadReadiness() }, [])
+
+  async function continueFromReview() {
+    setContinueError('')
+    if (!reindexBeforeContinue) {
+      onContinue()
+      return
+    }
+    setIsPreparing(true)
+    try {
+      await request<EmbeddingIndexResponse>('/v1/retrieval/index', { method: 'POST' })
+      onContinue()
+    } catch (indexError) {
+      setContinueError(indexError instanceof Error ? indexError.message : '최신 Career 검색 데이터를 준비하지 못했습니다.')
+      setIsPreparing(false)
+    }
+  }
+
+  const issues = findCareerReadinessIssues(experiences, projects)
+  const hasCareerData = experiences.length + projects.length > 0
+  const canContinue = !isLoading && !error && hasCareerData && (issues.length === 0 || acknowledged)
+
+  return <div className="modal-backdrop" role="presentation">
+    <section className="career-review-modal" role="dialog" aria-modal="true" aria-labelledby="career-review-title">
+      <div className="modal-heading"><div><span className="eyebrow">STEP 1 · SOURCE REVIEW</span><h2 id="career-review-title">{title}</h2></div><button className="modal-close" onClick={onClose} aria-label="닫기">×</button></div>
+      <p className="modal-description">이력서를 만들기 전에 원본 경력과 프로젝트를 먼저 확인합니다. 여기서 보완한 내용이 스킬, 경력기술서, AI 근거에 반영됩니다.{reindexBeforeContinue && ' 계속 진행하면 최신 Career 데이터로 맞춤 검색 데이터를 자동 업데이트합니다.'}</p>
+      {isLoading && <div className="list-state">Career 데이터를 점검하는 중입니다...</div>}
+      {error && <div className="list-state error-state" role="alert">{error}<button className="text-button" onClick={() => void loadReadiness()}>다시 시도</button></div>}
+      {!isLoading && !error && !hasCareerData && <div className="career-review-empty"><strong>먼저 경력 또는 프로젝트를 등록해주세요.</strong><p>근거 데이터가 없으면 이력서 초안을 생성할 수 없습니다.</p><div><Link className="secondary-button compact-button" to="/career/experiences" onClick={onClose}>경력 등록하기</Link><Link className="secondary-button compact-button" to="/career/projects" onClick={onClose}>프로젝트 등록하기</Link></div></div>}
+      {!isLoading && !error && hasCareerData && <>
+        <div className={`career-review-summary ${issues.length === 0 ? 'ready' : ''}`}><strong>{issues.length === 0 ? '원본 데이터 점검 완료' : `${issues.length}개 항목을 보완하면 더 정확해집니다.`}</strong><span>경력 {experiences.length}개 · 프로젝트 {projects.length}개</span></div>
+        {issues.length > 0 && <div className="career-review-list">{issues.map((issue) => <article key={issue.key}><div><span>{issue.field}</span><strong>{issue.source}</strong><p>{issue.guidance}</p></div><Link className="text-button" to={issue.path} onClick={onClose}>이전 단계에서 수정 ↗</Link></article>)}</div>}
+        {issues.length > 0 && <label className="export-review-check"><input type="checkbox" checked={acknowledged} onChange={(event) => setAcknowledged(event.target.checked)} /><span><strong>누락 항목을 확인했습니다.</strong><br />지금 수정하지 않으면 해당 내용은 “입력 필요”로 남을 수 있음을 이해하고 계속합니다.</span></label>}
+      </>}
+      {continueError && <p className="form-error" role="alert">{continueError}</p>}
+      <div className="modal-actions"><button className="text-button" onClick={onClose}>취소</button><button className="primary-button compact-button" onClick={() => void continueFromReview()} disabled={!canContinue || isPreparing}>{isPreparing ? '최신 Career 데이터 준비 중...' : continueLabel}</button></div>
+    </section>
+  </div>
+}
+
 function JobKoreaExportModal({
   resumeName,
   version,
   jobTitle,
   displayName,
   email,
+  onPersistSkills,
   onClose,
 }: {
   resumeName: string
@@ -1217,6 +1492,7 @@ function JobKoreaExportModal({
   jobTitle?: string
   displayName: string
   email: string
+  onPersistSkills?: (skills: string[]) => Promise<ResumeVersion>
   onClose: () => void
 }) {
   const previewRef = useRef<HTMLDivElement>(null)
@@ -1264,8 +1540,11 @@ function JobKoreaExportModal({
   const [status, setStatus] = useState('')
   const [isGenerating, setIsGenerating] = useState(false)
   const [isLoadingCareers, setIsLoadingCareers] = useState(false)
+  const [isLoadingSkills, setIsLoadingSkills] = useState(false)
   const [isGeneratingCareerDescription, setIsGeneratingCareerDescription] = useState(false)
   const [reviewConfirmed, setReviewConfirmed] = useState(false)
+
+  useEffect(() => { void loadCareerSkills(false) }, [])
 
   type TextField = Exclude<keyof JobKoreaExportProfile, 'educations' | 'careers' | 'overseas' | 'activities' | 'trainings' | 'certificates' | 'awards' | 'languages' | 'portfolios' | 'selfIntroductions' | 'veteran' | 'employmentProtection' | 'employmentSupport' | 'disability'>
 
@@ -1353,11 +1632,11 @@ function JobKoreaExportModal({
     setStatus('테스트용 필수값을 임시 입력했습니다. 실제 JobKorea 제출 전 반드시 본인 정보로 교체해주세요.')
   }
 
-  async function recordExportAudit(result: 'DOWNLOAD_TRIGGERED' | 'GENERATION_FAILED', fileSizeBytes?: number) {
+  async function recordExportAudit(result: 'DOWNLOAD_TRIGGERED' | 'GENERATION_FAILED', fileSizeBytes?: number, resumeVersionId = version.id) {
     await request('/v1/jobkorea/export-audits', {
       method: 'POST',
       body: JSON.stringify({
-        resumeVersionId: version.id,
+        resumeVersionId,
         templateVersion: jobKoreaTemplateVersion,
         result,
         fileSizeBytes: fileSizeBytes ?? null,
@@ -1376,20 +1655,45 @@ function JobKoreaExportModal({
     setStatus('Career의 경력을 불러오는 중입니다...')
     try {
       const allExperiences = await requestAllPages<Experience>('/v1/experiences')
-      const careers = allExperiences.map((experience) => ({
-        ...emptyJobKoreaCareer(),
-        companyName: experience.companyName,
-        job: experience.role,
-        duties: experience.description,
-      }))
+      const careers = allExperiences.map(jobKoreaCareerFromExperience)
+      const missingPeriodCount = careers.filter((career) => !career.startMonth || (!career.isCurrent && !career.endMonth)).length
       setProfile((current) => ({ ...current, careers }))
       setStatus(careers.length > 0
-        ? `${careers.length}개의 Career 경력을 불러왔습니다. 기간·부서·직급·연봉을 확인해주세요.`
+        ? `${careers.length}개의 Career 경력과 입·퇴사년월을 불러왔습니다.${missingPeriodCount > 0 ? ` 기간이 비어 있는 경력 ${missingPeriodCount}개를 확인해주세요.` : ''} 부서·직급·연봉을 확인해주세요.`
         : '불러올 Career 경력이 없습니다.')
     } catch (error) {
       setStatus(error instanceof Error ? error.message : 'Career 경력을 불러오지 못했습니다.')
     } finally {
       setIsLoadingCareers(false)
+    }
+  }
+
+  async function loadCareerSkills(showStatus = true) {
+    setIsLoadingSkills(true)
+    if (showStatus) setStatus('이력서와 Career 데이터에서 스킬을 찾는 중입니다...')
+    try {
+      const [experiences, projects] = await Promise.all([
+        requestAllPages<Experience>('/v1/experiences'),
+        requestAllPages<Project>('/v1/projects'),
+      ])
+      const resumeSkills = parsed.sections
+        .find((section) => section.title === '기술 및 역량')
+        ?.lines.flatMap(splitExplicitSkills) ?? []
+      const careerSkills = collectCareerSkills(resumeSkills, projects, experiences)
+      setProfile((current) => ({
+        ...current,
+        skills: mergeJobKoreaSkills(splitJobKoreaList(current.skills), careerSkills).join(', '),
+      }))
+      setReviewConfirmed(false)
+      if (showStatus) {
+        setStatus(careerSkills.length > 0
+          ? `승인 이력서와 경력·프로젝트 근거에서 스킬 ${careerSkills.length}개를 반영했습니다.`
+          : '승인 이력서와 경력·프로젝트에서 확인할 수 있는 스킬이 없습니다.')
+      }
+    } catch (error) {
+      if (showStatus) setStatus(error instanceof Error ? error.message : '경력·프로젝트 스킬을 불러오지 못했습니다.')
+    } finally {
+      setIsLoadingSkills(false)
     }
   }
 
@@ -1406,18 +1710,15 @@ function JobKoreaExportModal({
         throw new Error('먼저 Career 메뉴에 경력 또는 프로젝트를 등록해주세요.')
       }
       const description = buildCareerDescription(projects, experiences)
+      const careerSkills = collectCareerSkills([], projects, experiences)
       setProfile((current) => ({
         ...current,
         careerDescription: description,
-        careers: current.careers.length > 0 ? current.careers : experiences.map((experience) => ({
-          ...emptyJobKoreaCareer(),
-          companyName: experience.companyName,
-          job: experience.role,
-          duties: experience.description,
-        })),
+        skills: mergeJobKoreaSkills(splitJobKoreaList(current.skills), careerSkills).join(', '),
+        careers: current.careers.length > 0 ? current.careers : experiences.map(jobKoreaCareerFromExperience),
       }))
       setReviewConfirmed(false)
-      setStatus(`프로젝트 ${projects.length}개와 경력 ${experiences.length}개를 반영했습니다. '입력 필요' 항목과 성과를 검토해주세요.`)
+      setStatus(`프로젝트 ${projects.length}개와 경력 ${experiences.length}개를 경력기술서와 스킬에 반영했습니다. '입력 필요' 항목과 성과를 검토해주세요.`)
     } catch (error) {
       setStatus(error instanceof Error ? error.message : '경력기술서를 자동 작성하지 못했습니다.')
     } finally {
@@ -1488,6 +1789,8 @@ function JobKoreaExportModal({
     setIsGenerating(true)
     setStatus('PDF를 생성하는 중입니다...')
     try {
+      const selectedSkills = mergeJobKoreaSkills(splitJobKoreaList(profile.skills))
+      const savedVersion = onPersistSkills ? await onPersistSkills(selectedSkills) : version
       const element = previewRef.current
       const { default: html2canvas } = await import('html2canvas')
       const canvas = await html2canvas(element, {
@@ -1550,11 +1853,13 @@ function JobKoreaExportModal({
       const downloadUrl = URL.createObjectURL(blob)
       const link = document.createElement('a')
       link.href = downloadUrl
-      link.download = safeResumeFileName(resumeName, version.versionNumber)
+      link.download = safeResumeFileName(resumeName, savedVersion.versionNumber)
       link.click()
       URL.revokeObjectURL(downloadUrl)
-      await recordExportAudit('DOWNLOAD_TRIGGERED', blob.size).catch(() => undefined)
-      setStatus('PDF가 다운로드되었습니다. 내용을 확인한 뒤 JobKorea에 직접 업로드해주세요.')
+      await recordExportAudit('DOWNLOAD_TRIGGERED', blob.size, savedVersion.id).catch(() => undefined)
+      setStatus(onPersistSkills && savedVersion.id !== version.id
+        ? `선택한 스킬을 이력서 Version ${savedVersion.versionNumber}에 저장하고 PDF를 다운로드했습니다.`
+        : 'PDF가 다운로드되었습니다. 내용을 확인한 뒤 JobKorea에 직접 업로드해주세요.')
       setIsGenerating(false)
     } catch (error) {
       failGeneration(error instanceof Error ? error.message : 'PDF 파일을 생성하지 못했습니다.')
@@ -1595,9 +1900,9 @@ function JobKoreaExportModal({
         {profile.photoDataUrl && <div className="export-photo-preview"><img src={profile.photoDataUrl} alt="이력서 사진 미리보기" /><button className="text-button danger-button" type="button" onClick={() => updateProfile('photoDataUrl', '')}>사진 제거</button></div>}
       </div></div>
 
-      <div className="export-section"><div className="export-section-heading"><div><span className="eyebrow">TARGET</span><h3>희망직무 · 스킬</h3></div></div><div className="export-form-grid">
+      <div className="export-section"><div className="export-section-heading"><div><span className="eyebrow">TARGET</span><h3>희망직무 · 스킬</h3></div><button className="secondary-button compact-button" type="button" onClick={() => void loadCareerSkills()} disabled={isLoadingSkills}>{isLoadingSkills ? '스킬 찾는 중...' : '경력·프로젝트 스킬 불러오기'}</button></div><div className="export-form-grid">
         <label className="export-profile-wide">희망직무 키워드 *<input value={profile.desiredJobKeywords} onChange={(event) => updateProfile('desiredJobKeywords', event.target.value)} placeholder="백엔드개발자, 웹개발자" /></label>
-        <p className="export-help export-profile-wide">쉼표 또는 줄바꿈으로 구분합니다. 희망직무는 1개 이상, 스킬은 최대 20개입니다.</p>
+        <p className="export-help export-profile-wide">승인된 이력서의 기술 및 역량, 프로젝트 기술 스택, 경력·프로젝트 설명에 명시된 기술을 합쳐 자동 입력합니다. 추측한 기술은 추가하지 않으며 스킬은 최대 20개입니다.</p>
         <label className="export-profile-wide">내가 선택한 스킬<textarea value={profile.skills} onChange={(event) => updateProfile('skills', event.target.value)} placeholder="Java, Spring Boot, PostgreSQL, Docker" rows={3} /></label>
         <label className="export-profile-wide">산업 키워드<input value={profile.industryKeywords} onChange={(event) => updateProfile('industryKeywords', event.target.value)} placeholder="핀테크, SaaS, 플랫폼" /></label>
       </div></div>
@@ -1618,7 +1923,7 @@ function JobKoreaExportModal({
       </div>
 
       <div className="export-section"><div className="export-section-heading"><div><span className="eyebrow">CAREER</span><h3>경력</h3></div><div className="heading-actions"><button className="secondary-button compact-button" type="button" onClick={() => void loadAllCareers()} disabled={isLoadingCareers}>{isLoadingCareers ? '불러오는 중...' : '모든 경력 한 번에 불러오기'}</button><button className="secondary-button compact-button" type="button" onClick={fillCareerDemoDates}>경력 데모 기간 채우기</button><button className="secondary-button compact-button" type="button" onClick={() => setProfile((current) => ({ ...current, careers: [...current.careers, emptyJobKoreaCareer()] }))}>경력 추가</button></div></div>
-        <p className="export-help">Career 메뉴에 저장된 회사·직무·담당업무만 자동 입력합니다. JobKorea에 필요한 기간·부서·직급·연봉은 Career에 값이 없으면 직접 확인해 입력해주세요.</p>
+        <p className="export-help">Career 메뉴에 저장된 회사·직무·담당업무·입사일·퇴사일·재직 상태를 자동 입력합니다. 일 단위 날짜는 JobKorea 형식에 맞춰 년월로 변환하며, 부서·직급·연봉은 직접 확인해 입력해주세요.</p>
         <div className="export-repeat-list">
           {profile.careers.length === 0 && <p className="export-empty">경력 정보를 추가하거나 “모든 경력 한 번에 불러오기”를 눌러주세요.</p>}
           {profile.careers.map((career, index) => { const selectedJob = jobKoreaJobCategories.includes(career.job) ? career.job : career.job ? '직접 입력' : ''; return <div className="export-repeat-item" key={`career-${index}`}><div className="export-repeat-heading"><strong>경력 {index + 1}</strong><button className="text-button danger-button" type="button" onClick={() => setProfile((current) => ({ ...current, careers: current.careers.filter((_, itemIndex) => itemIndex !== index) }))}>삭제</button></div><div className="export-form-grid">
@@ -1700,7 +2005,7 @@ function JobKoreaExportModal({
         <footer style={{ paddingTop: '18px', color: '#8b958c', fontSize: '9px' }}>JOBKOREA_STANDARD_V2 · 사용자가 검토한 ResumeVersion과 입력한 프로필에서 생성된 업로드용 파일입니다.</footer>
       </div></div>
       {status && <p className="export-status" role="status">{status}</p>}
-      <div className="modal-actions"><button className="text-button" onClick={onClose}>취소</button><button className="secondary-button compact-button" onClick={() => window.open('https://resume.jobkorea.co.kr/resume/upload', '_blank', 'noopener,noreferrer')}>JobKorea 업로드 페이지 열기</button><button className="primary-button compact-button" onClick={() => void downloadPdf()} disabled={isGenerating || !reviewConfirmed}>{isGenerating ? 'PDF 생성 중...' : '검토 완료 · PDF 다운로드'}</button></div>
+      <div className="modal-actions"><button className="text-button" onClick={onClose}>취소</button><button className="secondary-button compact-button" onClick={() => window.open('https://resume.jobkorea.co.kr/resume/upload', '_blank', 'noopener,noreferrer')}>JobKorea 업로드 페이지 열기</button><button className="primary-button compact-button" onClick={() => void downloadPdf()} disabled={isGenerating || !reviewConfirmed}>{isGenerating ? 'PDF 생성 중...' : onPersistSkills ? '검토 완료 · 이력서 저장 및 PDF 다운로드' : '검토 완료 · PDF 다운로드'}</button></div>
     </section>
   </div>
 }
@@ -1762,10 +2067,13 @@ function ResumePageContent({ user }: { user: User }) {
   const [loadError, setLoadError] = useState('')
   const [form, setForm] = useState<ResumeCreateForm>(emptyResumeCreateForm)
   const [renameName, setRenameName] = useState('')
-  const [versionContent, setVersionContent] = useState('')
+  const [versionEditor, setVersionEditor] = useState<ResumeVersionEditor>(emptyResumeVersionEditor)
+  const [resumeCareerSkills, setResumeCareerSkills] = useState<string[]>([])
+  const [isVersionPreview, setIsVersionPreview] = useState(false)
   const [formError, setFormError] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [isCareerReviewOpen, setIsCareerReviewOpen] = useState(false)
   const [isExportOpen, setIsExportOpen] = useState(false)
 
   async function loadResumes(preferredId?: string) {
@@ -1792,8 +2100,24 @@ function ResumePageContent({ user }: { user: User }) {
       const result = await request<PageResponse<ResumeVersion>>(`/v1/resumes/${resumeId}/versions?page=0&size=20`)
       setVersions(result.content)
       const latestVersion = result.content[0] ?? null
+      const latestEditor = latestVersion ? resumeVersionEditorFromContent(latestVersion.content) : emptyResumeVersionEditor
+      let careerSkills: string[] = []
+      try {
+        const [experiences, projects] = await Promise.all([
+          requestAllPages<Experience>('/v1/experiences'),
+          requestAllPages<Project>('/v1/projects'),
+        ])
+        careerSkills = collectCareerSkills([], projects, experiences)
+      } catch {
+        setFormError('Career 기술 스택을 불러오지 못해 이력서에 저장된 기술만 표시합니다.')
+      }
       setSelectedVersion(latestVersion)
-      setVersionContent(latestVersion?.content ?? '')
+      setResumeCareerSkills(careerSkills)
+      setVersionEditor({
+        ...latestEditor,
+        skills: mergeUniqueSkills(splitExplicitSkills(latestEditor.skills), careerSkills).join(', '),
+      })
+      setIsVersionPreview(false)
     } catch (error) {
       setLoadError(error instanceof Error ? error.message : '이력서 버전을 불러오지 못했습니다.')
     } finally {
@@ -1808,7 +2132,8 @@ function ResumePageContent({ user }: { user: User }) {
     else {
       setVersions([])
       setSelectedVersion(null)
-      setVersionContent('')
+      setVersionEditor(emptyResumeVersionEditor)
+      setResumeCareerSkills([])
       setRenameName('')
     }
   }, [selectedResumeId])
@@ -1816,13 +2141,19 @@ function ResumePageContent({ user }: { user: User }) {
   function selectResume(resume: Resume) {
     setSelectedResumeId(resume.id)
     setRenameName(resume.name)
-    setVersionContent('')
+    setVersionEditor(emptyResumeVersionEditor)
+    setIsVersionPreview(false)
     setFormError('')
   }
 
   function selectVersion(version: ResumeVersion) {
+    const editor = resumeVersionEditorFromContent(version.content)
     setSelectedVersion(version)
-    setVersionContent(version.content)
+    setVersionEditor({
+      ...editor,
+      skills: mergeUniqueSkills(splitExplicitSkills(editor.skills), resumeCareerSkills).join(', '),
+    })
+    setIsVersionPreview(false)
     setFormError('')
   }
 
@@ -1864,14 +2195,19 @@ function ResumePageContent({ user }: { user: User }) {
 
   async function saveVersion(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    if (!selectedResumeId || !selectedVersion || !versionContent.trim()) {
+    const content = resumeContentFromEditor(versionEditor)
+    if (!selectedResumeId || !selectedVersion || !content) {
       setFormError('이력서 내용을 입력해주세요.')
+      return
+    }
+    if (content.length > 100000) {
+      setFormError('이력서 전체 내용은 100,000자 이하여야 합니다.')
       return
     }
     setIsSubmitting(true)
     setFormError('')
     try {
-      await request<ResumeVersion>(`/v1/resumes/${selectedResumeId}/versions`, { method: 'POST', body: JSON.stringify({ content: versionContent.trim() }) })
+      await request<ResumeVersion>(`/v1/resumes/${selectedResumeId}/versions`, { method: 'POST', body: JSON.stringify({ content }) })
       await loadResumes(selectedResumeId)
       await loadVersions(selectedResumeId)
     } catch (error) {
@@ -1919,8 +2255,22 @@ function ResumePageContent({ user }: { user: User }) {
             {isLoadingVersions && <div className="list-state">버전을 불러오는 중입니다...</div>}
             {!isLoadingVersions && versions.length > 0 && <div className="version-list">{versions.map((version) => <button className={selectedVersion?.id === version.id ? 'version-item selected' : 'version-item'} key={version.id} onClick={() => selectVersion(version)}><strong>버전 {version.versionNumber}</strong><span>{new Date(version.createdAt).toLocaleString('ko-KR')}</span></button>)}</div>}
           </div>
-          {selectedVersion && <div className="version-preview"><div className="section-title"><div><span className="eyebrow">EDITING VERSION</span><h2>Version {selectedVersion.versionNumber}</h2></div><div className="version-preview-actions"><span className="immutable-badge">기존 버전 보존</span><button className="secondary-button compact-button" onClick={() => setIsExportOpen(true)}>JobKorea 파일 생성</button></div></div><form className="new-version-form" onSubmit={saveVersion}><textarea value={versionContent} onChange={(event) => setVersionContent(event.target.value)} placeholder="이력서 내용을 입력하세요." maxLength={100000} rows={12} /><span className="version-count">저장하면 기존 Version {selectedVersion.versionNumber}는 보존되고 Version {selectedResume.latestVersionNumber + 1}로 저장됩니다.</span><button className="primary-button compact-button" disabled={isSubmitting} type="submit">{isSubmitting ? '저장 중...' : `Version ${selectedResume.latestVersionNumber + 1} 저장`}</button></form></div>}
+          {selectedVersion && <div className="version-preview"><div className="section-title"><div><span className="eyebrow">{isVersionPreview ? 'RESUME PREVIEW' : 'EDITING VERSION'}</span><h2>Version {selectedVersion.versionNumber}</h2></div><div className="version-preview-actions"><span className="immutable-badge">기존 버전 보존</span><button className="secondary-button compact-button" type="button" onClick={() => setIsVersionPreview((current) => !current)}>{isVersionPreview ? '편집하기' : '미리보기'}</button><button className="secondary-button compact-button" type="button" onClick={() => setIsCareerReviewOpen(true)}>JobKorea 파일 생성</button></div></div>
+          {isVersionPreview ? <article className="resume-version-preview-card">
+            <header><span>RESUME</span><h3>{renameName || selectedResume.name}</h3><p>{versionEditor.headline || '희망직무를 입력해주세요.'}</p></header>
+            {versionEditor.selfIntroduction && <section><h4>자기소개서</h4><p>{versionEditor.selfIntroduction}</p></section>}
+            {versionEditor.careerDescription && <section><h4>경력기술서</h4><p>{versionEditor.careerDescription}</p></section>}
+            {versionEditor.skills && <section><h4>기술 및 역량</h4><div className="resume-preview-skills">{splitJobKoreaList(versionEditor.skills).map((skill) => <span key={skill}>{skill}</span>)}</div></section>}
+            {!versionEditor.headline && !versionEditor.selfIntroduction && !versionEditor.careerDescription && !versionEditor.skills && <p className="resume-preview-empty">미리볼 이력서 내용을 입력해주세요.</p>}
+          </article> : <><p className="version-editor-help">항목별로 내용을 확인하고 수정하세요. AI 검증에 사용된 내부 근거 번호는 편집 본문에서 자동으로 숨깁니다.</p><form className="new-version-form version-editor-form" onSubmit={saveVersion}>
+            <label><strong>희망직무</strong><small>지원하려는 직무나 이력서의 핵심 제목입니다.</small><textarea value={versionEditor.headline} onChange={(event) => setVersionEditor((current) => ({ ...current, headline: event.target.value }))} placeholder="예: 백엔드 개발자" maxLength={100000} rows={2} /></label>
+            <label><strong>자기소개서</strong><small>핵심 역량, 문제 해결 경험과 지원 직무에 기여할 내용을 작성합니다.</small><textarea value={versionEditor.selfIntroduction} onChange={(event) => setVersionEditor((current) => ({ ...current, selfIntroduction: event.target.value }))} placeholder="자기소개서 내용을 입력하세요." maxLength={100000} rows={8} /></label>
+            <label><strong>경력기술서</strong><small>경력과 프로젝트에서 맡은 역할, 수행 업무와 성과를 작성합니다.</small><textarea value={versionEditor.careerDescription} onChange={(event) => setVersionEditor((current) => ({ ...current, careerDescription: event.target.value }))} placeholder="경력 및 프로젝트 내용을 입력하세요." maxLength={100000} rows={8} /></label>
+            <label><strong>기술 및 역량</strong><small>업무에 사용한 기술 스택과 도구를 작성합니다.</small><textarea value={versionEditor.skills} onChange={(event) => setVersionEditor((current) => ({ ...current, skills: event.target.value }))} placeholder="예: Java, Spring Boot, PostgreSQL" maxLength={100000} rows={4} /></label>
+            <span className="version-count">저장하면 기존 Version {selectedVersion.versionNumber}는 보존되고 Version {selectedResume.latestVersionNumber + 1}로 저장됩니다.</span><button className="primary-button compact-button" disabled={isSubmitting} type="submit">{isSubmitting ? '저장 중...' : `Version ${selectedResume.latestVersionNumber + 1} 저장`}</button>
+          </form></>}</div>}
           <ResumeApplicationQuestions key={selectedResume.id} resumeId={selectedResume.id} />
+          {isCareerReviewOpen && selectedVersion && <CareerDataReviewModal title="JobKorea 파일 생성 전 Career 점검" continueLabel="확인하고 파일 작성하기" onClose={() => setIsCareerReviewOpen(false)} onContinue={() => { setIsCareerReviewOpen(false); setIsExportOpen(true) }} />}
           {isExportOpen && selectedVersion && <JobKoreaExportModal resumeName={selectedResume.name} version={selectedVersion} displayName={user.displayName} email={user.email} onClose={() => setIsExportOpen(false)} />}
         </>}
       </section>
@@ -2206,6 +2556,7 @@ function JobPostingPageContent({ user }: { user: User }) {
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [isImportOpen, setIsImportOpen] = useState(false)
   const [generatingDraftId, setGeneratingDraftId] = useState<string | null>(null)
+  const [preflightPosting, setPreflightPosting] = useState<JobPosting | null>(null)
   const [draftState, setDraftState] = useState<{ jobPosting: JobPosting; draft: ResumeDraftResponse } | null>(null)
   const [isApprovingDraft, setIsApprovingDraft] = useState(false)
   const [exportState, setExportState] = useState<{ resumeName: string; version: ResumeVersion; jobTitle?: string } | null>(null)
@@ -2329,6 +2680,24 @@ function JobPostingPageContent({ user }: { user: User }) {
     }
   }
 
+  async function persistGeneratedResumeSkills(skills: string[]) {
+    if (!exportState) throw new Error('스킬을 저장할 이력서를 찾지 못했습니다.')
+    const currentEditor = resumeVersionEditorFromContent(exportState.version.content)
+    const currentSkills = mergeJobKoreaSkills(splitExplicitSkills(currentEditor.skills))
+    const nextSkills = mergeJobKoreaSkills(skills)
+    const unchanged = currentSkills.length === nextSkills.length
+      && currentSkills.every((skill, index) => skillKey(skill) === skillKey(nextSkills[index]))
+    if (unchanged) return exportState.version
+
+    const content = resumeContentWithSkills(exportState.version.content, nextSkills)
+    const savedVersion = await request<ResumeVersion>(`/v1/resumes/${exportState.version.resumeId}/versions`, {
+      method: 'POST',
+      body: JSON.stringify({ content }),
+    })
+    setExportState((current) => current ? { ...current, version: savedVersion } : current)
+    return savedVersion
+  }
+
   return <>
     <header className="page-heading"><div><span className="eyebrow">OPPORTUNITIES</span><h1>채용공고</h1><p>관심 있는 공고를 저장하면 내 경력과 비교하고 맞춤형 이력서 초안을 만들 수 있습니다.</p></div><div className="heading-actions"><button className="secondary-button compact-button" onClick={() => setIsImportOpen(true)}>URL로 빠르게 입력</button><button className="primary-button compact-button" onClick={startCreate}>+ 공고 추가</button></div></header>
     <section className="experience-form-card">
@@ -2346,7 +2715,7 @@ function JobPostingPageContent({ user }: { user: User }) {
       {isLoading && <div className="list-state">채용공고 목록을 불러오는 중입니다...</div>}
       {!isLoading && loadError && <div className="list-state error-state" role="alert">{loadError}<button className="text-button" onClick={() => void loadJobPostings(page)}>다시 시도</button></div>}
       {!isLoading && !loadError && jobPostings.length === 0 && <div className="list-state">아직 저장된 채용공고가 없습니다.</div>}
-      {!isLoading && !loadError && jobPostings.length > 0 && <div className="experience-list">{jobPostings.map((jobPosting) => <article className="experience-item job-posting-item" key={jobPosting.id}><div className="job-source-label"><span className="job-dot" /> SAVED<br /><small>{new Date(jobPosting.updatedAt).toLocaleDateString('ko-KR')}</small></div><div className="experience-main"><h3>{jobPosting.title}</h3><strong>{jobPosting.companyName}</strong><p>{jobPosting.description}</p>{jobPosting.sourceUrl && <a className="repo-link" href={jobPosting.sourceUrl} target="_blank" rel="noreferrer">원문 보기 ↗</a>}</div><div className="item-actions"><button className="primary-button compact-button" onClick={() => void generateResumeDraft(jobPosting)} disabled={generatingDraftId === jobPosting.id}>{generatingDraftId === jobPosting.id ? '생성 중...' : '이 공고로 이력서 생성'}</button><button className="text-button" onClick={() => startEdit(jobPosting)}>수정</button><button className="text-button danger-button" onClick={() => void deleteJobPosting(jobPosting.id)} disabled={deletingId === jobPosting.id}>{deletingId === jobPosting.id ? '삭제 중' : '삭제'}</button></div></article>)}</div>}
+      {!isLoading && !loadError && jobPostings.length > 0 && <div className="experience-list">{jobPostings.map((jobPosting) => <article className="experience-item job-posting-item" key={jobPosting.id}><div className="job-source-label"><span className="job-dot" /> 저장됨<br /><small>{new Date(jobPosting.updatedAt).toLocaleDateString('ko-KR')}</small></div><div className="experience-main"><h3>{jobPosting.title}</h3><strong>{jobPosting.companyName}</strong><p>{jobPosting.description}</p>{jobPosting.sourceUrl && <a className="repo-link" href={jobPosting.sourceUrl} target="_blank" rel="noreferrer">원문 보기 ↗</a>}</div><div className="item-actions"><button className="primary-button compact-button" onClick={() => setPreflightPosting(jobPosting)} disabled={generatingDraftId === jobPosting.id}>{generatingDraftId === jobPosting.id ? '생성 중...' : 'Career 점검 후 이력서 생성'}</button><button className="text-button" onClick={() => startEdit(jobPosting)}>수정</button><button className="text-button danger-button" onClick={() => void deleteJobPosting(jobPosting.id)} disabled={deletingId === jobPosting.id}>{deletingId === jobPosting.id ? '삭제 중' : '삭제'}</button></div></article>)}</div>}
       {!isLoading && !loadError && totalPages > 1 && <div className="pagination"><button className="text-button" disabled={page === 0} onClick={() => void loadJobPostings(page - 1)}>← 이전</button><span>{page + 1} / {totalPages}</span><button className="text-button" disabled={page >= totalPages - 1} onClick={() => void loadJobPostings(page + 1)}>다음 →</button></div>}
     </section>
     {isImportOpen && <JobPostingUrlImportModal onClose={() => setIsImportOpen(false)} onApply={(preview) => {
@@ -2357,8 +2726,9 @@ function JobPostingPageContent({ user }: { user: User }) {
       setIsImportOpen(false)
       window.scrollTo({ top: 0, behavior: 'smooth' })
     }} />}
+    {preflightPosting && <CareerDataReviewModal title="이력서 생성 전 Career 점검" continueLabel="확인하고 이력서 생성" reindexBeforeContinue onClose={() => setPreflightPosting(null)} onContinue={() => { const jobPosting = preflightPosting; setPreflightPosting(null); void generateResumeDraft(jobPosting) }} />}
     {draftState && <ResumeDraftReviewModal jobPosting={draftState.jobPosting} draft={draftState.draft} isApproving={isApprovingDraft} onClose={() => setDraftState(null)} onApprove={() => void approveGeneratedDraft()} />}
-    {exportState && <JobKoreaExportModal resumeName={exportState.resumeName} version={exportState.version} jobTitle={exportState.jobTitle} displayName={user.displayName} email={user.email} onClose={() => setExportState(null)} />}
+    {exportState && <JobKoreaExportModal resumeName={exportState.resumeName} version={exportState.version} jobTitle={exportState.jobTitle} displayName={user.displayName} email={user.email} onPersistSkills={persistGeneratedResumeSkills} onClose={() => setExportState(null)} />}
   </>
 }
 

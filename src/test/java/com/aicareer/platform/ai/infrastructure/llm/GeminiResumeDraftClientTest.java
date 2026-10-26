@@ -1,6 +1,7 @@
 package com.aicareer.platform.ai.infrastructure.llm;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -14,6 +15,7 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import com.aicareer.platform.ai.application.AiIntegrationException;
 import com.aicareer.platform.ai.application.LlmResumeDraftCompletion;
 import com.aicareer.platform.ai.application.RetrievedContext;
 import com.aicareer.platform.ai.infrastructure.config.GeminiProperties;
@@ -63,7 +65,8 @@ class GeminiResumeDraftClientTest {
                         Duration.ZERO,
                         4096
                 ),
-                new ResumeDraftProperties("gemini", "resume-draft-v4", 8, 12000, 450, 512, 1),
+                new ResumeDraftProperties("gemini", "resume-draft-v4", 8, 12000, 450, 512, 1,
+                        true, Duration.ofSeconds(2)),
                 new ObjectMapper(),
                 new ResumeDraftPrompt("resume-draft-v4", "Use only cited evidence.")
         );
@@ -86,17 +89,17 @@ class GeminiResumeDraftClientTest {
 
         assertThat(completion.draft().headline().text()).isEqualTo("Backend Developer");
         assertThat(completion.usage().totalTokens()).isEqualTo(30);
-        assertThat(requestBody).contains("systemInstruction", "responseFormat", "Built APIs");
+        assertThat(requestBody).contains("systemInstruction", "responseMimeType", "responseSchema", "Built APIs");
         JsonNode request = new ObjectMapper().readTree(requestBody);
-        JsonNode responseFormat = request.path("generationConfig").path("responseFormat").path("text");
-        assertThat(responseFormat.path("mimeType").asText()).isEqualTo("APPLICATION_JSON");
-        assertThat(responseFormat.path("schema").path("properties")
+        JsonNode generationConfig = request.path("generationConfig");
+        assertThat(generationConfig.path("responseMimeType").asText()).isEqualTo("application/json");
+        assertThat(generationConfig.path("responseSchema").path("properties")
                 .path("experienceBullets").path("maxItems").asInt()).isEqualTo(2);
-        assertThat(responseFormat.path("schema").path("properties")
+        assertThat(generationConfig.path("responseSchema").path("properties")
                 .path("selfIntroductionSections").path("minItems").asInt()).isEqualTo(3);
-        assertThat(responseFormat.path("schema").path("properties")
+        assertThat(generationConfig.path("responseSchema").path("properties")
                 .path("selfIntroductionSections").path("maxItems").asInt()).isEqualTo(3);
-        assertThat(request.path("generationConfig").path("thinkingConfig")
+        assertThat(generationConfig.path("thinkingConfig")
                 .path("thinkingBudget").asInt()).isEqualTo(512);
     }
 
@@ -127,7 +130,8 @@ class GeminiResumeDraftClientTest {
                         Duration.ZERO,
                         4096
                 ),
-                new ResumeDraftProperties("gemini", "resume-draft-v4", 8, 12000, 800, 512, 1),
+                new ResumeDraftProperties("gemini", "resume-draft-v4", 8, 12000, 800, 512, 1,
+                        true, Duration.ofSeconds(2)),
                 new ObjectMapper(),
                 new ResumeDraftPrompt("resume-draft-v4", "Use only cited evidence.")
         );
@@ -175,7 +179,8 @@ class GeminiResumeDraftClientTest {
                         Duration.ZERO,
                         4096
                 ),
-                new ResumeDraftProperties("gemini", "resume-draft-v4", 8, 12000, 800, 512, 2),
+                new ResumeDraftProperties("gemini", "resume-draft-v4", 8, 12000, 800, 512, 2,
+                        true, Duration.ofSeconds(2)),
                 new ObjectMapper(),
                 new ResumeDraftPrompt("resume-draft-v4", "Use only cited evidence.")
         );
@@ -197,6 +202,43 @@ class GeminiResumeDraftClientTest {
 
         assertThat(completion.draft().headline().text()).isEqualTo("Backend Developer");
         assertThat(requests).hasValue(2);
+    }
+
+    @Test
+    void reportsTokenLimitedResponseAsIncompleteWithoutRepeatingTheSameRequest() throws Exception {
+        AtomicInteger requests = new AtomicInteger();
+        server.createContext("/models/gemini-test:generateContent", exchange -> {
+            requests.incrementAndGet();
+            respond(exchange, 200, new ObjectMapper().writeValueAsString(Map.of(
+                    "candidates", List.of(Map.of(
+                            "finishReason", "MAX_TOKENS",
+                            "content", Map.of("parts", List.of(Map.of("text", "{\"headline\":")))
+                    ))
+            )));
+        });
+
+        GeminiResumeDraftClient client = new GeminiResumeDraftClient(
+                HttpClient.newHttpClient(),
+                new GeminiProperties(
+                        URI.create("http://localhost:" + server.getAddress().getPort()),
+                        "test-api-key",
+                        "gemini-test",
+                        Duration.ofSeconds(2),
+                        1,
+                        Duration.ZERO,
+                        4096
+                ),
+                new ResumeDraftProperties("gemini", "resume-draft-v4", 8, 12000, 800, 512, 2,
+                        true, Duration.ofSeconds(2)),
+                new ObjectMapper(),
+                new ResumeDraftPrompt("resume-draft-v4", "Use only cited evidence.")
+        );
+
+        assertThatThrownBy(() -> client.generateResumeDraft(jobPosting(), List.of()))
+                .isInstanceOf(AiIntegrationException.class)
+                .extracting(error -> ((AiIntegrationException) error).kind())
+                .isEqualTo(AiIntegrationException.Kind.INCOMPLETE_RESPONSE);
+        assertThat(requests).hasValue(1);
     }
 
     private JobPosting jobPosting() {

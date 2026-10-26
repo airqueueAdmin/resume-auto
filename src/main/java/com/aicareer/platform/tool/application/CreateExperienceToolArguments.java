@@ -11,6 +11,7 @@ public record CreateExperienceToolArguments(
         LocalDate startDate,
         LocalDate endDate,
         Boolean currentlyEmployed,
-        @NotBlank @Size(max = 10_000) String description
+        @NotBlank @Size(max = 10_000) String description,
+        @Size(max = 1000) String techStack
 ) {
 }

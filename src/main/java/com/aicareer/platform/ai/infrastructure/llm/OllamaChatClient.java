@@ -38,6 +38,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 public class OllamaChatClient implements LlmClient, LlmMatchClient, LlmResumeDraftClient, LlmSelfIntroductionAnswerClient {
 
     private static final String PROVIDER = "ollama";
+    private static final int RESUME_DRAFT_CONTEXT_TOKENS = 16384;
 
     private final HttpClient httpClient;
     private final AiProperties aiProperties;
@@ -456,7 +457,8 @@ public class OllamaChatClient implements LlmClient, LlmMatchClient, LlmResumeDra
         body.put("format", ResumeDraftSchema.definition());
         body.put("options", Map.of(
                 "temperature", aiProperties.temperature(),
-                "num_predict", resumeDraftMaxOutputTokens
+                "num_predict", resumeDraftMaxOutputTokens,
+                "num_ctx", RESUME_DRAFT_CONTEXT_TOKENS
         ));
         body.put("keep_alive", "5m");
 
@@ -616,6 +618,9 @@ public class OllamaChatClient implements LlmClient, LlmMatchClient, LlmResumeDra
     private LlmResumeDraftCompletion parseResumeDraftResponse(String body, String requestId) {
         try {
             JsonNode root = objectMapper.readTree(body);
+            if ("length".equals(root.path("done_reason").asText())) {
+                throw AiIntegrationException.incompleteResponse("Ollama reached its output token limit", null);
+            }
             String outputText = root.path("message").path("content").asText(null);
             if (outputText == null || outputText.isBlank()) {
                 throw new IllegalArgumentException("message.content is missing");
@@ -628,6 +633,8 @@ public class OllamaChatClient implements LlmClient, LlmMatchClient, LlmResumeDra
                     new LlmUsage(inputTokens, outputTokens, inputTokens + outputTokens),
                     "ollama-" + requestId
             );
+        } catch (AiIntegrationException exception) {
+            throw exception;
         } catch (Exception exception) {
             throw AiIntegrationException.invalidResponse(
                     "Ollama returned an invalid resume draft response",

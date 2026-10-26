@@ -83,7 +83,8 @@ public class ToolExecutionService implements ToolCallExecutor {
                                 toolArguments.startDate(),
                                 toolArguments.endDate(),
                                 Boolean.TRUE.equals(toolArguments.currentlyEmployed()),
-                                toolArguments.description()
+                                toolArguments.description(),
+                                toolArguments.techStack()
                         )
                 )));
             }

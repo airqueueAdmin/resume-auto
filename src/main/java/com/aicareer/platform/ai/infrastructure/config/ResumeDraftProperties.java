@@ -1,5 +1,7 @@
 package com.aicareer.platform.ai.infrastructure.config;
 
+import java.time.Duration;
+
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 @ConfigurationProperties(prefix = "app.ai.resume-draft")
@@ -10,6 +12,8 @@ public record ResumeDraftProperties(
         int maxContextCharacters,
         int maxOutputTokens,
         int geminiThinkingBudget,
-        int maxAttempts
+        int maxAttempts,
+        boolean ollamaFallbackEnabled,
+        Duration ollamaTimeout
 ) {
 }

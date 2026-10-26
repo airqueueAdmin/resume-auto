@@ -114,6 +114,7 @@ public class EmbeddingIndexService {
                 + "Company: " + experience.getCompanyName() + "\n"
                 + "Role: " + experience.getRole() + "\n"
                 + period
+                + (experience.getTechStack() == null ? "" : "Tech stack: " + experience.getTechStack() + "\n")
                 + "Description: " + experience.getDescription();
         return new SourceDocument(SourceType.EXPERIENCE, experience.getId(), content);
     }

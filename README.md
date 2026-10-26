@@ -121,6 +121,7 @@ Experience/Project/JobPosting resources, and immutable Resume versions:
 - Resume CRUD with user ownership checks
 - immutable ResumeVersion snapshots
 - paginated Resume and ResumeVersion collection APIs
+- section-labeled ResumeVersion editing and an unsaved-change preview that hide internal AI citation IDs from the human-facing text
 - company-specific Resume application questions and editable answers
 - sequential version numbering protected by a database row lock
 - JobPosting CRUD with user ownership checks
@@ -178,9 +179,18 @@ Experience/Project/JobPosting resources, and immutable Resume versions:
 - JobPosting-generated drafts are converted to the JobKorea field vocabulary before export; only
   account-confirmed or user-entered personal/education data is included
 - Project records can optionally store a customer/domain value for career-description provenance
+- Experience records can optionally store an explicit tech stack so employment evidence can contribute
+  precise skills without extracting them from free-form descriptions
 - The JobKorea export template can compose an editable career description from owned Experience and
   Project records using project name, customer/domain, period, duties/results, role, and skills
+- Experience start/end dates and current-employment status are mapped into JobKorea career fields;
+  day-level API dates are converted to the required `YYYY-MM` form without inventing missing periods
+- The JobKorea skill field merges approved ResumeVersion skills with owned Project tech stacks and
+  explicitly mentioned technologies from Experience/Project descriptions, without inventing skills
 - Editable JobKorea required-profile fields with visible review warnings before export
+- A Career source-data review step runs before AI resume generation and JobKorea export, identifies
+  missing dates, Experience tech stacks, and Project customer/domain values, and links back to the
+  corresponding Career editor before the user chooses to continue
 - Local one-file/5 MB export validation and explicit JobKorea upload-page handoff
 - Privacy-safe JobKorea export audit metadata linked to an owned immutable ResumeVersion
 - Explicit required-field demo-data helper for local export testing; demo values remain browser-local and
@@ -323,6 +333,8 @@ Configuration is externalized through environment variables:
 - `AI_RESUME_DRAFT_MAX_OUTPUT_TOKENS`: resume-draft-only output budget, default `4096`; sized to keep three detailed Korean 자기소개서 sections and the surrounding structured JSON within a bounded response
 - `AI_RESUME_DRAFT_GEMINI_THINKING_BUDGET`: Gemini 2.5 Flash reasoning budget for resume drafts, default `512`; prevents internal thinking from consuming the final structured-output budget
 - `AI_RESUME_DRAFT_MAX_ATTEMPTS`: resume-draft attempts before fallback, default `2`; retries transient provider failures and invalid structured responses once before Gemini fallback
+- `AI_RESUME_DRAFT_OLLAMA_FALLBACK_ENABLED`: use the configured local Ollama model once when Gemini is unavailable, incomplete, or returns invalid structured output; default `true`
+- `AI_RESUME_DRAFT_OLLAMA_TIMEOUT`: timeout for the bounded local resume-draft fallback, default `PT300S`
 - `JOBKOREA_EXPORT_AUDIT_RETENTION_CLEANUP_ENABLED`: enable automatic deletion of expired export-audit metadata, default `true`
 - `JOBKOREA_EXPORT_AUDIT_RETENTION`: export-audit retention duration, default `PT720H` (30 days)
 - `JOBKOREA_EXPORT_AUDIT_CLEANUP_CRON`: UTC cleanup schedule, default `0 0 3 * * *`
@@ -382,8 +394,8 @@ keeps the original image URLs and reports an OCR warning instead of silently usi
 description. Ollama vision models are not required or used.
 
 Resume draft generation uses Gemini by default through `AI_RESUME_DRAFT_PROVIDER=gemini`. If Gemini
-cannot complete a resume draft and the global provider is a different supported provider, that provider
-is used as a bounded fallback. Set
+cannot complete a resume draft, the configured global provider is used when it is different; otherwise,
+the local Ollama model is used once when `AI_RESUME_DRAFT_OLLAMA_FALLBACK_ENABLED=true`. Set
 `AI_RESUME_DRAFT_PROVIDER=configured` to restore the global provider as the resume-draft primary.
 Gemini receives the job posting and retrieved career evidence and may incur provider cost or quota usage.
 The free Gemini allocation can return `503` when quota or provider capacity is unavailable. The current

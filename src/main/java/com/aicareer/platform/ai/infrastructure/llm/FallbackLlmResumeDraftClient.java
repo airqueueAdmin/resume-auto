@@ -48,7 +48,16 @@ public class FallbackLlmResumeDraftClient implements LlmResumeDraftClient {
                     failureReason(exception),
                     fallback.provider());
             selected.set(fallback);
-            return fallback.generateResumeDraft(jobPosting, contexts);
+            try {
+                return fallback.generateResumeDraft(jobPosting, contexts);
+            } catch (AiIntegrationException fallbackException) {
+                fallbackException.addSuppressed(exception);
+                log.warn("Fallback resume draft provider {} failed with {} ({})",
+                        fallback.provider(),
+                        fallbackException.kind(),
+                        failureReason(fallbackException));
+                throw fallbackException;
+            }
         }
     }
 
@@ -74,14 +83,15 @@ public class FallbackLlmResumeDraftClient implements LlmResumeDraftClient {
 
     private boolean shouldFallback(AiIntegrationException exception) {
         return exception.kind() == AiIntegrationException.Kind.UNAVAILABLE
+                || exception.kind() == AiIntegrationException.Kind.INCOMPLETE_RESPONSE
                 || exception.kind() == AiIntegrationException.Kind.INVALID_RESPONSE;
     }
 
     private String failureReason(AiIntegrationException exception) {
         Throwable cause = exception.getCause();
-        if (cause == null || cause.getMessage() == null || cause.getMessage().isBlank()) {
+        if (cause == null) {
             return exception.getMessage();
         }
-        return exception.getMessage() + "; " + cause.getClass().getSimpleName() + ": " + cause.getMessage();
+        return exception.getMessage() + "; cause=" + cause.getClass().getSimpleName();
     }
 }

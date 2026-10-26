@@ -255,12 +255,8 @@ public class GeminiStructuredClient implements LlmClient, LlmMatchClient,
         if (thinkingBudget != null && properties.model().startsWith("gemini-2.5")) {
             generationConfig.put("thinkingConfig", Map.of("thinkingBudget", thinkingBudget));
         }
-        generationConfig.put("responseFormat", Map.of(
-                "text", Map.of(
-                        "mimeType", "APPLICATION_JSON",
-                        "schema", responseSchema
-                )
-        ));
+        generationConfig.put("responseMimeType", "application/json");
+        generationConfig.put("responseSchema", responseSchema);
         body.put("generationConfig", generationConfig);
         try {
             return objectMapper.writeValueAsString(body);

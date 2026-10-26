@@ -145,7 +145,7 @@ class AiCareerPlatformApplicationTests {
     @Test
     void flywayAppliesIdentityCareerResumeJobPostingAiMatchingResumeDraftAndToolMigrations() throws Exception {
         assertThat(flyway.info().pending()).isEmpty();
-        assertThat(flyway.info().applied()).hasSize(18);
+        assertThat(flyway.info().applied()).hasSize(19);
 
         try (Connection connection = dataSource.getConnection();
                 Statement statement = connection.createStatement();
@@ -161,6 +161,19 @@ class AiCareerPlatformApplicationTests {
                         """)) {
             assertThat(resultSet.next()).isTrue();
             assertThat(resultSet.getInt(1)).isEqualTo(16);
+        }
+
+        try (Connection connection = dataSource.getConnection();
+                Statement statement = connection.createStatement();
+                ResultSet resultSet = statement.executeQuery("""
+                        select count(*)
+                        from information_schema.columns
+                        where table_schema = 'public'
+                          and table_name = 'experiences'
+                          and column_name = 'tech_stack'
+                        """)) {
+            assertThat(resultSet.next()).isTrue();
+            assertThat(resultSet.getInt(1)).isEqualTo(1);
         }
 
         try (Connection connection = dataSource.getConnection();
@@ -1092,7 +1105,8 @@ class AiCareerPlatformApplicationTests {
                   "role": "Backend Developer",
                   "startDate": "2022-01-01",
                   "endDate": "2023-02-15",
-                  "description": "Built APIs and improved database queries at scale."
+                  "description": "Built APIs and improved database queries at scale.",
+                  "techStack": "Java, Spring Boot, PostgreSQL"
                 }
                 """, accessToken);
         HttpResponse<String> deleted = delete("/api/v1/experiences/" + firstId, accessToken);
@@ -1106,7 +1120,7 @@ class AiCareerPlatformApplicationTests {
         assertThat(retrieved.statusCode()).isEqualTo(200);
         assertThat(retrieved.body()).contains("First Company", "Backend Developer");
         assertThat(updated.statusCode()).isEqualTo(200);
-        assertThat(updated.body()).contains("First Company Updated");
+        assertThat(updated.body()).contains("First Company Updated", "Java, Spring Boot, PostgreSQL");
         assertThat(deleted.statusCode()).isEqualTo(204);
         assertThat(afterDelete.statusCode()).isEqualTo(404);
         assertThat(afterDelete.body()).contains("RESOURCE_NOT_FOUND");

@@ -45,6 +45,7 @@ public class ExperienceService {
                 request.endDate(),
                 Boolean.TRUE.equals(request.currentlyEmployed()),
                 normalize(request.description()),
+                normalizeOptional(request.techStack()),
                 now
         ));
     }
@@ -72,6 +73,7 @@ public class ExperienceService {
                 request.endDate(),
                 Boolean.TRUE.equals(request.currentlyEmployed()),
                 normalize(request.description()),
+                normalizeOptional(request.techStack()),
                 clock.instant()
         );
         return experience;
@@ -94,6 +96,13 @@ public class ExperienceService {
     }
 
     private String normalize(String value) {
+        return value.trim();
+    }
+
+    private String normalizeOptional(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
         return value.trim();
     }
 }

@@ -188,6 +188,28 @@ class OllamaChatClientTest {
         assertThat(requests).hasValue(1);
         assertThat(requestBody).hasValueSatisfying(body -> assertThat(body)
                 .contains("citationIds", "C1", "career_evidence", "headline"));
+        assertThat(new ObjectMapper().readTree(requestBody.get()).path("options").path("num_ctx").asInt())
+                .isEqualTo(16384);
+    }
+
+    @Test
+    void rejectsTokenLimitedResumeDraftEvenIfTheJsonIsValid() throws Exception {
+        server.createContext("/api/chat", exchange -> respond(exchange, 200, new ObjectMapper().writeValueAsString(
+                java.util.Map.of(
+                        "done", true,
+                        "done_reason", "length",
+                        "prompt_eval_count", 10,
+                        "eval_count", 20,
+                        "message", java.util.Map.of("content",
+                                "{\"headline\":{\"text\":\"Backend\",\"citationIds\":[\"C1\"]}}")
+                )
+        )));
+
+        assertThatThrownBy(() -> client(1, Duration.ZERO).generateResumeDraft(
+                jobPosting(), java.util.List.of()
+        )).isInstanceOf(AiIntegrationException.class)
+                .extracting(error -> ((AiIntegrationException) error).kind())
+                .isEqualTo(AiIntegrationException.Kind.INCOMPLETE_RESPONSE);
     }
 
     @Test

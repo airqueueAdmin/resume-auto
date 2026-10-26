@@ -24,12 +24,15 @@ import com.aicareer.platform.job.domain.JobPosting;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Uses the same Gemini generateContent API as OCR, but for text-only grounded resume drafts.
  */
 public class GeminiResumeDraftClient implements LlmResumeDraftClient {
 
+    private static final Logger log = LoggerFactory.getLogger(GeminiResumeDraftClient.class);
     private static final String PROVIDER = "gemini";
 
     private final HttpClient httpClient;
@@ -151,12 +154,8 @@ public class GeminiResumeDraftClient implements LlmResumeDraftClient {
         generationConfig.put("thinkingConfig", Map.of(
                 "thinkingBudget", resumeDraftProperties.geminiThinkingBudget()
         ));
-        generationConfig.put("responseFormat", Map.of(
-                "text", Map.of(
-                        "mimeType", "APPLICATION_JSON",
-                        "schema", ResumeDraftSchema.definition()
-                )
-        ));
+        generationConfig.put("responseMimeType", "application/json");
+        generationConfig.put("responseSchema", ResumeDraftSchema.definition());
         body.put("generationConfig", generationConfig);
 
         try {
@@ -190,10 +189,25 @@ public class GeminiResumeDraftClient implements LlmResumeDraftClient {
 
     private LlmResumeDraftCompletion parseResponse(String body, String requestId) {
         String finishReason = "";
+        int candidateCount = 0;
+        int partCount = 0;
+        int answerCharacters = 0;
         try {
             JsonNode root = objectMapper.readTree(body);
-            finishReason = root.path("candidates").path(0).path("finishReason").asText("");
+            JsonNode candidates = root.path("candidates");
+            JsonNode parts = candidates.path(0).path("content").path("parts");
+            candidateCount = candidates.isArray() ? candidates.size() : 0;
+            partCount = parts.isArray() ? parts.size() : 0;
+            finishReason = candidates.path(0).path("finishReason").asText("");
             String outputText = responseText(root);
+            answerCharacters = outputText.length();
+            if ("MAX_TOKENS".equals(finishReason)) {
+                log.warn("Gemini resume draft response incomplete requestId={} finishReason={} answerCharacters={}",
+                        requestId, finishReason, answerCharacters);
+                throw AiIntegrationException.incompleteResponse(
+                        "Gemini reached the output token limit before finishing the resume draft", null
+                );
+            }
             if (outputText.isBlank()) {
                 throw new IllegalArgumentException("Gemini response text is missing");
             }
@@ -210,7 +224,16 @@ public class GeminiResumeDraftClient implements LlmResumeDraftClient {
                     new LlmUsage(inputTokens, outputTokens, totalTokens),
                     "gemini-" + requestId
             );
+        } catch (AiIntegrationException exception) {
+            throw exception;
         } catch (Exception exception) {
+            log.warn("Gemini resume draft response parsing failed requestId={} finishReason={} candidates={} parts={} answerCharacters={} failureType={}",
+                    requestId,
+                    finishReason,
+                    candidateCount,
+                    partCount,
+                    answerCharacters,
+                    exception.getClass().getSimpleName());
             throw AiIntegrationException.invalidResponse(
                     "Gemini returned an invalid resume draft response"
                             + (finishReason.isBlank() ? "" : " (finishReason=" + finishReason + ")"),
