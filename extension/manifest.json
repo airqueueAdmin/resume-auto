@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Career Note Application Assistant (Prototype)",
   "description": "Inspect visible application form fields on the current page.",
-  "version": "0.3.3",
+  "version": "0.3.4",
   "action": {
     "default_title": "Career Note 패널 열기"
   },

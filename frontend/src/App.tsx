@@ -479,49 +479,14 @@ function resolveCareerSection(pathname: string): CareerSection | null {
 }
 
 function CareerPageContent({ section }: { section: CareerSection }) {
-  const location = useLocation()
-  const indexButtonRef = useRef<HTMLButtonElement>(null)
-  const [isIndexing, setIsIndexing] = useState(false)
-  const [indexMessage, setIndexMessage] = useState('')
-  const [indexError, setIndexError] = useState('')
-  const shouldFocusIndex = new URLSearchParams(location.search).get('focus') === 'search-data'
-
-  useEffect(() => {
-    if (!shouldFocusIndex) return
-    const timer = window.setTimeout(() => {
-      indexButtonRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-      indexButtonRef.current?.focus()
-    }, 0)
-    return () => window.clearTimeout(timer)
-  }, [shouldFocusIndex])
-
-  async function indexCareerEvidence() {
-    setIsIndexing(true)
-    setIndexMessage('')
-    setIndexError('')
-    try {
-      const result = await refreshCareerSearchData()
-      setIndexMessage(`맞춤 검색 데이터 업데이트 완료 · 경력 ${result.indexedExperienceChunks}개 · 프로젝트 ${result.indexedProjectChunks}개`)
-    } catch (error) {
-      setIndexError(error instanceof Error ? error.message : '경력 데이터를 인덱싱하지 못했습니다.')
-    } finally {
-      setIsIndexing(false)
-    }
-  }
-
   return <>
     <div className="career-toolbar">
       <nav className="career-tabs" aria-label="Career data sections">
         <Link className={section === 'experiences' ? 'career-tab active' : 'career-tab'} to="/career/experiences" aria-current={section === 'experiences' ? 'page' : undefined}>경력</Link>
         <Link className={section === 'projects' ? 'career-tab active' : 'career-tab'} to="/career/projects" aria-current={section === 'projects' ? 'page' : undefined}>프로젝트</Link>
       </nav>
-      <div className="career-index-actions">
-        <button ref={indexButtonRef} id="career-index-button" className={`secondary-button compact-button${shouldFocusIndex ? ' career-index-focus' : ''}`} onClick={() => void indexCareerEvidence()} disabled={isIndexing} aria-describedby="career-index-help">{isIndexing ? '맞춤 검색 데이터 만드는 중...' : '맞춤 검색 데이터 업데이트'}</button>
-        <small id="career-index-help">경력·프로젝트를 저장하면 자동으로 업데이트됩니다. 필요하면 여기서 다시 실행할 수 있습니다.</small>
-      </div>
+      <small className="career-index-auto-help">경력·프로젝트를 저장하면 맞춤 검색 데이터가 자동으로 업데이트됩니다.</small>
     </div>
-    {indexMessage && <p className="career-index-message" role="status">{indexMessage}</p>}
-    {indexError && <p className="career-index-message career-index-error" role="alert">{indexError}</p>}
     {section === 'experiences' ? <ExperiencePageContent /> : <ProjectPageContent />}
   </>
 }

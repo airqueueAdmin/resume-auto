@@ -36,7 +36,7 @@ public class ExtensionReadinessService {
         String guidance = !hasCareerData
                 ? "서비스에서 경력 또는 프로젝트를 먼저 등록해주세요."
                 : indexedEvidenceCount == 0
-                        ? "서비스 커리어 메뉴에서 맞춤 검색 데이터를 업데이트해주세요."
+                        ? "경력 또는 프로젝트를 저장하면 맞춤 검색 데이터가 자동으로 업데이트됩니다. 잠시 후 준비 상태를 새로고침해주세요."
                         : "경력 근거가 준비되었습니다.";
         return new ExtensionReadinessResponse(
                 experienceCount,

@@ -86,7 +86,6 @@ shadowRoot.innerHTML = `
     .readiness-card.blocked { border-color: #fed7aa; background: #fff7ed; }
     .readiness-counts { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 6px; }
     .readiness-card p { margin: 7px 0 0; color: #64748b; font-size: 10px; }
-    .readiness-card .readiness-action { margin-top: 9px; width: 100%; }
     .field-help { color: #64748b; font-size: 10px; font-weight: 400; line-height: 1.45; }
     .resume-draft-result { margin-top: 10px; padding: 10px; border-top: 1px solid #e5ebf3; }
     .resume-draft-result > strong { display: block; color: #334155; font-size: 11px; }
@@ -119,7 +118,6 @@ shadowRoot.innerHTML = `
     <section class="section">
       <h2>지원 답변 준비</h2>
       <div class="readiness-card blocked" id="readiness"><strong>서비스 연결 후 경력 근거를 확인합니다.</strong><p>답변은 Career Note에 등록하고 인덱싱한 경력·프로젝트만 근거로 사용합니다.</p></div>
-      <button class="readiness-action" id="update-search-data" type="button">맞춤 검색 데이터 업데이트하러 가기</button>
       <div class="actions"><button class="secondary" id="open-career" type="button">경력·프로젝트 관리</button><button class="secondary" id="refresh-readiness" type="button">준비 상태 새로고침</button></div>
       <h2 style="margin-top: 14px">현재 JobKorea 공고</h2>
       <div class="posting-card" id="posting"><strong>현재 공고를 확인하는 중입니다.</strong></div>
@@ -153,7 +151,6 @@ const code = $('code')
 const exchange = $('exchange')
 const connectionStatus = $('connection-status')
 const readiness = $('readiness')
-const updateSearchData = $('update-search-data')
 const openCareer = $('open-career')
 const refreshReadiness = $('refresh-readiness')
 const posting = $('posting')
@@ -453,7 +450,7 @@ async function generateResumeDraftFromPage() {
   resumeDraftResult.append(message)
   try {
     if (!currentPosting) throw new Error('현재 JobKorea 공고를 먼저 읽어주세요.')
-    if (!careerReady) throw new Error('서비스에서 경력·프로젝트를 등록하고 맞춤 검색 데이터를 업데이트해주세요.')
+    if (!careerReady) throw new Error('서비스에서 경력·프로젝트를 등록하고 저장해주세요. 저장하면 맞춤 검색 데이터가 자동으로 업데이트됩니다.')
     const response = await request('/v1/extension/page-resume-draft', {
       method: 'POST',
       body: JSON.stringify({
@@ -491,9 +488,8 @@ function renderReadiness(state) {
     counts.append(badge)
   })
   const guidance = document.createElement('p')
-  guidance.textContent = state?.guidance || '서비스에서 경력·프로젝트를 등록하고 맞춤 검색 데이터를 업데이트해주세요.'
+  guidance.textContent = state?.guidance || '서비스에서 경력·프로젝트를 등록하면 맞춤 검색 데이터가 자동으로 업데이트됩니다.'
   readiness.append(title, counts, guidance)
-  updateSearchData.hidden = careerReady
   updateAnswerButtons()
 }
 
@@ -741,7 +737,7 @@ async function generateAnswer() {
     const length = Number(maxLength.value)
     if (!value) throw new Error('회사 홈페이지 지원 질문을 입력해주세요.')
     if (!currentPosting) throw new Error('현재 JobKorea 공고를 먼저 감지해주세요.')
-    if (!careerReady) throw new Error('서비스에서 경력·프로젝트를 등록하고 맞춤 검색 데이터를 업데이트해주세요.')
+    if (!careerReady) throw new Error('서비스에서 경력·프로젝트를 등록하고 저장해주세요. 저장하면 맞춤 검색 데이터가 자동으로 업데이트됩니다.')
     const answer = await request('/v1/extension/page-application-answer', {
       method: 'POST',
       body: JSON.stringify({
@@ -842,17 +838,6 @@ function openCareerPage() {
   else careerWindow.opener = null
 }
 
-function openSearchDataPage() {
-  const baseUrl = serviceUrl.value.trim().replace(/\/$/, '')
-  if (!baseUrl) {
-    setConnectionStatus('서비스 주소를 입력해주세요.')
-    return
-  }
-  const careerWindow = window.open(`${baseUrl}/career/experiences?focus=search-data`, '_blank')
-  if (!careerWindow) setConnectionStatus('새 탭이 차단되었습니다. 브라우저에서 팝업을 허용해주세요.')
-  else careerWindow.opener = null
-}
-
 toggle.addEventListener('click', () => {
   const open = !panel.classList.contains('open')
   setPanelOpen(open)
@@ -863,7 +848,6 @@ saveUrl.addEventListener('click', () => void saveServiceUrl())
 openConnect.addEventListener('click', openServiceConnectPage)
 exchange.addEventListener('click', () => void connectWithCode())
 openCareer.addEventListener('click', openCareerPage)
-updateSearchData.addEventListener('click', openSearchDataPage)
 refreshReadiness.addEventListener('click', async () => {
   refreshReadiness.disabled = true
   try {

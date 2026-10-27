@@ -18,7 +18,7 @@ records, then expose filtered cosine Top-K retrieval over the derived vectors.
 - Re-indexing replaces only the authenticated user's derived rows. It never mutates or deletes source
   career records.
 - The Career UI automatically requests a full re-index after a successful Experience/Project create,
-  update, or soft delete. The explicit index button remains as a retry and recovery action.
+  update, or soft delete. The endpoint remains available for operational recovery.
 - Search embeds the query locally, filters by authenticated user and active source rows, supports
   `EXPERIENCE`/`PROJECT` filters, and applies a bounded `topK` of 1 to 20.
 - Deterministic ID ordering breaks equal-distance ties and makes tests and debugging repeatable.

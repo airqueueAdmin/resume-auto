@@ -45,8 +45,8 @@ posting currently open in the tab is temporary request context and is not saved 
 7. Enter the code in the bottom-right panel and choose **확장 프로그램 연결**.
 8. Confirm that **지원 답변 준비** shows Experience, Project, and indexed-evidence counts. Career Note
    automatically updates the search data after saving or deleting career data. If an existing account is
-   not ready, choose **맞춤 검색 데이터 업데이트하러 가기**; the service opens Career and focuses the
-   update button. After it finishes, choose **준비 상태 새로고침** in the extension.
+   not ready, open **경력·프로젝트 관리**, save the relevant career record once, and then choose
+   **준비 상태 새로고침** in the extension.
 9. Confirm that the current company and posting title are detected. In local/debug mode, check
    **공고 읽기 확인됨**, compare the structured/page character counts, and open **읽은 공고 원문 전체 보기**
    to verify the captured content. The production service intentionally hides these diagnostic details.

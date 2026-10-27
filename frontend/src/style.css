@@ -288,6 +288,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
   .career-toolbar { align-items: stretch; }
   .career-index-actions { max-width: none; }
   .career-index-actions small { text-align: left; }
+  .career-index-auto-help { max-width: none; text-align: left; }
   .page-heading { align-items: start; }
   .page-tip { width: 100%; }
 }
@@ -475,7 +476,7 @@ select:focus-visible { outline-color: rgba(59, 130, 246, .38); }
 .career-tab.active { background: #ffffff; box-shadow: 0 1px 3px rgba(15, 23, 42, .12); }
 .career-index-message { color: #2563eb; }
 .career-index-notice { margin: -13px 0 20px; }
-.career-index-focus { outline: 3px solid rgba(37, 99, 235, .25); outline-offset: 4px; box-shadow: 0 0 0 7px rgba(37, 99, 235, .08); }
+.career-index-auto-help { max-width: 390px; color: #64748b; font-size: 12px; line-height: 1.6; text-align: right; }
 .page-tip { border-color: #dbeafe; background: #eff6ff; }
 .page-tip span { color: #2563eb; }
 
