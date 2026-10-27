@@ -6,9 +6,9 @@ services:
     dockerContext: .
     plan: free
     healthCheckPath: /actuator/health/readiness
-    # Use onCommit until the repository has a remote CI check on every deploy commit.
+    # Use commit until the repository has a remote CI check on every deploy commit.
     # Switch to checksPass after CI is confirmed in GitHub/Render.
-    autoDeployTrigger: onCommit
+    autoDeployTrigger: commit
     envVars:
       - key: SPRING_PROFILES_ACTIVE
         value: prod
@@ -53,10 +53,7 @@ services:
     plan: free
     healthCheckPath: /
     # Keep the frontend aligned with the backend deployment gate.
-    autoDeployTrigger: onCommit
+    autoDeployTrigger: commit
     envVars:
-      - key: BACKEND_HOSTPORT
-        fromService:
-          type: web
-          name: career-note-api
-          property: hostport
+      - key: BACKEND_BASE_URL
+        sync: false

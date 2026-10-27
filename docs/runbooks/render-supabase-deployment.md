@@ -58,9 +58,17 @@ Supabase PostgreSQL의 확장 권한과 Flyway 오류를 먼저 확인합니다.
 `JWT_SECRET_BASE64`와 `EMAIL_VERIFICATION_HMAC_SECRET_BASE64`는 Blueprint의
 `generateValue`로 생성됩니다. 생성 후 값을 코드나 문서에 복사하지 않습니다.
 
-`career-note-web`은 Render private network의 `career-note-api` host:port를 받아 Nginx의
-`/api`와 `/actuator` 요청을 백엔드로 전달합니다. 따라서 브라우저가 별도 API 도메인을 호출하지
-않으며, 첫 배포에는 추가적인 일반 API CORS 설정이 필요하지 않습니다.
+Render Free Web Service는 private network 요청을 보낼 수는 있지만 다른 Free Web Service가
+private network로 받는 구성에는 제한이 있으므로, 현재 프론트엔드는 백엔드의 공개 HTTPS URL을
+Nginx 프록시 대상으로 사용합니다. `career-note-web`의 환경변수는 다음처럼 설정합니다.
+
+```text
+BACKEND_BASE_URL=https://<backend-service>.onrender.com
+```
+
+`http://`, private hostname, 포트만 있는 값은 입력하지 않습니다. 브라우저에는 프론트엔드
+origin만 노출되고 Nginx가 `/api`와 `/actuator` 요청을 백엔드 공개 URL로 전달하므로 일반 API
+CORS 설정은 추가하지 않아도 됩니다.
 
 ## 3. 첫 배포 확인
 
@@ -115,9 +123,9 @@ index, RAG matching, grounded resume generation을 성공했다고 간주하지 
 
 - Flyway 실패: Supabase 연결 문자열, SSL, 사용자명, 비밀번호, `vector` 확장 오류를 확인합니다.
 - Render 포트 오류: Spring Boot가 Render가 주입한 `PORT`를 사용하고, 프론트엔드 Nginx가
-  `PORT`와 `BACKEND_HOSTPORT`를 사용하도록 확인합니다.
-- 프론트엔드 502: 두 Render 서비스가 같은 리전에 있고 `career-note-api` private host:port가
-  주입되었는지 확인합니다.
+  `PORT`와 `BACKEND_BASE_URL`을 사용하도록 확인합니다.
+- 프론트엔드 502: 백엔드 공개 HTTPS URL, Render 백엔드의 health check, Nginx의 TLS proxy 설정을
+  확인합니다.
 - 로그인 실패: JWT secret이 배포 사이에 변경되지 않았는지와 브라우저 저장소의 이전 토큰을
   확인합니다.
 - AI 실패: Gemini API quota·키·timeout과 Ollama fallback 비활성화 상태를 분리해서 확인합니다.

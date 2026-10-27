@@ -328,8 +328,8 @@ Configuration is externalized through environment variables:
 - `FRONTEND_BIND_ADDRESS`: Docker Compose frontend host bind address, default `0.0.0.0`
 - `FRONTEND_HOST_PORT`: host port mapped to the frontend, default `5173`
 - `FRONTEND_CONTAINER_PORT`: frontend container port, default `80`; Render supplies `PORT` dynamically
-- `FRONTEND_BACKEND_HOSTPORT`: local Nginx backend target, default `backend:8080`; Render supplies the
-  private backend host and port through `render.yaml`
+- `FRONTEND_BACKEND_BASE_URL`: local Nginx backend URL, default `http://backend:8080`; Render Free uses
+  the backend's public HTTPS URL because Free Web Services cannot receive private-network traffic
 - `JWT_ISSUER`: JWT issuer, default `ai-career-platform`
 - `JWT_SECRET_BASE64`: Base64-encoded HMAC secret; use a unique secret outside local development
 - `JWT_ACCESS_TOKEN_TTL`: Access JWT lifetime, default `PT15M`
@@ -873,7 +873,7 @@ annotations. It is not a second manually maintained API specification.
 Phase 11 established reproducible full-stack containers, a non-deploying CI workflow for backend tests,
 frontend builds, Compose validation, container builds, and vulnerability reports, plus a deployment
 and readiness runbook. Phase 12 now prepares a Render + Supabase deployment using the existing Docker
-images, a Render private-network Nginx proxy, and Supabase PostgreSQL. The application currently generates
+images, an Nginx proxy to the backend's public HTTPS URL on the Render Free plan, and Supabase PostgreSQL. The application currently generates
 a browser-side PDF from an approved ResumeVersion, lets the user review and download it, and can open the
 JobKorea upload page. Server-side upload, credentials, refresh tokens, cookies, and CAPTCHA/anti-automation
 bypasses are out of scope.

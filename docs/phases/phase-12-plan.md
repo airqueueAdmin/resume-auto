@@ -15,8 +15,9 @@ operational surface, using two Render Docker Web Services and one Supabase Postg
 
 - Render builds the existing backend and frontend Dockerfiles, preserving the reproducible local
   container boundary.
-- The frontend Nginx proxy receives the backend private host:port from Render, so browser requests stay
-  same-origin and the first deployment does not add a public cross-origin API contract.
+- The frontend Nginx proxy receives the backend public HTTPS URL through an environment variable. This
+  keeps browser requests same-origin while remaining compatible with Render Free Web Service network
+  restrictions.
 - Supabase provides standard PostgreSQL. Flyway remains the only schema migration owner, and the
   existing pgvector migration remains responsible for enabling the `vector` extension.
 - The deployment accepts free-tier sleep, low quotas, and limited recovery guarantees in exchange for
@@ -31,14 +32,15 @@ operational surface, using two Render Docker Web Services and one Supabase Postg
 
 - Add the `prod` Spring profile with environment-backed datasource configuration and safe health output.
 - Read Render's dynamic `PORT` while preserving the local `SERVER_PORT` override.
-- Make the Nginx frontend proxy runtime-configurable for Render private networking.
+- Make the Nginx frontend proxy runtime-configurable for a Render backend HTTPS URL.
 - Add `render.yaml`, a Supabase connection template, ADR, and Render/Supabase deployment runbook.
 - Validate the merged Compose configuration and run the existing application checks.
 
 ### Step 2 - Render/Supabase provisioning and first deployment
 
 - Create a Supabase project and copy its Session Pooler values into Render secrets.
-- Create the Render Blueprint and verify private frontend-to-backend networking.
+- Create the Render services, configure the backend public HTTPS URL in the frontend proxy, and verify
+  public frontend-to-backend smoke tests.
 - Apply Flyway migrations and complete public HTTPS smoke tests.
 - Export a disposable database backup and verify restoration before treating the deployment as durable.
 

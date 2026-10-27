@@ -2,10 +2,10 @@
 set -eu
 
 : "${PORT:=80}"
-: "${BACKEND_HOSTPORT:=backend:8080}"
+: "${BACKEND_BASE_URL:=http://${BACKEND_HOSTPORT:-backend:8080}}"
 
 # Restrict envsubst to deployment values so Nginx variables such as $host remain intact.
-envsubst '${PORT} ${BACKEND_HOSTPORT}' \
+envsubst '${PORT} ${BACKEND_BASE_URL}' \
   < /etc/nginx/templates/default.conf.template \
   > /etc/nginx/conf.d/default.conf
 

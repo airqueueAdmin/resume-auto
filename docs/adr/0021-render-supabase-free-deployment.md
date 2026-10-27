@@ -21,8 +21,9 @@ introduced as a second identity boundary.
 
 - Run the Spring Boot backend as a Render Docker web service.
 - Run the React/Nginx frontend as a second Render Docker web service.
-- Keep the frontend and backend in the same Render region and use Render private networking for the
-  Nginx `/api` proxy.
+- Keep the frontend and backend as separate Render Web Services. On the Free plan, configure the
+  frontend Nginx proxy with the backend's public HTTPS URL because Free Web Services cannot receive
+  private-network traffic.
 - Use a Supabase Free project as the external PostgreSQL database. The application continues to own
   schema changes through Flyway, including the existing `vector` extension migration.
 - Use the Supabase Session Pooler connection for the persistent Spring Boot backend on Render's IPv4
