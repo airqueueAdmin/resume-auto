@@ -21,9 +21,19 @@ const serviceBaseUrlMigrationKey = 'career-note.service-base-url-production-migr
 const accessTokenKey = 'career-note.access-token'
 const accessTokenExpiresAtKey = 'career-note.access-token-expires-at'
 const sessionKeys = [accessTokenKey, accessTokenExpiresAtKey]
+const koreanDateTimeFormatter = new Intl.DateTimeFormat('ko-KR', {
+  timeZone: 'Asia/Seoul',
+  dateStyle: 'medium',
+  timeStyle: 'short',
+})
 let detectedFields = []
 let selectedFieldIndex = null
 let reviewedSuggestedValue = ''
+
+function formatKoreanDateTime(value) {
+  const date = new Date(value)
+  return Number.isNaN(date.getTime()) ? '-' : koreanDateTimeFormatter.format(date)
+}
 
 function setStatus(message) {
   statusElement.textContent = message
@@ -85,7 +95,7 @@ function renderResumeVersions(versions) {
     return
   }
   versions.forEach((version) => {
-    const option = new Option(`${version.resumeName} · 버전 ${version.versionNumber} · ${new Date(version.createdAt).toLocaleDateString('ko-KR')}`, version.versionId)
+    const option = new Option(`${version.resumeName} · 버전 ${version.versionNumber} · ${formatKoreanDateTime(version.createdAt)}`, version.versionId)
     resumeVersionElement.add(option)
   })
   resumeVersionElement.disabled = false

@@ -41,6 +41,9 @@ SELECT created_at, updated_at FROM experiences ORDER BY created_at DESC LIMIT 10
 `TIMESTAMPTZ`는 내부적으로 절대 시점을 저장하므로 기존 데이터에 9시간을 더하는
 마이그레이션은 실행하지 않습니다. 그렇게 하면 실제 시점이 중복으로 이동합니다.
 
+웹 화면과 Chrome 확장 프로그램도 API의 UTC 시각을 `Asia/Seoul` 기준으로 변환해 생성·수정
+시각을 표시합니다.
+
 Transaction pooler의 포트 `6543`은 사용하지 않습니다. Spring JDBC와 Flyway가 세션 상태와
 prepared statement를 사용할 수 있으므로 Session pooler 포트 `5432`를 사용합니다.
 

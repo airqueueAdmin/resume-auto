@@ -86,6 +86,16 @@ const refreshTokenKey = 'ai-career.refresh-token'
 const jobKoreaTemplateVersion = 'JOBKOREA_STANDARD_V2'
 const maxJobKoreaSkills = 20
 const supportedResumePhotoTypes = new Set(['image/jpeg', 'image/png', 'image/webp'])
+const koreanDateTimeFormatter = new Intl.DateTimeFormat('ko-KR', {
+  timeZone: 'Asia/Seoul',
+  dateStyle: 'medium',
+  timeStyle: 'short',
+})
+
+function formatKoreanDateTime(value: string) {
+  const date = new Date(value)
+  return Number.isNaN(date.getTime()) ? '-' : koreanDateTimeFormatter.format(date)
+}
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const accessToken = sessionStorage.getItem('ai-career.access-token')
@@ -2440,7 +2450,7 @@ function ResumePageContent({ user }: { user: User }) {
             <span className="resume-card-topline"><span className="resume-card-label">JOB RESUME</span><span className="resume-card-version">최신 v{resumeGroupVersionCount(group)}</span></span>
             <strong>{resume.name}</strong>
             {latestVersion ? <ResumePreviewSummary editor={resumeVersionEditorFromContent(latestVersion.content)} compact /> : <span className="resume-card-loading">미리보기를 준비하는 중입니다...</span>}
-            <span className="resume-card-footer"><span>{new Date(resume.updatedAt).toLocaleDateString('ko-KR')}</span></span>
+            <span className="resume-card-footer"><span>{formatKoreanDateTime(resume.updatedAt)}</span></span>
           </button>
         })}</div>}
       </aside>
@@ -2451,7 +2461,7 @@ function ResumePageContent({ user }: { user: User }) {
           <div className="rename-row"><input value={renameName} onChange={(event) => setRenameName(event.target.value)} maxLength={200} /><button className="text-button" onClick={() => void renameResume()} disabled={isSubmitting}>이름 저장</button></div>
           <div className="version-section"><div className="section-title"><div><span className="eyebrow">VERSION HISTORY</span><h2>버전 기록</h2></div><span className="version-count">{versions.length}개 버전</span></div>
             {isLoadingVersions && <div className="list-state">버전을 불러오는 중입니다...</div>}
-            {!isLoadingVersions && versions.length > 0 && <div className="version-list">{versions.map((version, index) => <button className={selectedVersion?.id === version.id ? 'version-item selected' : 'version-item'} key={version.id} onClick={() => selectVersion(version)}><span className="version-item-heading"><strong>버전 {versions.length - index}</strong><span>{new Date(version.createdAt).toLocaleDateString('ko-KR')}</span></span><ResumePreviewSummary editor={resumeVersionEditorFromContent(version.content)} compact /></button>)}</div>}
+            {!isLoadingVersions && versions.length > 0 && <div className="version-list">{versions.map((version, index) => <button className={selectedVersion?.id === version.id ? 'version-item selected' : 'version-item'} key={version.id} onClick={() => selectVersion(version)}><span className="version-item-heading"><strong>버전 {versions.length - index}</strong><span>{formatKoreanDateTime(version.createdAt)}</span></span><ResumePreviewSummary editor={resumeVersionEditorFromContent(version.content)} compact /></button>)}</div>}
           </div>
           {selectedVersion && <div className="version-preview"><div className="section-title"><div><span className="eyebrow">{isVersionPreview ? 'RESUME PREVIEW' : 'EDITING VERSION'}</span><h2>Version {displayVersionNumber}</h2></div><div className="version-preview-actions"><span className="immutable-badge">기존 버전 보존</span><button className="secondary-button compact-button" type="button" onClick={() => setIsVersionPreview((current) => !current)}>{isVersionPreview ? '편집하기' : '미리보기'}</button><button className="secondary-button compact-button" type="button" onClick={() => setIsCareerReviewOpen(true)}>JobKorea 파일 생성</button></div></div>
           {isVersionPreview ? <article className="resume-version-preview-card">
@@ -2913,7 +2923,7 @@ function JobPostingPageContent({ user }: { user: User }) {
       {isLoading && <div className="list-state">채용공고 목록을 불러오는 중입니다...</div>}
       {!isLoading && loadError && <div className="list-state error-state" role="alert">{loadError}<button className="text-button" onClick={() => void loadJobPostings(page)}>다시 시도</button></div>}
       {!isLoading && !loadError && jobPostings.length === 0 && <div className="list-state">아직 저장된 채용공고가 없습니다.</div>}
-      {!isLoading && !loadError && jobPostings.length > 0 && <div className="experience-list">{jobPostings.map((jobPosting) => <article className="experience-item job-posting-item" key={jobPosting.id}><div className="job-source-label"><span className="job-dot" /> 저장됨<br /><small>{new Date(jobPosting.updatedAt).toLocaleDateString('ko-KR')}</small></div><div className="experience-main"><h3>{jobPosting.title}</h3><strong>{jobPosting.companyName}</strong><p>{jobPosting.description}</p>{jobPosting.sourceUrl && <a className="repo-link" href={jobPosting.sourceUrl} target="_blank" rel="noreferrer">원문 보기 ↗</a>}</div><div className="item-actions"><button className="primary-button compact-button" onClick={() => setPreflightPosting(jobPosting)} disabled={generatingDraftId === jobPosting.id}>{generatingDraftId === jobPosting.id ? '생성 중...' : '커리어 점검 후 이력서 생성'}</button><button className="text-button" onClick={() => startEdit(jobPosting)}>수정</button><button className="text-button danger-button" onClick={() => void deleteJobPosting(jobPosting.id)} disabled={deletingId === jobPosting.id}>{deletingId === jobPosting.id ? '삭제 중' : '삭제'}</button></div></article>)}</div>}
+      {!isLoading && !loadError && jobPostings.length > 0 && <div className="experience-list">{jobPostings.map((jobPosting) => <article className="experience-item job-posting-item" key={jobPosting.id}><div className="job-source-label"><span className="job-dot" /> 저장됨<br /><small>{formatKoreanDateTime(jobPosting.updatedAt)}</small></div><div className="experience-main"><h3>{jobPosting.title}</h3><strong>{jobPosting.companyName}</strong><p>{jobPosting.description}</p>{jobPosting.sourceUrl && <a className="repo-link" href={jobPosting.sourceUrl} target="_blank" rel="noreferrer">원문 보기 ↗</a>}</div><div className="item-actions"><button className="primary-button compact-button" onClick={() => setPreflightPosting(jobPosting)} disabled={generatingDraftId === jobPosting.id}>{generatingDraftId === jobPosting.id ? '생성 중...' : '커리어 점검 후 이력서 생성'}</button><button className="text-button" onClick={() => startEdit(jobPosting)}>수정</button><button className="text-button danger-button" onClick={() => void deleteJobPosting(jobPosting.id)} disabled={deletingId === jobPosting.id}>{deletingId === jobPosting.id ? '삭제 중' : '삭제'}</button></div></article>)}</div>}
       {!isLoading && !loadError && totalPages > 1 && <div className="pagination"><button className="text-button" disabled={page === 0} onClick={() => void loadJobPostings(page - 1)}>← 이전</button><span>{page + 1} / {totalPages}</span><button className="text-button" disabled={page >= totalPages - 1} onClick={() => void loadJobPostings(page + 1)}>다음 →</button></div>}
     </section>
     {isImportOpen && <JobPostingUrlImportModal onClose={() => setIsImportOpen(false)} onApply={(preview) => {
