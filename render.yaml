@@ -1,0 +1,59 @@
+services:
+  - type: web
+    name: career-note-api
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    plan: free
+    healthCheckPath: /actuator/health/readiness
+    autoDeployTrigger: checksPass
+    envVars:
+      - key: SPRING_PROFILES_ACTIVE
+        value: prod
+      - key: JAVA_TOOL_OPTIONS
+        value: "-XX:InitialRAMPercentage=20 -XX:MaxRAMPercentage=65 -XX:+UseSerialGC"
+      - key: DB_URL
+        sync: false
+      - key: DB_USERNAME
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      - key: DB_POOL_MAX_SIZE
+        value: "5"
+      - key: DB_POOL_MIN_IDLE
+        value: "0"
+      - key: DB_CONNECTION_TIMEOUT_MS
+        value: "10000"
+      - key: JWT_ISSUER
+        value: career-note
+      - key: JWT_SECRET_BASE64
+        generateValue: true
+      - key: EMAIL_VERIFICATION_ENABLED
+        value: "false"
+      - key: EMAIL_VERIFICATION_HMAC_SECRET_BASE64
+        generateValue: true
+      - key: AI_PROVIDER
+        value: gemini
+      - key: AI_RESUME_DRAFT_PROVIDER
+        value: gemini
+      - key: AI_RESUME_DRAFT_OLLAMA_FALLBACK_ENABLED
+        value: "false"
+      - key: AI_SELF_INTRODUCTION_OLLAMA_FALLBACK_ENABLED
+        value: "false"
+      - key: GEMINI_API_KEY
+        sync: false
+
+  - type: web
+    name: career-note-web
+    runtime: docker
+    dockerfilePath: ./frontend/Dockerfile
+    dockerContext: ./frontend
+    plan: free
+    healthCheckPath: /
+    autoDeployTrigger: checksPass
+    envVars:
+      - key: BACKEND_HOSTPORT
+        fromService:
+          type: web
+          name: career-note-api
+          property: hostport

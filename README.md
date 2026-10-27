@@ -55,9 +55,11 @@ Completed design and implementation records are maintained separately from this 
 - [Phase 11 Step 3 record](docs/phases/phase-11-step-3.md)
 - [Phase 11 completion record](docs/phases/phase-11.md)
 - [Deployment and readiness runbook](docs/runbooks/deployment-and-readiness.md)
-- [Phase 12 Oracle VM deployment plan](docs/phases/phase-12-plan.md)
+- [Phase 12 Render + Supabase deployment plan](docs/phases/phase-12-plan.md)
 - [Phase 12 Step 1 record](docs/phases/phase-12-step-1.md)
-- [Oracle VM deployment runbook](docs/runbooks/oracle-vm-deployment.md)
+- [Oracle VM alternative runbook](docs/runbooks/oracle-vm-deployment.md)
+- [ADR 0021: Render + Supabase deployment](docs/adr/0021-render-supabase-free-deployment.md)
+- [Render + Supabase deployment runbook](docs/runbooks/render-supabase-deployment.md)
 - [Phase 13 browser extension plan](docs/phases/phase-13-plan.md)
 - [Phase 13 Step 1 record](docs/phases/phase-13-step-1.md)
 - [Phase 13 Step 2 record](docs/phases/phase-13-step-2.md)
@@ -100,7 +102,7 @@ The planned Resume UX is a library of approved, immutable versions rather than a
 The first approved grounded draft may create the Resume container automatically. New generated documents
 use a versioned JobKorea-compatible internal template mapped to the user-controlled file export contract.
 
-## Current scope: Phase 12 Oracle VM deployment in progress
+## Current scope: Phase 12 Render + Supabase deployment in progress
 
 The project currently includes the Spring Boot foundation, identity boundary, user-owned
 Experience/Project/JobPosting resources, and immutable Resume versions:
@@ -307,7 +309,8 @@ The expected status is `UP`.
 Configuration is externalized through environment variables:
 
 - `SPRING_PROFILES_ACTIVE`: active Spring profile
-- `SERVER_PORT`: HTTP port, default `8080`
+- `PORT`: deployment-platform HTTP port; Render supplies this automatically
+- `SERVER_PORT`: local/Compose HTTP port override, default `8080`
 - `APP_VERSION`: value exposed by the Actuator info endpoint
 - `DB_URL`: PostgreSQL JDBC URL, default `jdbc:postgresql://localhost:5432/ai_career`
 - `DB_USERNAME`: PostgreSQL user, default `ai_career`
@@ -318,15 +321,15 @@ Configuration is externalized through environment variables:
 - `POSTGRES_DB`: Docker Compose database name, default `ai_career`
 - `POSTGRES_USER`: Docker Compose database user, default `ai_career`
 - `POSTGRES_PASSWORD`: Docker Compose database password for local development
-- `POSTGRES_BIND_ADDRESS`: Docker Compose PostgreSQL host bind address, default `0.0.0.0`; Oracle
-  deployment sets `127.0.0.1`
+- `POSTGRES_BIND_ADDRESS`: Docker Compose PostgreSQL host bind address, default `0.0.0.0`
 - `POSTGRES_HOST_PORT`: host port mapped to PostgreSQL, default `5432`
-- `BACKEND_BIND_ADDRESS`: Docker Compose backend host bind address, default `0.0.0.0`; Oracle
-  deployment sets `127.0.0.1`
+- `BACKEND_BIND_ADDRESS`: Docker Compose backend host bind address, default `0.0.0.0`
 - `BACKEND_HOST_PORT`: host port mapped to the backend, default `8080`
-- `FRONTEND_BIND_ADDRESS`: Docker Compose frontend host bind address, default `0.0.0.0`; Oracle
-  deployment sets `127.0.0.1`
+- `FRONTEND_BIND_ADDRESS`: Docker Compose frontend host bind address, default `0.0.0.0`
 - `FRONTEND_HOST_PORT`: host port mapped to the frontend, default `5173`
+- `FRONTEND_CONTAINER_PORT`: frontend container port, default `80`; Render supplies `PORT` dynamically
+- `FRONTEND_BACKEND_HOSTPORT`: local Nginx backend target, default `backend:8080`; Render supplies the
+  private backend host and port through `render.yaml`
 - `JWT_ISSUER`: JWT issuer, default `ai-career-platform`
 - `JWT_SECRET_BASE64`: Base64-encoded HMAC secret; use a unique secret outside local development
 - `JWT_ACCESS_TOKEN_TTL`: Access JWT lifetime, default `PT15M`
@@ -358,8 +361,8 @@ Configuration is externalized through environment variables:
 - `RATE_LIMIT_MAX_REQUESTS`: maximum requests per bucket per window, default `60`
 - `SIGNUP_TERMS_VERSION`: terms version recorded for new signup consent, default `2026-10-21`
 - `SIGNUP_PRIVACY_VERSION`: privacy-policy version recorded for new signup consent, default `2026-10-21`
-- `EMAIL_VERIFICATION_ENABLED`: require email-code verification before login; local default `false`,
-  Oracle deployment default `true`
+- `EMAIL_VERIFICATION_ENABLED`: require email-code verification before login; local and initial Render
+  deployment default `false`
 - `EMAIL_VERIFICATION_HMAC_SECRET_BASE64`: independent Base64-encoded secret used to HMAC verification
   codes; use at least 32 random decoded bytes outside local development
 - `EMAIL_VERIFICATION_CODE_TTL`: verification code lifetime, default `PT5M`
@@ -528,7 +531,7 @@ policy version. Password confirmation is enforced in the browser while password 
 again by the API. When email verification is enabled, the account remains
 `PENDING_EMAIL_VERIFICATION` until a six-digit code is confirmed. Only an HMAC of the code is stored;
 codes expire after five minutes, are invalidated after five failed attempts, and can be resent after
-the configured cooldown. The Oracle VM deployment enables this flow and uses a dedicated Gmail account
+the configured cooldown. The Render deployment can enable this flow and uses a dedicated Gmail account
 through authenticated SMTP submission on port 587 with required STARTTLS. Signup and resend requests
 are limited per client, and actual message delivery has a separate global cap below Gmail's free-account
 daily limit. These counters are local to one backend process and reset when it restarts.
@@ -869,13 +872,13 @@ annotations. It is not a second manually maintained API specification.
 
 Phase 11 established reproducible full-stack containers, a non-deploying CI workflow for backend tests,
 frontend builds, Compose validation, container builds, and vulnerability reports, plus a deployment
-and readiness runbook. Phase 12 now prepares a free Oracle VM deployment using the existing Compose
-topology, host Ollama, and an HTTPS reverse proxy. The application currently generates
+and readiness runbook. Phase 12 now prepares a Render + Supabase deployment using the existing Docker
+images, a Render private-network Nginx proxy, and Supabase PostgreSQL. The application currently generates
 a browser-side PDF from an approved ResumeVersion, lets the user review and download it, and can open the
 JobKorea upload page. Server-side upload, credentials, refresh tokens, cookies, and CAPTCHA/anti-automation
 bypasses are out of scope.
 
 Redis, asynchronous processing, streaming, distributed tracing, image publication, and automatic
 deployment remain deferred until latency, load, cost, privacy, or operational measurements justify
-them. The Oracle VM deployment is intentionally single-host and manually promoted. Agent behavior
+them. Render and Supabase free-tier sleep, quota, and backup limitations remain explicit. Agent behavior
 remains deferred until a concrete use case demonstrates that dynamic Tool selection is genuinely needed.

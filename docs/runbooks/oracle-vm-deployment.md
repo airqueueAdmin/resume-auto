@@ -2,8 +2,9 @@
 
 ## 범위
 
-이 가이드는 현재 React/Nginx, Spring Boot, PostgreSQL + pgvector, Ollama 스택을 Oracle Cloud
-Infrastructure Linux VM 한 대에 배포하는 절차를 설명한다. 최대 3명의 사용자가 적은 빈도로
+이 가이드는 현재 React/Nginx, Spring Boot, PostgreSQL + pgvector, 임베딩 전용 Ollama 스택을 Oracle Cloud
+Infrastructure Linux VM 한 대에 배포하는 절차를 설명한다. 텍스트 생성·OCR은 외부 Gemini/OpenAI
+provider를 사용하며, 최대 3명의 사용자가 적은 빈도로
 사용하는 환경을 대상으로 하며, 기존 Compose 동일 출처 프록시 구조를 유지하기 위해 모든
 애플리케이션을 한 호스트에서 실행한다.
 
@@ -42,17 +43,16 @@ Linux 호스트 브리지를 사용하는 경우 Ollama가 `0.0.0.0:11434`에서
 curl http://127.0.0.1:11434/api/tags
 ```
 
-현재 애플리케이션에서 사용하는 모델을 내려받는다.
+현재 임베딩에 사용하는 모델만 내려받는다.
 
 ```bash
-ollama pull llama3.1:8b
 ollama pull nomic-embed-text
 ollama list
 ```
 
-작은 CPU VM에서는 8B 모델의 응답이 느릴 수 있다. 애플리케이션에는 이미 제한된 timeout이
-설정되어 있으므로, 측정 없이 모든 timeout을 늘리기보다 Ollama의 응답 지연을 provider 가용성
-문제로 처리한다.
+Always Free A1 VM의 메모리는 애플리케이션 스택과 공유되므로 텍스트 생성용 Ollama fallback은
+비활성화한다. 생성·자기소개 답변·OCR은 외부 Gemini/OpenAI provider를 사용하고, Ollama는
+`nomic-embed-text` 임베딩 요청만 처리한다.
 
 ## 3. 릴리스 체크아웃과 보안값 생성
 

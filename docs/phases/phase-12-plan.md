@@ -1,61 +1,65 @@
-# Phase 12 - Oracle VM Free Web Deployment Plan
+# Phase 12 - Render + Supabase Free Web Deployment Plan
 
 ## Status
 
-In progress. Phase 12 has been authorized as the next phase. Step 1 prepares and verifies the
-repository deployment unit; Step 2 requires an OCI account, an available Always Free VM, and a user
-controlled DNS/TLS target.
+In progress. Phase 12 has been redirected to Render + Supabase. Step 1 prepares and verifies the
+repository deployment unit; Step 2 requires a Render account, a Supabase project, and provider
+secrets. The earlier Oracle VM design remains documented as an alternative in ADR 0019.
 
 ## Objective
 
-Publish the existing full-stack service to the web for no monthly infrastructure charge within the
-intended three-user scope, using one Oracle Cloud Always Free VM and the existing Docker Compose
-topology.
+Publish the existing full-stack service to the web for a portfolio/demo workload with the smallest
+operational surface, using two Render Docker Web Services and one Supabase PostgreSQL project.
 
 ## Design reasons and important decisions
 
-- The current Compose topology already keeps the frontend, backend, PostgreSQL + pgvector, and Ollama
-  integration on one host, which avoids adding a cross-origin API contract for the first deployment.
-- Oracle's Always Free VM is selected because it can run persistent Docker Compose services and a small
-  local Ollama model. The deployment accepts single-host availability and manual operations as the
-  trade-off for a zero monthly infrastructure target.
-- The PostgreSQL volume remains persistent on the VM. Database backups are created with `pg_dump` and
-  copied outside the live container volume.
-- Only the reverse proxy is public. Database, backend, frontend, and Ollama ports bind to loopback or
-  the internal Compose network.
-- Gemini remains an optional server-side provider. Its quota and data-handling policy are external
-  dependencies; Ollama remains required for the current embedding index path.
+- Render builds the existing backend and frontend Dockerfiles, preserving the reproducible local
+  container boundary.
+- The frontend Nginx proxy receives the backend private host:port from Render, so browser requests stay
+  same-origin and the first deployment does not add a public cross-origin API contract.
+- Supabase provides standard PostgreSQL. Flyway remains the only schema migration owner, and the
+  existing pgvector migration remains responsible for enabling the `vector` extension.
+- The deployment accepts free-tier sleep, low quotas, and limited recovery guarantees in exchange for
+  simpler operations. It is not a production availability commitment.
+- Gemini is the default server-side text/OCR provider. Local Ollama fallbacks are disabled because the
+  Render services do not include an Ollama host; current embedding/RAG routes require a separately
+  reachable embedding endpoint.
 
 ## Planned steps
 
-### Step 1 - Production Compose packaging and deployment runbook
+### Step 1 - Managed deployment packaging and runbook
 
 - Add the `prod` Spring profile with environment-backed datasource configuration and safe health output.
-- Add Compose bind-address variables and an Oracle override that selects the prod Spring profile; the
-  Oracle environment binds application ports to loopback.
-- Add an Oracle environment template, ADR, and VM deployment runbook.
+- Read Render's dynamic `PORT` while preserving the local `SERVER_PORT` override.
+- Make the Nginx frontend proxy runtime-configurable for Render private networking.
+- Add `render.yaml`, a Supabase connection template, ADR, and Render/Supabase deployment runbook.
 - Validate the merged Compose configuration and run the existing application checks.
 
-### Step 2 - OCI VM provisioning and first deployment
+### Step 2 - Render/Supabase provisioning and first deployment
 
-- Create an Always Free eligible Linux VM in the OCI Home Region.
-- Install Docker, Compose, Ollama, and the host reverse proxy.
-- Pull `llama3.1:8b` and `nomic-embed-text` and verify container-to-host Ollama access.
-- Start the stack from a reviewed commit, apply Flyway migrations, and complete public HTTPS smoke tests.
-- Create and verify the first external PostgreSQL backup.
+- Create a Supabase project and copy its Session Pooler values into Render secrets.
+- Create the Render Blueprint and verify private frontend-to-backend networking.
+- Apply Flyway migrations and complete public HTTPS smoke tests.
+- Export a disposable database backup and verify restoration before treating the deployment as durable.
 
 ## Explicitly excluded
 
-- Kubernetes, managed database migration, image registry publication, and automatic deployment.
-- Public exposure of PostgreSQL, the Spring Boot port, Nginx port, or Ollama.
+- OCI VM provisioning, Kubernetes, image registry publication, and distributed infrastructure.
+- Render Postgres, because the Free database expires after 30 days.
+- Supabase Auth replacing the existing Spring Security/JWT boundary.
+- Public exposure of PostgreSQL or Ollama.
 - JobKorea credential collection or upload automation.
-- Treating the free VM as highly available or production-grade without measured reliability evidence.
+- Treating the free services as highly available or production-grade without measured reliability and
+  recovery evidence.
 
 ## Completion criteria
 
-- [ ] The VM is created with only Always Free eligible resources.
+- [ ] Supabase PostgreSQL is created and the Session Pooler connection is verified.
+- [ ] The Render Blueprint creates the backend and frontend services.
 - [ ] The public hostname serves the SPA over HTTPS.
 - [ ] Backend readiness passes through the frontend proxy.
-- [ ] Signup, login, owned CRUD, resume version creation, and one AI/indexing smoke flow pass.
-- [ ] PostgreSQL backup and restore are verified outside the live volume.
-- [ ] Monthly cost controls and an incident recovery procedure are documented.
+- [ ] Signup, login, owned CRUD, and resume version creation smoke tests pass.
+- [ ] An AI smoke test passes when the Gemini key is configured; embedding/RAG remains explicitly
+  unverified without an external embedding endpoint.
+- [ ] A PostgreSQL export and restore are verified outside the live project.
+- [ ] Free-tier limits and an incident recovery procedure are documented.
