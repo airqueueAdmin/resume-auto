@@ -18,14 +18,14 @@
 파일명은 다음과 같은 형태입니다.
 
 ```text
-career-note-extension-v0.3.2.zip
+career-note-extension-v0.3.3.zip
 ```
 
 이 ZIP은 저장소 전체가 아니라 `extension` 폴더의 파일만 포함해야 합니다. 배포자는 저장소
 루트에서 다음 명령으로 만들 수 있습니다.
 
 ```powershell
-Compress-Archive -Path extension\* -DestinationPath career-note-extension-v0.3.2.zip -Force
+Compress-Archive -Path extension\* -DestinationPath career-note-extension-v0.3.3.zip -Force
 ```
 
 ### 배포 ZIP을 아직 만들지 않은 경우
@@ -39,7 +39,7 @@ Compress-Archive -Path extension\* -DestinationPath career-note-extension-v0.3.2
 되어야 합니다.
 
 ```text
-career-note-extension-v0.3.2/
+career-note-extension-v0.3.3/
 ├── manifest.json
 ├── background.js
 ├── content.js
@@ -57,7 +57,7 @@ Chrome 데스크톱 브라우저에서 다음 순서로 진행합니다.
 1. 주소창에 `chrome://extensions` 입력
 2. 우측 상단 **개발자 모드** 활성화
 3. **압축해제된 확장 프로그램을 로드** 클릭
-4. 압축 해제한 `career-note-extension-v0.3.2` 폴더 선택
+4. 압축 해제한 `career-note-extension-v0.3.3` 폴더 선택
 
 저장소 전체 ZIP을 사용한 경우에는 `resume-auto-master/extension` 폴더를 선택합니다.
 
@@ -87,7 +87,9 @@ https://career-note-web-sg.onrender.com
 ## 5. 사용 순서
 
 1. Career Note 웹서비스에서 Experience와 Project를 등록합니다.
-2. 검색 데이터 업데이트를 실행합니다.
+2. 저장하면 검색 데이터가 자동으로 업데이트됩니다. 기존 데이터를 처음 준비하거나 자동
+   업데이트에 실패한 경우에는 확장 프로그램의 **맞춤 검색 데이터 업데이트하러 가기**를
+   클릭하고, Career 화면에서 강조된 업데이트 버튼을 한 번 실행합니다.
 3. JobKorea 공고에서 Career Note 패널을 엽니다.
 4. 공고를 확인하고 필요한 검토용 이력서 또는 답변 초안을 생성합니다.
 5. 생성된 내용을 직접 검토합니다.

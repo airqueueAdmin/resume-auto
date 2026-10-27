@@ -474,6 +474,8 @@ select:focus-visible { outline-color: rgba(59, 130, 246, .38); }
 .career-tab.active { color: #1d4ed8; }
 .career-tab.active { background: #ffffff; box-shadow: 0 1px 3px rgba(15, 23, 42, .12); }
 .career-index-message { color: #2563eb; }
+.career-index-notice { margin: -13px 0 20px; }
+.career-index-focus { outline: 3px solid rgba(37, 99, 235, .25); outline-offset: 4px; box-shadow: 0 0 0 7px rgba(37, 99, 235, .08); }
 .page-tip { border-color: #dbeafe; background: #eff6ff; }
 .page-tip span { color: #2563eb; }
 

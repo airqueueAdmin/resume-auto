@@ -213,7 +213,7 @@ Experience/Project/JobPosting resources, and immutable Resume versions:
 - Privacy-safe JobKorea export audit metadata linked to an owned immutable ResumeVersion
 - Explicit required-field demo-data helper for local export testing; demo values remain browser-local and
   must be replaced before a real JobKorea upload
-- Career 화면에서 Experience/Project 임베딩 인덱스를 직접 재생성하는 버튼
+- Career 화면에서 Experience/Project를 저장·수정·삭제할 때 임베딩 인덱스를 자동 갱신하고, 필요하면 수동으로 다시 실행하는 버튼
 - Resume 화면에서 기업별 자기소개서 질문을 저장하고, Experience/Project 근거 기반 AI 답변 초안을
   검토·수정한 뒤 저장하는 흐름
 
@@ -728,7 +728,9 @@ ollama pull nomic-embed-text
 ollama list
 ```
 
-After creating or updating Experience and Project records, rebuild the authenticated user's index:
+Experience와 Project를 저장·수정·삭제하면 프론트엔드가 인증된 사용자의 인덱스를 자동으로 다시 만듭니다.
+자동 갱신이 실패하거나 기존 데이터를 처음 준비하는 경우에는 Career 화면의
+`맞춤 검색 데이터 업데이트` 버튼으로 다시 실행할 수 있습니다. API로 직접 실행할 수도 있습니다:
 
 ```http
 POST /api/v1/retrieval/index

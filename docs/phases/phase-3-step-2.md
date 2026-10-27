@@ -17,6 +17,8 @@ records, then expose filtered cosine Top-K retrieval over the derived vectors.
   a later quality improvement.
 - Re-indexing replaces only the authenticated user's derived rows. It never mutates or deletes source
   career records.
+- The Career UI automatically requests a full re-index after a successful Experience/Project create,
+  update, or soft delete. The explicit index button remains as a retry and recovery action.
 - Search embeds the query locally, filters by authenticated user and active source rows, supports
   `EXPERIENCE`/`PROJECT` filters, and applies a bounded `topK` of 1 to 20.
 - Deterministic ID ordering breaks equal-distance ties and makes tests and debugging repeatable.
@@ -48,4 +50,5 @@ records, then expose filtered cosine Top-K retrieval over the derived vectors.
 
 - Top-K search ranks derived vectors; it does not itself establish that an LLM statement is true.
 - User isolation must be applied in the SQL query, not only in the controller.
-- Index freshness is an application concern: source changes require a subsequent index operation.
+- Index freshness is an application concern: the Career UI normally follows source changes with a
+  subsequent index operation, while API callers remain responsible for invoking the index endpoint.

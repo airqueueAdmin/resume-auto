@@ -115,6 +115,14 @@ async function requestAllPages<T>(path: string): Promise<T[]> {
   return [firstPage, ...remainingPages].flatMap((page) => page.content)
 }
 
+async function refreshCareerSearchData() {
+  return request<EmbeddingIndexResponse>('/v1/retrieval/index', { method: 'POST' })
+}
+
+function indexingFailureMessage(error: unknown) {
+  return error instanceof Error ? error.message : '맞춤 검색 데이터를 업데이트하지 못했습니다.'
+}
+
 function saveAuthentication(result: AuthenticationResponse) {
   sessionStorage.setItem('ai-career.access-token', result.accessToken)
   localStorage.setItem(refreshTokenKey, result.refreshToken)
@@ -471,16 +479,28 @@ function resolveCareerSection(pathname: string): CareerSection | null {
 }
 
 function CareerPageContent({ section }: { section: CareerSection }) {
+  const location = useLocation()
+  const indexButtonRef = useRef<HTMLButtonElement>(null)
   const [isIndexing, setIsIndexing] = useState(false)
   const [indexMessage, setIndexMessage] = useState('')
   const [indexError, setIndexError] = useState('')
+  const shouldFocusIndex = new URLSearchParams(location.search).get('focus') === 'search-data'
+
+  useEffect(() => {
+    if (!shouldFocusIndex) return
+    const timer = window.setTimeout(() => {
+      indexButtonRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      indexButtonRef.current?.focus()
+    }, 0)
+    return () => window.clearTimeout(timer)
+  }, [shouldFocusIndex])
 
   async function indexCareerEvidence() {
     setIsIndexing(true)
     setIndexMessage('')
     setIndexError('')
     try {
-      const result = await request<EmbeddingIndexResponse>('/v1/retrieval/index', { method: 'POST' })
+      const result = await refreshCareerSearchData()
       setIndexMessage(`맞춤 검색 데이터 업데이트 완료 · 경력 ${result.indexedExperienceChunks}개 · 프로젝트 ${result.indexedProjectChunks}개`)
     } catch (error) {
       setIndexError(error instanceof Error ? error.message : '경력 데이터를 인덱싱하지 못했습니다.')
@@ -496,8 +516,8 @@ function CareerPageContent({ section }: { section: CareerSection }) {
         <Link className={section === 'projects' ? 'career-tab active' : 'career-tab'} to="/career/projects" aria-current={section === 'projects' ? 'page' : undefined}>프로젝트</Link>
       </nav>
       <div className="career-index-actions">
-        <button className="secondary-button compact-button" onClick={() => void indexCareerEvidence()} disabled={isIndexing} aria-describedby="career-index-help">{isIndexing ? '맞춤 검색 데이터 만드는 중...' : '맞춤 검색 데이터 업데이트'}</button>
-        <small id="career-index-help">Experience·Project를 채용공고 매칭에 사용할 검색 데이터로 변환합니다.</small>
+        <button ref={indexButtonRef} id="career-index-button" className={`secondary-button compact-button${shouldFocusIndex ? ' career-index-focus' : ''}`} onClick={() => void indexCareerEvidence()} disabled={isIndexing} aria-describedby="career-index-help">{isIndexing ? '맞춤 검색 데이터 만드는 중...' : '맞춤 검색 데이터 업데이트'}</button>
+        <small id="career-index-help">경력·프로젝트를 저장하면 자동으로 업데이트됩니다. 필요하면 여기서 다시 실행할 수 있습니다.</small>
       </div>
     </div>
     {indexMessage && <p className="career-index-message" role="status">{indexMessage}</p>}
@@ -782,6 +802,7 @@ function ExperiencePageContent() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [isImportOpen, setIsImportOpen] = useState(false)
+  const [indexNotice, setIndexNotice] = useState<{ message: string; error: boolean } | null>(null)
 
   async function loadExperiences(targetPage = page) {
     setIsLoading(true)
@@ -866,11 +887,21 @@ function ExperiencePageContent() {
     setFormError('')
     if (!validateForm()) return
     setIsSubmitting(true)
+    setIndexNotice(null)
     const payload = { companyName: form.companyName.trim(), role: form.role.trim(), department: form.department.trim() || null, title: form.title.trim() || null, startDate: form.startDate || null, endDate: form.currentlyEmployed ? null : form.endDate || null, currentlyEmployed: form.currentlyEmployed, description: form.description.trim(), techStack: form.techStack.trim() || null }
     try {
       await request<Experience>(editingId ? `/v1/experiences/${editingId}` : '/v1/experiences', { method: editingId ? 'PUT' : 'POST', body: JSON.stringify(payload) })
+      let indexError = ''
+      try {
+        await refreshCareerSearchData()
+      } catch (error) {
+        indexError = indexingFailureMessage(error)
+      }
       startCreate()
       await loadExperiences(editingId ? page : 0)
+      setIndexNotice(indexError
+        ? { message: `경력은 저장됐지만 맞춤 검색 데이터 업데이트에 실패했습니다: ${indexError}`, error: true }
+        : { message: '경력을 저장하고 맞춤 검색 데이터를 자동 업데이트했습니다.', error: false })
     } catch (error) {
       const apiError = error as ApiError
       setFormError(apiError.message)
@@ -883,9 +914,19 @@ function ExperiencePageContent() {
   async function deleteExperience(id: string) {
     if (!window.confirm('이 경력을 삭제할까요? 삭제된 경력은 목록에서 숨겨집니다.')) return
     setDeletingId(id)
+    setIndexNotice(null)
     try {
       await request<void>(`/v1/experiences/${id}`, { method: 'DELETE' })
+      let indexError = ''
+      try {
+        await refreshCareerSearchData()
+      } catch (error) {
+        indexError = indexingFailureMessage(error)
+      }
       await loadExperiences(page > 0 && experiences.length === 1 ? page - 1 : page)
+      setIndexNotice(indexError
+        ? { message: `경력은 삭제됐지만 맞춤 검색 데이터 업데이트에 실패했습니다: ${indexError}`, error: true }
+        : { message: '경력을 삭제하고 맞춤 검색 데이터를 자동 업데이트했습니다.', error: false })
     } catch (error) {
       setLoadError(error instanceof Error ? error.message : '경력을 삭제하지 못했습니다.')
     } finally {
@@ -907,9 +948,10 @@ function ExperiencePageContent() {
         <FormField label="기술 스택 (선택)" value={form.techStack} onChange={(value) => updateField('techStack', value)} error={fieldErrors.techStack} placeholder="예: Java, Spring Boot, PostgreSQL" />
         <label className="wide-field">설명<textarea value={form.description} onChange={(event) => updateField('description', event.target.value)} placeholder="담당 업무, 성과, 사용 기술을 기록해주세요." maxLength={10000} rows={4} />{fieldErrors.description && <small className="field-error">{fieldErrors.description}</small>}</label>
         {formError && <p className="form-error wide-field" role="alert">{formError}</p>}
-        <div className="form-actions wide-field"><button className="primary-button compact-button" disabled={isSubmitting} type="submit">{isSubmitting ? '저장 중...' : editingId ? '변경 저장' : '경력 저장'}</button></div>
+        <div className="form-actions wide-field"><button className="primary-button compact-button" disabled={isSubmitting} type="submit">{isSubmitting ? '저장·검색 데이터 업데이트 중...' : editingId ? '변경 저장' : '경력 저장'}</button></div>
       </form>
     </section>
+    {indexNotice && <p className={`career-index-message career-index-notice${indexNotice.error ? ' career-index-error' : ''}`} role={indexNotice.error ? 'alert' : 'status'}>{indexNotice.message}</p>}
     <section className="experience-list-section"><div className="list-heading"><div><span className="eyebrow">YOUR CAREER HISTORY</span><h2>{totalElements}개의 경력</h2></div><button className="text-button" onClick={() => void loadExperiences(page)}>새로고침</button></div>
       {isLoading && <div className="list-state">경력 목록을 불러오는 중입니다...</div>}
       {!isLoading && loadError && <div className="list-state error-state" role="alert">{loadError}<button className="text-button" onClick={() => void loadExperiences(page)}>다시 시도</button></div>}
@@ -938,6 +980,7 @@ function ProjectPageContent() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [isImportOpen, setIsImportOpen] = useState(false)
+  const [indexNotice, setIndexNotice] = useState<{ message: string; error: boolean } | null>(null)
 
   async function loadProjects(targetPage = page) {
     setIsLoading(true)
@@ -1022,12 +1065,22 @@ function ProjectPageContent() {
     setFormError('')
     if (!validateForm()) return
     setIsSubmitting(true)
+    setIndexNotice(null)
     const payload = { ...form, name: form.name.trim(), role: form.role.trim(), startDate: form.startDate || null, endDate: form.endDate || null, description: form.description.trim(), techStack: form.techStack.trim(), customerOrDomain: form.customerOrDomain.trim() || null, repositoryUrl: form.repositoryUrl.trim() || null }
     try {
       await request<Project>(editingId ? `/v1/projects/${editingId}` : '/v1/projects', { method: editingId ? 'PUT' : 'POST', body: JSON.stringify(payload) })
+      let indexError = ''
+      try {
+        await refreshCareerSearchData()
+      } catch (error) {
+        indexError = indexingFailureMessage(error)
+      }
       const nextPage = editingId ? page : 0
       startCreate()
       await loadProjects(nextPage)
+      setIndexNotice(indexError
+        ? { message: `프로젝트는 저장됐지만 맞춤 검색 데이터 업데이트에 실패했습니다: ${indexError}`, error: true }
+        : { message: '프로젝트를 저장하고 맞춤 검색 데이터를 자동 업데이트했습니다.', error: false })
     } catch (error) {
       const apiError = error as ApiError
       setFormError(apiError.message)
@@ -1040,9 +1093,19 @@ function ProjectPageContent() {
   async function deleteProject(id: string) {
     if (!window.confirm('이 프로젝트를 삭제할까요? 삭제된 프로젝트는 목록에서 숨겨집니다.')) return
     setDeletingId(id)
+    setIndexNotice(null)
     try {
       await request<void>(`/v1/projects/${id}`, { method: 'DELETE' })
+      let indexError = ''
+      try {
+        await refreshCareerSearchData()
+      } catch (error) {
+        indexError = indexingFailureMessage(error)
+      }
       await loadProjects(page > 0 && projects.length === 1 ? page - 1 : page)
+      setIndexNotice(indexError
+        ? { message: `프로젝트는 삭제됐지만 맞춤 검색 데이터 업데이트에 실패했습니다: ${indexError}`, error: true }
+        : { message: '프로젝트를 삭제하고 맞춤 검색 데이터를 자동 업데이트했습니다.', error: false })
     } catch (error) {
       setLoadError(error instanceof Error ? error.message : '프로젝트를 삭제하지 못했습니다.')
     } finally {
@@ -1064,9 +1127,10 @@ function ProjectPageContent() {
         <FormField label="저장소 URL (선택)" value={form.repositoryUrl} onChange={(value) => updateField('repositoryUrl', value)} error={fieldErrors.repositoryUrl} placeholder="https://github.com/..." />
         <label className="wide-field">설명<textarea value={form.description} onChange={(event) => updateField('description', event.target.value)} placeholder="문제, 구현 내용, 성과를 기록해주세요." maxLength={10000} rows={4} />{fieldErrors.description && <small className="field-error">{fieldErrors.description}</small>}</label>
         {formError && <p className="form-error wide-field" role="alert">{formError}</p>}
-        <div className="form-actions wide-field"><button className="primary-button compact-button" disabled={isSubmitting} type="submit">{isSubmitting ? '저장 중...' : editingId ? '변경 저장' : '프로젝트 저장'}</button></div>
+        <div className="form-actions wide-field"><button className="primary-button compact-button" disabled={isSubmitting} type="submit">{isSubmitting ? '저장·검색 데이터 업데이트 중...' : editingId ? '변경 저장' : '프로젝트 저장'}</button></div>
       </form>
     </section>
+    {indexNotice && <p className={`career-index-message career-index-notice${indexNotice.error ? ' career-index-error' : ''}`} role={indexNotice.error ? 'alert' : 'status'}>{indexNotice.message}</p>}
     <section className="experience-list-section"><div className="list-heading"><div><span className="eyebrow">YOUR PROJECTS</span><h2>{totalElements}개의 프로젝트</h2></div><button className="text-button" onClick={() => void loadProjects(page)}>새로고침</button></div>
       {isLoading && <div className="list-state">프로젝트 목록을 불러오는 중입니다...</div>}
       {!isLoading && loadError && <div className="list-state error-state" role="alert">{loadError}<button className="text-button" onClick={() => void loadProjects(page)}>다시 시도</button></div>}

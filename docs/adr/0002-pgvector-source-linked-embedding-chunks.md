@@ -33,7 +33,9 @@ Positive:
 Trade-offs:
 
 - The vector dimension is coupled to the selected embedding model.
-- Re-indexing is currently synchronous and replaces all derived rows for one user.
+- Re-indexing is currently synchronous and replaces all derived rows for one user. The Career UI
+  triggers this operation after a successful Experience/Project save or delete, while retaining a
+  manual retry action for initial data, provider failures, and operational recovery.
 - A pgvector-specific image is required; the plain PostgreSQL image cannot create the extension.
 - `JdbcTemplate` requires carefully reviewed SQL because JPA does not abstract the vector column here.
 
