@@ -3,36 +3,52 @@
 이 문서는 Chrome Web Store를 사용하지 않고 무료로 Career Note 확장 프로그램을 설치하는 방법을
 안내합니다.
 
-현재 방식은 개발자 모드의 **압축해제된 확장 프로그램 로드**입니다. 따라서 사용자는 직접 ZIP을
-다운로드하고, 새 버전이 나올 때 다시 다운로드한 뒤 확장 프로그램을 Reload해야 합니다.
+배포자는 `extension` 폴더의 파일만 담은 ZIP을 GitHub Releases에 올리고, 사용자는 그 ZIP을
+다운로드한 뒤 개발자 모드의 **압축해제된 확장 프로그램 로드**로 설치합니다. 새 버전이 나오면
+다시 ZIP을 다운로드하고 확장 프로그램을 Reload해야 합니다.
 
-## 1. GitHub에서 ZIP 다운로드
+## 1. GitHub Releases에서 확장 프로그램 ZIP 다운로드
 
-아래 링크에서 최신 저장소 ZIP을 다운로드합니다.
+아래 Releases 페이지에서 최신 버전의 Assets에 있는 확장 프로그램 전용 ZIP을 다운로드합니다.
 
-[Career Note 저장소 ZIP 다운로드](https://github.com/airqueueAdmin/resume-auto/archive/refs/heads/master.zip)
+[Career Note Releases](https://github.com/airqueueAdmin/resume-auto/releases)
 
 ![GitHub에서 ZIP 다운로드](../assets/extension/01-download-zip.svg)
 
-또는 GitHub 저장소 화면에서 `Code` → `Download ZIP`을 선택합니다.
+파일명은 다음과 같은 형태입니다.
+
+```text
+career-note-extension-v0.3.2.zip
+```
+
+이 ZIP은 저장소 전체가 아니라 `extension` 폴더의 파일만 포함해야 합니다. 배포자는 저장소
+루트에서 다음 명령으로 만들 수 있습니다.
+
+```powershell
+Compress-Archive -Path extension\* -DestinationPath career-note-extension-v0.3.2.zip -Force
+```
+
+### 배포 ZIP을 아직 만들지 않은 경우
+
+임시로 [저장소 전체 ZIP](https://github.com/airqueueAdmin/resume-auto/archive/refs/heads/master.zip)을
+다운로드할 수도 있습니다. 이 경우 압축 해제 후 `resume-auto-master/extension` 폴더를 선택합니다.
 
 ## 2. ZIP 압축 해제
 
-다운로드한 ZIP을 원하는 위치에 압축 해제합니다. 다음과 같은 폴더 구조가 되어야 합니다.
+다운로드한 확장 프로그램 전용 ZIP을 원하는 위치에 압축 해제합니다. 다음과 같은 폴더 구조가
+되어야 합니다.
 
 ```text
-resume-auto-master/
-└── extension/
-    ├── manifest.json
-    ├── background.js
-    ├── content.js
-    └── popup.html
+career-note-extension-v0.3.2/
+├── manifest.json
+├── background.js
+├── content.js
+└── popup.html
 ```
 
 ![extension 폴더 확인](../assets/extension/02-select-extension-folder.svg)
 
-중요한 점은 저장소 전체 폴더가 아니라 `manifest.json`이 바로 들어 있는 `extension` 폴더를
-Chrome에 선택하는 것입니다.
+중요한 점은 `manifest.json`이 바로 들어 있는 배포 폴더를 Chrome에 선택하는 것입니다.
 
 ## 3. Chrome에 확장 프로그램 로드
 
@@ -41,7 +57,9 @@ Chrome 데스크톱 브라우저에서 다음 순서로 진행합니다.
 1. 주소창에 `chrome://extensions` 입력
 2. 우측 상단 **개발자 모드** 활성화
 3. **압축해제된 확장 프로그램을 로드** 클릭
-4. 압축 해제한 `resume-auto-master/extension` 폴더 선택
+4. 압축 해제한 `career-note-extension-v0.3.2` 폴더 선택
+
+저장소 전체 ZIP을 사용한 경우에는 `resume-auto-master/extension` 폴더를 선택합니다.
 
 ![Chrome에서 압축해제된 확장 프로그램 로드](../assets/extension/03-load-unpacked.svg)
 
