@@ -3,6 +3,7 @@ name: ai-career-platform
 services:
   postgres:
     image: pgvector/pgvector:pg17
+    command: ["postgres", "-c", "timezone=Asia/Seoul"]
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-ai_career}
       POSTGRES_USER: ${POSTGRES_USER:-ai_career}

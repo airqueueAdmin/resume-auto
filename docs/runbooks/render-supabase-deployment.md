@@ -28,6 +28,19 @@ DB_USERNAME=postgres.<project-ref>
 DB_PASSWORD=<database-password>
 ```
 
+시간 컬럼은 PostgreSQL `TIMESTAMPTZ`로 저장하며, 애플리케이션 DB 세션의 표시 기준은
+`Asia/Seoul`로 설정됩니다. 실제 시점은 보존하면서 `created_at`과 `updated_at`을 KST로
+확인하는 방식입니다. Supabase SQL Editor에서 직접 조회할 때 UTC로 표시되면 다음처럼
+해당 조회 세션의 기준을 바꿉니다.
+
+```sql
+SET TIME ZONE 'Asia/Seoul';
+SELECT created_at, updated_at FROM experiences ORDER BY created_at DESC LIMIT 10;
+```
+
+`TIMESTAMPTZ`는 내부적으로 절대 시점을 저장하므로 기존 데이터에 9시간을 더하는
+마이그레이션은 실행하지 않습니다. 그렇게 하면 실제 시점이 중복으로 이동합니다.
+
 Transaction pooler의 포트 `6543`은 사용하지 않습니다. Spring JDBC와 Flyway가 세션 상태와
 prepared statement를 사용할 수 있으므로 Session pooler 포트 `5432`를 사용합니다.
 
