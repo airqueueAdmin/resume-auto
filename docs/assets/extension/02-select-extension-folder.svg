@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="500" viewBox="0 0 900 500" role="img" aria-labelledby="title desc">
+  <title id="title">압축 해제 후 extension 폴더 선택</title>
+  <desc id="desc">manifest.json이 들어 있는 extension 폴더를 선택하는 안내 그림</desc>
+  <rect width="900" height="500" rx="24" fill="#f8fafc"/>
+  <rect x="32" y="28" width="836" height="444" rx="18" fill="#ffffff" stroke="#dbe4f0" stroke-width="2"/>
+  <text x="74" y="92" fill="#172033" font-family="Arial, sans-serif" font-size="26" font-weight="700">2. 압축 해제 후 폴더 확인</text>
+  <rect x="74" y="125" width="500" height="270" rx="14" fill="#0f172a"/>
+  <text x="106" y="170" fill="#cbd5e1" font-family="Consolas, monospace" font-size="20">resume-auto-master/</text>
+  <text x="136" y="212" fill="#94a3b8" font-family="Consolas, monospace" font-size="19">README.md</text>
+  <text x="136" y="250" fill="#60a5fa" font-family="Consolas, monospace" font-size="20" font-weight="700">extension/</text>
+  <text x="188" y="288" fill="#86efac" font-family="Consolas, monospace" font-size="18">manifest.json</text>
+  <text x="188" y="322" fill="#cbd5e1" font-family="Consolas, monospace" font-size="18">background.js</text>
+  <text x="188" y="356" fill="#cbd5e1" font-family="Consolas, monospace" font-size="18">content.js</text>
+  <path d="M618 254 C670 254 670 254 735 254" fill="none" stroke="#2563eb" stroke-width="5" stroke-linecap="round"/>
+  <path d="M718 238 L738 254 L718 270" fill="none" stroke="#2563eb" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="602" y="185" width="202" height="140" rx="14" fill="#eff6ff" stroke="#93c5fd" stroke-width="2"/>
+  <text x="630" y="225" fill="#1d4ed8" font-family="Arial, sans-serif" font-size="18" font-weight="700">선택할 폴더</text>
+  <text x="630" y="260" fill="#334155" font-family="Consolas, monospace" font-size="17">.../extension</text>
+  <text x="630" y="288" fill="#475569" font-family="Arial, sans-serif" font-size="14">manifest.json이</text>
+  <text x="630" y="309" fill="#475569" font-family="Arial, sans-serif" font-size="14">바로 안에 있어야 함</text>
+  <rect x="74" y="420" width="730" height="28" rx="8" fill="#dcfce7"/>
+  <text x="94" y="440" fill="#166534" font-family="Arial, sans-serif" font-size="15">저장소 루트가 아니라 resume-auto-master/extension 폴더를 선택하세요.</text>
+</svg>

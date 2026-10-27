@@ -66,6 +66,7 @@ Completed design and implementation records are maintained separately from this 
 - [Phase 13 Step 3 record](docs/phases/phase-13-step-3.md)
 - [Phase 13 Step 4 record](docs/phases/phase-13-step-4.md)
 - [Chrome extension prototype README](extension/README.md)
+- [Chrome extension user installation guide](docs/runbooks/chrome-extension-user-guide.md)
 - [ADR 0011: detailed self-introduction sections](docs/adr/0011-detailed-self-introduction-sections.md)
 - [ADR 0012: reproducible full-stack containers](docs/adr/0012-reproducible-full-stack-containers.md)
 - [ADR 0003: validated RAG citations](docs/adr/0003-validated-rag-citations.md)
