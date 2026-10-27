@@ -12,4 +12,6 @@ public interface RefreshSessionRepository extends JpaRepository<RefreshSession, 
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     Optional<RefreshSession> findByTokenHash(String tokenHash);
+
+    void deleteAllByUser_Id(UUID userId);
 }

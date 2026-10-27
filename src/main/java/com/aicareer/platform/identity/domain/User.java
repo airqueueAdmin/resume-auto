@@ -86,6 +86,15 @@ public class User {
         updatedAt = now;
     }
 
+    public void delete(Instant now) {
+        if (deletedAt != null) {
+            return;
+        }
+        status = UserStatus.DELETED;
+        deletedAt = now;
+        updatedAt = now;
+    }
+
     public UUID getId() {
         return id;
     }

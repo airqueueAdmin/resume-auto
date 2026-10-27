@@ -1033,6 +1033,58 @@ class AiCareerPlatformApplicationTests {
     }
 
     @Test
+    void accountDeletionSoftDeletesUserAndRevokesAllRefreshSessions() throws Exception {
+        String email = uniqueEmail();
+        String password = "correct-password-123";
+        post("/api/v1/auth/signup", """
+                {
+                  "email": "%s",
+                  "password": "%s",
+                  "displayName": "Test User",
+                  "termsAccepted": true,
+                  "privacyAccepted": true
+                }
+                """.formatted(email, password));
+
+        HttpResponse<String> firstLogin = post("/api/v1/auth/login", """
+                {
+                  "email": "%s",
+                  "password": "%s"
+                }
+                """.formatted(email, password));
+        HttpResponse<String> secondLogin = post("/api/v1/auth/login", """
+                {
+                  "email": "%s",
+                  "password": "%s"
+                }
+                """.formatted(email, password));
+        String accessToken = jsonValue(firstLogin.body(), "accessToken");
+        String firstRefreshToken = jsonValue(firstLogin.body(), "refreshToken");
+        String secondRefreshToken = jsonValue(secondLogin.body(), "refreshToken");
+
+        HttpResponse<String> deletion = delete("/api/v1/account", accessToken);
+        HttpResponse<String> firstRefreshAfterDeletion = post("/api/v1/auth/refresh", """
+                {"refreshToken":"%s"}
+                """.formatted(firstRefreshToken));
+        HttpResponse<String> secondRefreshAfterDeletion = post("/api/v1/auth/refresh", """
+                {"refreshToken":"%s"}
+                """.formatted(secondRefreshToken));
+        HttpResponse<String> loginAfterDeletion = post("/api/v1/auth/login", """
+                {
+                  "email": "%s",
+                  "password": "%s"
+                }
+                """.formatted(email, password));
+        HttpResponse<String> currentUserAfterDeletion = get("/api/v1/users/me", accessToken);
+
+        assertThat(deletion.statusCode()).isEqualTo(204);
+        assertThat(firstRefreshAfterDeletion.statusCode()).isEqualTo(401);
+        assertThat(secondRefreshAfterDeletion.statusCode()).isEqualTo(401);
+        assertThat(loginAfterDeletion.statusCode()).isEqualTo(401);
+        assertThat(currentUserAfterDeletion.statusCode()).isEqualTo(404);
+    }
+
+    @Test
     void invalidSignupRequestReturnsValidationError() throws Exception {
         HttpResponse<String> response = post("/api/v1/auth/signup", """
                 {

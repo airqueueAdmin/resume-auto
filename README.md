@@ -520,11 +520,20 @@ $env:DB_URL = "jdbc:postgresql://localhost:55435/ai_career"
 | `POST /api/v1/auth/login` | Issue Access JWT and Refresh Session token | Public |
 | `POST /api/v1/auth/refresh` | Rotate a Refresh Session and issue new tokens | Public, refresh token required |
 | `POST /api/v1/auth/logout` | Revoke a Refresh Session | Public, refresh token required |
+| `DELETE /api/v1/account` | Soft delete the account and revoke all Refresh Sessions | Access JWT required |
 | `GET /api/v1/users/me` | Return the authenticated user | Access JWT required |
 
 Access JWTs are short-lived and stateless. Logout revokes the persisted Refresh Session, but an
-already-issued Access JWT remains valid until its expiration time. Refresh token plaintext values
-are returned only to the client; the database stores their SHA-256 hashes.
+already-issued Access JWT remains valid until its expiration time. Account deletion immediately
+marks the user as `DELETED`, removes all persisted Refresh Sessions, and prevents future login or
+refresh. Existing Access JWTs are still cryptographically valid until expiration, but user-owned
+service operations reject the deleted account. Refresh token plaintext values are returned only to
+the client; the database stores their SHA-256 hashes.
+
+Account deletion follows the current soft-delete policy. The deleted account and its career records
+remain in the database for operational recovery and audit handling, while the account is excluded from
+normal authentication and user-owned queries. The original email remains reserved by the existing
+unique email constraint.
 
 Signup requires explicit `termsAccepted: true` and `privacyAccepted: true`. The server records the
 configured policy versions and acceptance time in `user_consents`; it does not trust a client-supplied

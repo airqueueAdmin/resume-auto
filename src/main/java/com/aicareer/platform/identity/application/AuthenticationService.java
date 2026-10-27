@@ -3,6 +3,7 @@ package com.aicareer.platform.identity.application;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.Locale;
+import java.util.UUID;
 
 import com.aicareer.platform.identity.domain.RefreshSession;
 import com.aicareer.platform.identity.domain.User;
@@ -145,6 +146,16 @@ public class AuthenticationService {
         refreshSessionRepository.findByTokenHash(TokenHashing.sha256(rawRefreshToken))
                 .filter(session -> session.isActive(clock.instant()))
                 .ifPresent(session -> session.rotate(clock.instant()));
+    }
+
+    @Transactional
+    public void deleteAccount(UUID userId) {
+        User user = userRepository.findByIdAndDeletedAtIsNullForUpdate(userId)
+                .orElseThrow(UserNotFoundException::new);
+
+        Instant now = clock.instant();
+        refreshSessionRepository.deleteAllByUser_Id(userId);
+        user.delete(now);
     }
 
     private AuthenticationResult issueTokens(User user) {

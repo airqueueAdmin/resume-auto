@@ -20,5 +20,9 @@ public interface UserRepository extends JpaRepository<User, UUID> {
     @Query("select user from User user where user.email = :email and user.deletedAt is null")
     Optional<User> findByEmailAndDeletedAtIsNullForUpdate(@Param("email") String email);
 
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select user from User user where user.id = :id and user.deletedAt is null")
+    Optional<User> findByIdAndDeletedAtIsNullForUpdate(@Param("id") UUID id);
+
     Optional<User> findByIdAndDeletedAtIsNull(UUID id);
 }

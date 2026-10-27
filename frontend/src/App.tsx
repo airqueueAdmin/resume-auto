@@ -194,6 +194,12 @@ function App() {
     setUser(null)
   }
 
+  async function handleDeleteAccount() {
+    await request<void>('/v1/account', { method: 'DELETE' })
+    clearAuthentication()
+    setUser(null)
+  }
+
   if (isRestoringSession) {
     return <main className="verification-page"><section className="verification-card"><p>서비스 연결 상태를 확인하는 중입니다...</p></section></main>
   }
@@ -206,7 +212,7 @@ function App() {
       <Route path="/extension/connect" element={user ? <ExtensionConnectPage /> : <Navigate to="/login" replace state={{ from: '/extension/connect' }} />} />
       <Route path="/terms" element={<PolicyPage type="terms" />} />
       <Route path="/privacy" element={<PolicyPage type="privacy" />} />
-      <Route path="*" element={user ? <Dashboard user={user} onLogout={handleLogout} /> : <Navigate to="/login" replace />} />
+      <Route path="*" element={user ? <Dashboard user={user} onLogout={handleLogout} onDeleteAccount={handleDeleteAccount} /> : <Navigate to="/login" replace />} />
     </Routes>
   )
 }
@@ -444,16 +450,32 @@ function PolicyPage({ type }: { type: 'terms' | 'privacy' }) {
   </>}</article></main>
 }
 
-function Dashboard({ user, onLogout }: { user: User; onLogout: () => Promise<void> }) {
+function Dashboard({ user, onLogout, onDeleteAccount }: { user: User; onLogout: () => Promise<void>; onDeleteAccount: () => Promise<void> }) {
   const location = useLocation()
   const navigate = useNavigate()
   const [isLoggingOut, setIsLoggingOut] = useState(false)
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false)
   const careerSection = resolveCareerSection(location.pathname)
 
   async function logout() {
     setIsLoggingOut(true)
     await onLogout()
     navigate('/login')
+  }
+
+  async function deleteAccount() {
+    if (!window.confirm('회원탈퇴하면 계정에 다시 로그인할 수 없고 모든 로그인 세션이 종료됩니다. 저장한 커리어 데이터는 운영 정책에 따라 DB에 보존될 수 있습니다. 계속할까요?')) {
+      return
+    }
+    setIsDeletingAccount(true)
+    try {
+      await onDeleteAccount()
+      navigate('/login', { replace: true })
+    } catch (error) {
+      window.alert(error instanceof Error ? error.message : '회원탈퇴를 처리하지 못했습니다.')
+    } finally {
+      setIsDeletingAccount(false)
+    }
   }
 
   return (
@@ -470,7 +492,8 @@ function Dashboard({ user, onLogout }: { user: User; onLogout: () => Promise<voi
         <div className="sidebar-footer">
           <span className="avatar">{user.displayName.charAt(0)}</span>
           <div><strong>{user.displayName}</strong><small>{user.email}</small></div>
-          <button className="logout-button" onClick={logout} disabled={isLoggingOut} aria-label="로그아웃"><span aria-hidden="true">↪</span><small>로그아웃</small></button>
+          <button className="logout-button" onClick={() => void logout()} disabled={isLoggingOut || isDeletingAccount} aria-label="로그아웃"><span aria-hidden="true">↪</span><small>로그아웃</small></button>
+          <button className="account-delete-button" onClick={() => void deleteAccount()} disabled={isLoggingOut || isDeletingAccount} aria-label="회원탈퇴"><span aria-hidden="true">×</span><small>{isDeletingAccount ? '처리 중' : '회원탈퇴'}</small></button>
         </div>
       </aside>
       <main className="main-content">

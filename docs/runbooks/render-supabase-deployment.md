@@ -119,7 +119,8 @@ https://<web-service>.onrender.com/actuator/health/readiness
 6. JobPosting 생성·조회
 7. Resume과 immutable ResumeVersion 생성
 8. 로그아웃 후 Refresh Session 재사용 거부
-9. 다른 사용자의 리소스 ID에 대한 `404` 확인
+9. 회원탈퇴 후 재로그인·Refresh Session 재사용 거부
+10. 다른 사용자의 리소스 ID에 대한 `404` 확인
 
 Gemini 키를 설정한 경우 Job Description 분석을 추가로 확인합니다. 현재 배포 Blueprint는
 Ollama fallback을 비활성화합니다. 따라서 Ollama가 별도로 연결되지 않은 상태에서 embedding
