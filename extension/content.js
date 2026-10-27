@@ -2,6 +2,14 @@ const defaultServiceBaseUrl = 'https://career-note-web-sg.onrender.com'
 const legacyLocalServiceBaseUrls = new Set(['http://localhost:5173', 'http://127.0.0.1:5173'])
 const serviceBaseUrlMigrationKey = 'career-note.service-base-url-production-migrated'
 
+function isProductionService() {
+  try {
+    return new URL(serviceUrl?.value || defaultServiceBaseUrl).origin === new URL(defaultServiceBaseUrl).origin
+  } catch {
+    return false
+  }
+}
+
 const panelHost = document.createElement('div')
 panelHost.id = 'career-note-extension-host'
 document.documentElement.append(panelHost)
@@ -326,22 +334,29 @@ function renderPosting() {
   company.textContent = currentPosting.companyName
   const readStatus = document.createElement('div')
   readStatus.className = currentPosting.readStatus === 'COMPLETE' ? 'posting-read-status' : 'posting-read-warning'
+  const productionMode = isProductionService()
   const sourceLengths = [
     currentPosting.structuredDescriptionLength > 0 ? `구조화 정보 ${currentPosting.structuredDescriptionLength}자` : null,
     currentPosting.visibleDescriptionLength > 0 ? `화면 본문 ${currentPosting.visibleDescriptionLength}자` : null,
   ].filter(Boolean).join(' · ')
-  readStatus.textContent = currentPosting.readStatus === 'COMPLETE'
-    ? `공고 읽기 확인됨 · ${currentPosting.jobDescription.length}자 사용 · ${sourceLengths}`
-    : `공고 ${currentPosting.jobDescription.length}자 확인됨 · ${currentPosting.readSource}만 읽혀 추가 확인이 필요합니다.`
+  readStatus.textContent = productionMode
+    ? (currentPosting.readStatus === 'COMPLETE' ? '공고 읽기 확인됨' : '공고 내용을 충분히 읽지 못했습니다. 다시 읽어주세요.')
+    : currentPosting.readStatus === 'COMPLETE'
+      ? `공고 읽기 확인됨 · ${currentPosting.jobDescription.length}자 사용 · ${sourceLengths}`
+      : `공고 ${currentPosting.jobDescription.length}자 확인됨 · ${currentPosting.readSource}만 읽혀 추가 확인이 필요합니다.`
   const description = document.createElement('p')
   description.textContent = currentPosting.jobDescription
-  const details = document.createElement('details')
-  const summary = document.createElement('summary')
-  summary.textContent = `읽은 공고 원문 전체 보기 (${currentPosting.jobDescription.length}자)`
-  const fullText = document.createElement('pre')
-  fullText.textContent = currentPosting.jobDescription
-  details.append(summary, fullText)
-  posting.append(title, company, readStatus, description, details)
+  if (productionMode) {
+    posting.append(title, company, readStatus, description)
+  } else {
+    const details = document.createElement('details')
+    const summary = document.createElement('summary')
+    summary.textContent = `읽은 공고 원문 전체 보기 (${currentPosting.jobDescription.length}자)`
+    const fullText = document.createElement('pre')
+    fullText.textContent = currentPosting.jobDescription
+    details.append(summary, fullText)
+    posting.append(title, company, readStatus, description, details)
+  }
   updateAnswerButtons()
 }
 
@@ -377,7 +392,9 @@ function renderResumeDraft(response) {
   resumeDraftResult.append(heading)
   const meta = document.createElement('p')
   meta.className = 'resume-draft-meta'
-  meta.textContent = `공고 원문 ${response.jobDescriptionLength}자 확인 후 생성 · Career 근거 ${response.retrievedChunkCount}개 · 서비스에 자동 저장하지 않음`
+  meta.textContent = isProductionService()
+    ? `Career 근거 ${response.retrievedChunkCount}개 · 서비스에 자동 저장하지 않음`
+    : `공고 원문 ${response.jobDescriptionLength}자 확인 후 생성 · Career 근거 ${response.retrievedChunkCount}개 · 서비스에 자동 저장하지 않음`
   resumeDraftResult.append(meta)
   appendResumeDraftBlock('헤드라인', response.draft?.headline)
   appendResumeDraftBlock('요약', response.draft?.summary)

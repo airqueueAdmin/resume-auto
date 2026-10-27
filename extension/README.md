@@ -19,8 +19,9 @@ posting currently open in the tab is temporary request context and is not saved 
   short-lived access token in `chrome.storage.session` and never receives a refresh token.
 - Extracts the company, title, and description from the current JobKorea posting, preferring public
   `JobPosting` JSON-LD and falling back to visible page content.
-- Shows the extraction source, structured/page character counts, the captured character count, and an
-  expandable full-text preview so the user can verify the posting before generation.
+- In local/debug mode, shows the extraction source, structured/page character counts, the captured
+  character count, and an expandable full-text preview so development can verify the posting. The
+  production service hides these diagnostic details and the full-text preview from end users.
 - Checks whether the connected account has Experience/Project records and indexed retrieval evidence,
   and guides the user to Career management when preparation is incomplete.
 - Generates a structured review-only resume draft from the current unsaved posting, including headline,
@@ -44,8 +45,9 @@ posting currently open in the tab is temporary request context and is not saved 
 7. Enter the code in the bottom-right panel and choose **확장 프로그램 연결**.
 8. Confirm that **지원 답변 준비** shows Experience, Project, and indexed-evidence counts. If it is not
    ready, use **경력·프로젝트 관리**, add the source data, and run the service's custom-search-data update.
-9. Confirm that the current company and posting title are detected. Check **공고 읽기 확인됨**, compare the
-   structured/page character counts, and open **읽은 공고 원문 전체 보기** to verify the captured content.
+9. Confirm that the current company and posting title are detected. In local/debug mode, check
+   **공고 읽기 확인됨**, compare the structured/page character counts, and open **읽은 공고 원문 전체 보기**
+   to verify the captured content. The production service intentionally hides these diagnostic details.
 10. Choose **이 공고로 이력서 초안 생성** and review every generated section and Career citation. Then
    choose **검토 완료 · JobKorea 파일 준비**. This explicitly saves the reviewed draft as a new
    ResumeVersion and opens the service's Resume Workspace with the JobKorea export review flow.
