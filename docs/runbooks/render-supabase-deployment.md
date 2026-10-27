@@ -42,6 +42,12 @@ Supabase PostgreSQL의 확장 권한과 Flyway 오류를 먼저 확인합니다.
 3. 저장소를 연결하고 루트의 `render.yaml`을 사용합니다.
 4. Blueprint가 요구하는 비밀값을 Render Dashboard에서 입력합니다.
 
+현재 `render.yaml`은 `onCommit`으로 설정되어 있습니다. Render의 `After CI Checks Pass`는 새
+커밋에서 CI 체크가 하나라도 감지되고 모두 성공해야 배포하므로, 원격 CI가 아직 연결되지 않은
+초기 배포에서는 사용하지 않습니다. GitHub Actions 등 CI 체크가 실제로 실행되는 것을 확인한 뒤
+두 서비스의 `autoDeployTrigger`를 `checksPass`로 바꾸면 됩니다. CI 체크가 0개이면 Render는
+배포를 시작하지 않습니다.
+
 필수 비밀값:
 
 - `DB_URL`

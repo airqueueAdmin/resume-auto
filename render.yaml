@@ -6,7 +6,9 @@ services:
     dockerContext: .
     plan: free
     healthCheckPath: /actuator/health/readiness
-    autoDeployTrigger: checksPass
+    # Use onCommit until the repository has a remote CI check on every deploy commit.
+    # Switch to checksPass after CI is confirmed in GitHub/Render.
+    autoDeployTrigger: onCommit
     envVars:
       - key: SPRING_PROFILES_ACTIVE
         value: prod
@@ -50,7 +52,8 @@ services:
     dockerContext: ./frontend
     plan: free
     healthCheckPath: /
-    autoDeployTrigger: checksPass
+    # Keep the frontend aligned with the backend deployment gate.
+    autoDeployTrigger: onCommit
     envVars:
       - key: BACKEND_HOSTPORT
         fromService:
