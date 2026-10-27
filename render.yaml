@@ -34,6 +34,8 @@ services:
         value: "false"
       - key: EMAIL_VERIFICATION_HMAC_SECRET_BASE64
         generateValue: true
+      - key: EXTENSION_ALLOWED_ORIGIN_PATTERNS
+        value: "chrome-extension://*"
       - key: AI_PROVIDER
         value: gemini
       - key: AI_RESUME_DRAFT_PROVIDER

@@ -7,7 +7,7 @@ posting currently open in the tab is temporary request context and is not saved 
 ## Current scope
 
 - Manifest V3 extension with `activeTab`, `scripting`, and `storage` permissions plus narrowly scoped
-  JobKorea and local-service host access required for the automatic page panel.
+  JobKorea, local-service, and production-service host access required for the automatic page panel.
 - Recognizes JobKorea pages and shows a ChannelTalk-style circular Career Note launcher fixed above the
   lower-right JobKorea chatbot safe area. Clicking it opens the panel, which stays within the viewport,
   keeps its header and close button visible, and
@@ -38,7 +38,8 @@ posting currently open in the tab is temporary request context and is not saved 
 2. Open `chrome://extensions`, enable Developer mode, and choose **Load unpacked**.
 3. Select the `extension` directory. After code changes, click the extension's **Reload** button.
 4. Refresh the JobKorea page. The **Career Note** button should appear in the bottom-right corner.
-5. Open the panel and set the service address to `http://localhost:5173` for local Docker if needed.
+5. The default service address is `https://career-note-web-sg.onrender.com`. For local Docker testing,
+   replace it with `http://localhost:5173`.
 6. Choose **연결 코드 발급**, sign in to the service tab if requested, and issue the one-time code.
 7. Enter the code in the bottom-right panel and choose **확장 프로그램 연결**.
 8. Confirm that **지원 답변 준비** shows Experience, Project, and indexed-evidence counts. If it is not
@@ -67,5 +68,6 @@ Clicking the Chrome toolbar action toggles the same in-page panel; there is no s
 saved-JobPosting selection popup.
 
 The backend permits extension API calls from Chrome extension origins and the local web service origins
-`http://localhost:5173` and `http://127.0.0.1:5173`. Deployments must set
-`EXTENSION_ALLOWED_ORIGIN_PATTERNS` to the deployed service origin plus `chrome-extension://*`.
+`http://localhost:5173` and `http://127.0.0.1:5173`. The Render backend should keep
+`EXTENSION_ALLOWED_ORIGIN_PATTERNS` configured with `chrome-extension://*`; the extension's production
+requests go through `https://career-note-web-sg.onrender.com` and its Nginx `/api` proxy.

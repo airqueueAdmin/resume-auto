@@ -44,8 +44,8 @@ submission remain out of scope for this step.
 
 ## Known limitations
 
-- The local popup defaults to `http://localhost:5173`; a deployed service URL must be configured by the
-  user until a distribution-specific settings flow is added.
+- The extension defaults to the deployed Render frontend URL; local Docker users can replace it with
+  `http://localhost:5173` in the service address field.
 - Evidence retrieval requires the user's career embeddings to be indexed and does not yet generate an
   answer for each detected field.
 - Field detection remains generic; JobKorea semantic adapters and rich-text handling are later work.

@@ -1,3 +1,7 @@
+const defaultServiceBaseUrl = 'https://career-note-web-sg.onrender.com'
+const legacyLocalServiceBaseUrls = new Set(['http://localhost:5173', 'http://127.0.0.1:5173'])
+const serviceBaseUrlMigrationKey = 'career-note.service-base-url-production-migrated'
+
 const panelHost = document.createElement('div')
 panelHost.id = 'career-note-extension-host'
 document.documentElement.append(panelHost)
@@ -97,7 +101,7 @@ shadowRoot.innerHTML = `
     </div>
     <section class="section">
       <h2>서비스 연결</h2>
-      <label>서비스 주소<input id="service-url" type="url" value="http://localhost:5173" autocomplete="url"></label>
+      <label>서비스 주소<input id="service-url" type="url" value="${defaultServiceBaseUrl}" autocomplete="url"></label>
       <div class="actions"><button class="secondary" id="save-url" type="button">주소 저장</button><button class="secondary" id="open-connect" type="button">연결 코드 발급</button></div>
       <label>연결 코드<input id="code" type="text" inputmode="text" autocomplete="one-time-code" placeholder="서비스에서 발급한 코드"></label>
       <div class="actions single"><button id="exchange" type="button">확장 프로그램 연결</button></div>
@@ -797,7 +801,10 @@ function openServiceConnectPage() {
     setConnectionStatus('새 탭이 차단되었습니다. 브라우저에서 팝업을 허용해주세요.')
     return
   }
-  void chrome.storage.local.set({ 'career-note.service-base-url': baseUrl })
+  void chrome.storage.local.set({
+    'career-note.service-base-url': baseUrl,
+    [serviceBaseUrlMigrationKey]: true,
+  })
   connectWindow.opener = null
   connectWindow.location.href = `${baseUrl}/extension/connect`
   setConnectionStatus('서비스 연결 페이지를 새 탭으로 열었습니다. 로그인 후 코드를 발급해주세요.')
@@ -848,8 +855,18 @@ chrome.runtime.onMessage.addListener((message) => {
   }
 })
 
-chrome.storage.local.get('career-note.service-base-url').then((saved) => {
-  if (saved['career-note.service-base-url']) serviceUrl.value = saved['career-note.service-base-url']
+chrome.storage.local.get(['career-note.service-base-url', serviceBaseUrlMigrationKey]).then((saved) => {
+  const savedValue = String(saved['career-note.service-base-url'] || '').replace(/\/$/, '')
+  const value = savedValue && !(legacyLocalServiceBaseUrls.has(savedValue) && !saved[serviceBaseUrlMigrationKey])
+    ? savedValue
+    : defaultServiceBaseUrl
+  serviceUrl.value = value
+  if (savedValue !== value || !saved[serviceBaseUrlMigrationKey]) {
+    void chrome.storage.local.set({
+      'career-note.service-base-url': value,
+      [serviceBaseUrlMigrationKey]: true,
+    })
+  }
 })
 
 setTimeout(() => { void loadWorkspace() }, 0)

@@ -15,6 +15,9 @@ const generateAnswerButton = document.querySelector('#generate-answer')
 const contextElement = document.querySelector('#context')
 
 const localSettingsKey = 'career-note.service-base-url'
+const defaultServiceBaseUrl = 'https://career-note-web-sg.onrender.com'
+const legacyLocalServiceBaseUrls = new Set(['http://localhost:5173', 'http://127.0.0.1:5173'])
+const serviceBaseUrlMigrationKey = 'career-note.service-base-url-production-migrated'
 const accessTokenKey = 'career-note.access-token'
 const accessTokenExpiresAtKey = 'career-note.access-token-expires-at'
 const sessionKeys = [accessTokenKey, accessTokenExpiresAtKey]
@@ -37,11 +40,17 @@ function normalizeServiceBaseUrl(value) {
 async function serviceBaseUrl() {
   const currentValue = normalizeServiceBaseUrl(serviceBaseUrlElement.value)
   if (currentValue) {
-    await chrome.storage.local.set({ [localSettingsKey]: currentValue })
+    await chrome.storage.local.set({ [localSettingsKey]: currentValue, [serviceBaseUrlMigrationKey]: true })
     return currentValue
   }
-  const saved = await chrome.storage.local.get(localSettingsKey)
-  return normalizeServiceBaseUrl(saved[localSettingsKey] || 'http://localhost:5173')
+  const saved = await chrome.storage.local.get([localSettingsKey, serviceBaseUrlMigrationKey])
+  const savedValue = normalizeServiceBaseUrl(saved[localSettingsKey] || '')
+  const value = savedValue && !(legacyLocalServiceBaseUrls.has(savedValue) && !saved[serviceBaseUrlMigrationKey])
+    ? savedValue
+    : defaultServiceBaseUrl
+  await chrome.storage.local.set({ [localSettingsKey]: value, [serviceBaseUrlMigrationKey]: true })
+  serviceBaseUrlElement.value = value
+  return value
 }
 
 async function sessionAccessToken() {
@@ -415,8 +424,15 @@ function fillVisibleField(index, value) {
 }
 
 async function initialize() {
-  const saved = await chrome.storage.local.get(localSettingsKey)
-  serviceBaseUrlElement.value = saved[localSettingsKey] || 'http://localhost:5173'
+  const saved = await chrome.storage.local.get([localSettingsKey, serviceBaseUrlMigrationKey])
+  const savedValue = normalizeServiceBaseUrl(saved[localSettingsKey] || '')
+  const value = savedValue && !(legacyLocalServiceBaseUrls.has(savedValue) && !saved[serviceBaseUrlMigrationKey])
+    ? savedValue
+    : defaultServiceBaseUrl
+  serviceBaseUrlElement.value = value
+  if (savedValue !== value || !saved[serviceBaseUrlMigrationKey]) {
+    await chrome.storage.local.set({ [localSettingsKey]: value, [serviceBaseUrlMigrationKey]: true })
+  }
   if (await sessionAccessToken()) {
     await loadResumeVersions().catch((error) => setConnectionStatus(error instanceof Error ? error.message : '연결 상태를 확인하지 못했습니다.'))
   }

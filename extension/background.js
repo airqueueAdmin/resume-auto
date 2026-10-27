@@ -1,11 +1,21 @@
-const defaultServiceBaseUrl = 'http://localhost:5173'
+const defaultServiceBaseUrl = 'https://career-note-web-sg.onrender.com'
+const legacyLocalServiceBaseUrls = new Set(['http://localhost:5173', 'http://127.0.0.1:5173'])
 const serviceBaseUrlKey = 'career-note.service-base-url'
+const serviceBaseUrlMigrationKey = 'career-note.service-base-url-production-migrated'
 const accessTokenKey = 'career-note.access-token'
 const accessTokenExpiresAtKey = 'career-note.access-token-expires-at'
 
 async function serviceBaseUrl() {
-  const saved = await chrome.storage.local.get(serviceBaseUrlKey)
-  return String(saved[serviceBaseUrlKey] || defaultServiceBaseUrl).replace(/\/$/, '')
+  const saved = await chrome.storage.local.get([serviceBaseUrlKey, serviceBaseUrlMigrationKey])
+  const value = String(saved[serviceBaseUrlKey] || '').replace(/\/$/, '')
+  if (!value || (legacyLocalServiceBaseUrls.has(value) && !saved[serviceBaseUrlMigrationKey])) {
+    await chrome.storage.local.set({
+      [serviceBaseUrlKey]: defaultServiceBaseUrl,
+      [serviceBaseUrlMigrationKey]: true,
+    })
+    return defaultServiceBaseUrl
+  }
+  return value
 }
 
 async function accessToken() {
@@ -51,7 +61,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   if (message?.type === 'career-note-set-service-url') {
     const value = String(message.value || defaultServiceBaseUrl).replace(/\/$/, '')
-    chrome.storage.local.set({ [serviceBaseUrlKey]: value })
+    chrome.storage.local.set({ [serviceBaseUrlKey]: value, [serviceBaseUrlMigrationKey]: true })
       .then(() => sendResponse({ ok: true }))
       .catch((error) => sendResponse({ ok: false, error: error instanceof Error ? error.message : '서비스 주소를 저장하지 못했습니다.' }))
     return true
