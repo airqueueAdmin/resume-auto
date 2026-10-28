@@ -394,6 +394,9 @@ Configuration is externalized through environment variables:
 - `GEMINI_MAX_ATTEMPTS`: total Gemini attempts per request, default `1`
 - `GEMINI_RETRY_DELAY`: delay between transient Gemini retries, default `PT0.1S`
 - `GEMINI_MAX_OUTPUT_TOKENS`: Gemini OCR output budget, default `4096`; resume fallback uses `AI_RESUME_DRAFT_MAX_OUTPUT_TOKENS`
+- `RETRIEVAL_EMBEDDING_PROVIDER`: embedding provider, `ollama` for local development or `gemini` for a hosted provider; default `ollama`
+- `GEMINI_EMBEDDING_MODEL`: Gemini embedding model, default `gemini-embedding-001`
+- `GEMINI_EMBEDDING_DIMENSIONS`: Gemini embedding output dimensions, default `768`; keep this aligned with the PostgreSQL vector schema
 - `OLLAMA_EMBEDDING_URL`: local Ollama embedding URL, default `http://localhost:11434/api/embed`
 - `OLLAMA_EMBEDDING_MODEL`: local embedding model, default `nomic-embed-text`
 - `OLLAMA_EMBEDDING_DIMENSIONS`: expected embedding dimensions, default `768`
@@ -409,6 +412,12 @@ answer generation. Set `GEMINI_API_KEY` on the backend before using these featur
 `AI_PROVIDER=ollama` for local text generation or `AI_PROVIDER=openai` for OpenAI. Gemini-backed
 requests send job posting content and retrieved career evidence to Google's API; configure a provider
 that matches your data-handling requirements.
+
+Retrieval embeddings are provider-specific vectors. Local Compose uses Ollama by default, while the
+Render Blueprint selects Gemini `gemini-embedding-001` with 768 dimensions so the career review can
+re-index without requiring an Ollama server. Changing the embedding model or dimension requires a
+full re-index of each user's Experience and Project data; do not mix vectors from different embedding
+spaces in the same `embedding_chunks` table.
 
 Image-only JobKorea postings also use the Gemini API for OCR during import preview. Each
 detail image is downloaded by the backend and sent as an independent Gemini OCR request; successful

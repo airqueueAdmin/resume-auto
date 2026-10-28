@@ -73,6 +73,17 @@ Supabase PostgreSQL의 확장 권한과 Flyway 오류를 먼저 확인합니다.
 - `RESEND_API_KEY`
 - `EMAIL_FROM_ADDRESS`
 
+Retrieval indexing uses the same backend-only Gemini key on Render. The Blueprint sets:
+
+```text
+RETRIEVAL_EMBEDDING_PROVIDER=gemini
+GEMINI_EMBEDDING_MODEL=gemini-embedding-001
+GEMINI_EMBEDDING_DIMENSIONS=768
+```
+
+This avoids a dependency on a local Ollama process. If the embedding provider or dimension changes,
+re-index the active career data before using matching or resume generation.
+
 `JWT_SECRET_BASE64`와 `EMAIL_VERIFICATION_HMAC_SECRET_BASE64`는 Blueprint의
 `generateValue`로 생성됩니다. 생성 후 값을 코드나 문서에 복사하지 않습니다.
 

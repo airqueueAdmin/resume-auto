@@ -30,8 +30,9 @@ introduced as a second identity boundary.
   network. Use SSL and do not use the transaction pooler for the application or Flyway migrations.
 - Keep Gemini/OpenAI provider keys server-side in Render environment variables. Do not put secrets in
   the frontend bundle or repository.
-- Disable local Ollama fallbacks in the Render environment. Retrieval indexing and RAG flows require a
-  separately reachable embedding endpoint until a hosted embedding boundary is deliberately added.
+- Disable local Ollama fallbacks in the Render environment. Select Gemini `gemini-embedding-001` with
+  768 output dimensions for retrieval indexing so the free Render service does not depend on a local
+  Ollama process. Keep the Gemini API key server-side.
 - Use Render Blueprint configuration in `render.yaml`; do not create a Render Postgres resource because
   the free Render Postgres database expires after 30 days.
 
@@ -52,8 +53,9 @@ introduced as a second identity boundary.
   provide downloadable managed backups. The service is therefore a portfolio/demo deployment, not a
   production availability or recovery promise.
 - The external database introduces network latency and a provider dependency.
-- The current embedding adapter targets Ollama. AI flows that require embeddings remain unavailable
-  unless an external Ollama embedding endpoint is configured.
+- Render retrieval indexing uses Gemini embeddings, while local development defaults to Ollama. The
+  embedding model and dimension are part of the vector contract; changing providers or models requires
+  a full re-index of the user's Experience and Project data.
 - A future migration away from Supabase must preserve PostgreSQL compatibility and be performed through
   an explicit backup/export and Flyway verification process.
 

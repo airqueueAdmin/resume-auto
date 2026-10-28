@@ -217,7 +217,17 @@ async function refreshCareerSearchData() {
 }
 
 function indexingFailureMessage(error: unknown) {
-  return error instanceof Error ? error.message : '맞춤 검색 데이터를 업데이트하지 못했습니다.'
+  const apiError = error as ApiError
+  switch (apiError.code) {
+    case 'EMBEDDING_PROVIDER_UNAVAILABLE':
+      return '맞춤 검색 제공업체에 연결할 수 없습니다. 잠시 후 다시 시도해주세요.'
+    case 'EMBEDDING_PROVIDER_REQUEST_FAILED':
+      return '맞춤 검색 제공업체가 요청을 거부했습니다. 관리자에게 API 설정을 확인해달라고 알려주세요.'
+    case 'EMBEDDING_PROVIDER_INVALID_RESPONSE':
+      return '맞춤 검색 제공업체의 응답을 처리하지 못했습니다. 임베딩 모델 설정을 확인해주세요.'
+    default:
+      return error instanceof Error ? error.message : '맞춤 검색 데이터를 업데이트하지 못했습니다.'
+  }
 }
 
 function saveAuthentication(result: AuthenticationResponse) {
@@ -1967,7 +1977,7 @@ function CareerDataReviewModal({ title, continueLabel, reindexBeforeContinue = f
       await request<EmbeddingIndexResponse>('/v1/retrieval/index', { method: 'POST' })
       onContinue()
     } catch (indexError) {
-      setContinueError(indexError instanceof Error ? indexError.message : '최신 Career 검색 데이터를 준비하지 못했습니다.')
+      setContinueError(indexingFailureMessage(indexError))
       setIsPreparing(false)
     }
   }
