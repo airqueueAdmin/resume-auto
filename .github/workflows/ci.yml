@@ -80,6 +80,21 @@ jobs:
       - name: Check out source
         uses: actions/checkout@v4.2.2
 
+      - name: Generate ephemeral Compose secrets
+        shell: bash
+        run: |
+          generate_secret() {
+            local name="$1"
+            local value
+            value="$(openssl rand -base64 32)"
+            echo "::add-mask::$value"
+            echo "$name=$value" >> "$GITHUB_ENV"
+          }
+
+          generate_secret JWT_SECRET_BASE64
+          generate_secret DATA_ENCRYPTION_KEY_BASE64
+          generate_secret EMAIL_VERIFICATION_HMAC_SECRET_BASE64
+
       - name: Validate Compose configuration
         run: docker compose config --quiet
 
@@ -94,6 +109,21 @@ jobs:
     steps:
       - name: Check out source
         uses: actions/checkout@v4.2.2
+
+      - name: Generate ephemeral Compose secrets
+        shell: bash
+        run: |
+          generate_secret() {
+            local name="$1"
+            local value
+            value="$(openssl rand -base64 32)"
+            echo "::add-mask::$value"
+            echo "$name=$value" >> "$GITHUB_ENV"
+          }
+
+          generate_secret JWT_SECRET_BASE64
+          generate_secret DATA_ENCRYPTION_KEY_BASE64
+          generate_secret EMAIL_VERIFICATION_HMAC_SECRET_BASE64
 
       - name: Build backend and frontend images
         run: docker compose build backend frontend
