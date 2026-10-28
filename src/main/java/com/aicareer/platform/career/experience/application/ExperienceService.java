@@ -2,6 +2,8 @@ package com.aicareer.platform.career.experience.application;
 
 import java.time.Clock;
 import java.time.Instant;
+import java.util.Comparator;
+import java.util.List;
 import java.util.UUID;
 
 import com.aicareer.platform.career.application.CareerResourceNotFoundException;
@@ -12,6 +14,7 @@ import com.aicareer.platform.identity.application.UserNotFoundException;
 import com.aicareer.platform.identity.domain.User;
 import com.aicareer.platform.identity.infrastructure.persistence.UserRepository;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -55,7 +58,21 @@ public class ExperienceService {
     @Transactional(readOnly = true)
     public Page<Experience> list(UUID userId, Pageable pageable) {
         requireActiveUser(userId);
-        return experienceRepository.findAllByUser_IdAndDeletedAtIsNull(userId, pageable);
+        // startDate/endDate are encrypted at rest, so PostgreSQL cannot safely sort them.
+        // Decrypting only this user's rows and applying the existing business order here
+        // preserves pagination without exposing a plaintext sort column in the database.
+        List<Experience> all = experienceRepository.findAllByUser_IdAndDeletedAtIsNull(userId).stream()
+                .sorted(Comparator
+                        .comparing(Experience::getStartDate, Comparator.nullsLast(Comparator.reverseOrder()))
+                        .thenComparing(Experience::isCurrentlyEmployed, Comparator.reverseOrder())
+                        .thenComparing(Experience::getEndDate, Comparator.nullsLast(Comparator.reverseOrder()))
+                        .thenComparing(Experience::getId, Comparator.reverseOrder()))
+                .toList();
+
+        long offset = pageable.getOffset();
+        int from = offset >= all.size() ? all.size() : (int) offset;
+        int to = Math.min(from + pageable.getPageSize(), all.size());
+        return new PageImpl<>(all.subList(from, to), pageable, all.size());
     }
 
     @Transactional(readOnly = true)

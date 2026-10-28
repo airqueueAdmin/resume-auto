@@ -2,10 +2,16 @@ spring:
   config:
     activate:
       on-profile: test
+  flyway:
+    placeholders:
+      data-encryption-key-base64: ${DATA_ENCRYPTION_KEY_BASE64:REDACTED_HISTORY_VALUE}
   jpa:
     show-sql: false
 
 app:
+  security:
+    data-encryption:
+      key-base64: ${DATA_ENCRYPTION_KEY_BASE64:REDACTED_HISTORY_VALUE}
   ai:
     provider: openai
   rate-limit:

@@ -2,6 +2,7 @@ package com.aicareer.platform.identity.application;
 
 import java.time.Clock;
 
+import com.aicareer.platform.identity.infrastructure.security.TokenHashing;
 import com.aicareer.platform.shared.ratelimit.InMemoryRateLimiter;
 import com.aicareer.platform.shared.ratelimit.RateLimitProperties;
 import org.springframework.stereotype.Component;
@@ -34,7 +35,7 @@ public class EmailVerificationRateLimiter {
         String normalizedAddress = clientAddress == null || clientAddress.isBlank()
                 ? "unknown"
                 : clientAddress.trim();
-        clientRequestLimiter.check("email-verification:client:" + normalizedAddress);
+        clientRequestLimiter.check("email-verification:client:" + TokenHashing.sha256(normalizedAddress));
     }
 
     public void checkDelivery() {

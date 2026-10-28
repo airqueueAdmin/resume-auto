@@ -44,6 +44,7 @@ import com.aicareer.platform.job.infrastructure.persistence.JobPostingRepository
 import com.aicareer.platform.retrieval.application.EmbeddingChunkSearchResult;
 import com.aicareer.platform.retrieval.domain.SourceType;
 import com.aicareer.platform.retrieval.infrastructure.persistence.EmbeddingChunkRepository;
+import com.aicareer.platform.shared.security.DataEncryption;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 @SpringBootTest(webEnvironment = WebEnvironment.RANDOM_PORT)
@@ -145,7 +146,7 @@ class AiCareerPlatformApplicationTests {
     @Test
     void flywayAppliesIdentityCareerResumeJobPostingAiMatchingResumeDraftAndToolMigrations() throws Exception {
         assertThat(flyway.info().pending()).isEmpty();
-        assertThat(flyway.info().applied()).hasSize(21);
+        assertThat(flyway.info().applied()).hasSize(23);
 
         try (Connection connection = dataSource.getConnection();
                 Statement statement = connection.createStatement();
@@ -909,11 +910,11 @@ class AiCareerPlatformApplicationTests {
                         select count(*)
                         from user_consents consent
                         join users user_account on user_account.id = consent.user_id
-                        where user_account.email = ?
+                        where user_account.email_hash = ?
                           and consent.terms_version = '2026-10-21'
                           and consent.privacy_version = '2026-10-21'
                         """)) {
-            statement.setString(1, email);
+            statement.setString(1, DataEncryption.blindIndex(email));
             try (ResultSet resultSet = statement.executeQuery()) {
                 assertThat(resultSet.next()).isTrue();
                 assertThat(resultSet.getInt(1)).isEqualTo(1);

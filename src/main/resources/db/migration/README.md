@@ -1,7 +1,7 @@
 # Database migrations
 
 Flyway owns the application schema. Add immutable versioned migrations here using
-`V<version>__<description>.sql`, for example `V1__create_users.sql`.
+`V<version>__<description>.sql` or Java, for example `V1__create_users.sql`.
 
 The current migration history contains the identity, Experience/Project, Resume/ResumeVersion,
 JobPosting, immutable AI job analysis, pgvector embedding chunks, immutable grounded job matches, and
@@ -33,6 +33,13 @@ queryable artifact-level list of the referenced chunks.
 `ResumeVersion`. Draft generation cannot overwrite user-authored resume content. Phase 5 approval is
 an explicit API operation that creates a new `ResumeVersion` from the stored JSON artifact; it does
 not require a schema mutation and never updates an existing version.
+
+`V22__encrypt_personal_data.java` applies application-level AES-GCM protection to personal and
+derived text columns. JSON artifacts become encrypted text and are parsed only after decryption;
+the migration also creates the encrypted-email blind index used by authentication.
+
+`V23__encrypt_employment_status.java` extends the same protection to the employment-status field
+and keeps the existing career response contract through an encrypted boolean converter.
 
 `V10__remove_experience_dates.sql` retires employment start/end dates from the Experience API and
 domain. Existing database values are retained in nullable legacy columns for backward compatibility;

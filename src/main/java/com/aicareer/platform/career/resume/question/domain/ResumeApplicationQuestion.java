@@ -5,7 +5,9 @@ import java.util.UUID;
 
 import com.aicareer.platform.career.resume.domain.Resume;
 import com.aicareer.platform.job.domain.JobPosting;
+import com.aicareer.platform.shared.security.EncryptedStringConverter;
 import jakarta.persistence.Column;
+import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.Id;
@@ -28,9 +30,11 @@ public class ResumeApplicationQuestion {
     @JoinColumn(name = "job_posting_id")
     private JobPosting jobPosting;
 
-    @Column(nullable = false, length = 2000)
+    @Convert(converter = EncryptedStringConverter.class)
+    @Column(nullable = false, columnDefinition = "text")
     private String question;
 
+    @Convert(converter = EncryptedStringConverter.class)
     @Column(nullable = false, columnDefinition = "text")
     private String answer;
 

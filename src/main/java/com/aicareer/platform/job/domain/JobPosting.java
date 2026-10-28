@@ -4,7 +4,9 @@ import java.time.Instant;
 import java.util.UUID;
 
 import com.aicareer.platform.identity.domain.User;
+import com.aicareer.platform.shared.security.EncryptedStringConverter;
 import jakarta.persistence.Column;
+import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.Id;
@@ -23,16 +25,20 @@ public class JobPosting {
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
-    @Column(nullable = false, length = 200)
+    @Convert(converter = EncryptedStringConverter.class)
+    @Column(nullable = false, columnDefinition = "text")
     private String title;
 
-    @Column(name = "company_name", nullable = false, length = 200)
+    @Convert(converter = EncryptedStringConverter.class)
+    @Column(name = "company_name", nullable = false, columnDefinition = "text")
     private String companyName;
 
+    @Convert(converter = EncryptedStringConverter.class)
     @Column(nullable = false, columnDefinition = "text")
     private String description;
 
-    @Column(name = "source_url", length = 2048)
+    @Convert(converter = EncryptedStringConverter.class)
+    @Column(name = "source_url", columnDefinition = "text")
     private String sourceUrl;
 
     @Column(name = "created_at", nullable = false)

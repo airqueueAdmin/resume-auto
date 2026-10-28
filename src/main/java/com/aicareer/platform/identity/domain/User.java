@@ -3,7 +3,9 @@ package com.aicareer.platform.identity.domain;
 import java.time.Instant;
 import java.util.UUID;
 
+import com.aicareer.platform.shared.security.EncryptedStringConverter;
 import jakarta.persistence.Column;
+import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
@@ -17,13 +19,18 @@ public class User {
     @Id
     private UUID id;
 
-    @Column(nullable = false, length = 320, unique = true)
+    @Convert(converter = EncryptedStringConverter.class)
+    @Column(nullable = false, columnDefinition = "text")
     private String email;
+
+    @Column(name = "email_hash", nullable = false, length = 64, unique = true)
+    private String emailHash;
 
     @Column(name = "password_hash", nullable = false, length = 100)
     private String passwordHash;
 
-    @Column(name = "display_name", nullable = false, length = 100)
+    @Convert(converter = EncryptedStringConverter.class)
+    @Column(name = "display_name", nullable = false, columnDefinition = "text")
     private String displayName;
 
     @Enumerated(EnumType.STRING)
@@ -45,9 +52,10 @@ public class User {
     protected User() {
     }
 
-    private User(String email, String passwordHash, String displayName, UserStatus status, Instant now) {
+    private User(String email, String emailHash, String passwordHash, String displayName, UserStatus status, Instant now) {
         this.id = UUID.randomUUID();
         this.email = email;
+        this.emailHash = emailHash;
         this.passwordHash = passwordHash;
         this.displayName = displayName;
         this.status = status;
@@ -57,7 +65,27 @@ public class User {
     }
 
     public static User create(String email, String passwordHash, String displayName, Instant now) {
-        return new User(email, passwordHash, displayName, UserStatus.ACTIVE, now);
+        return new User(email, null, passwordHash, displayName, UserStatus.ACTIVE, now);
+    }
+
+    public static User create(
+            String email,
+            String emailHash,
+            String passwordHash,
+            String displayName,
+            Instant now
+    ) {
+        return new User(email, emailHash, passwordHash, displayName, UserStatus.ACTIVE, now);
+    }
+
+    public static User createPendingEmailVerification(
+            String email,
+            String emailHash,
+            String passwordHash,
+            String displayName,
+            Instant now
+    ) {
+        return new User(email, emailHash, passwordHash, displayName, UserStatus.PENDING_EMAIL_VERIFICATION, now);
     }
 
     public static User createPendingEmailVerification(
@@ -66,7 +94,7 @@ public class User {
             String displayName,
             Instant now
     ) {
-        return new User(email, passwordHash, displayName, UserStatus.PENDING_EMAIL_VERIFICATION, now);
+        return new User(email, null, passwordHash, displayName, UserStatus.PENDING_EMAIL_VERIFICATION, now);
     }
 
     public boolean canAuthenticate() {
@@ -101,6 +129,10 @@ public class User {
 
     public String getEmail() {
         return email;
+    }
+
+    public String getEmailHash() {
+        return emailHash;
     }
 
     public String getPasswordHash() {

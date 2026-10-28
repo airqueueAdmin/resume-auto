@@ -5,7 +5,10 @@ import java.time.LocalDate;
 import java.util.UUID;
 
 import com.aicareer.platform.identity.domain.User;
+import com.aicareer.platform.shared.security.EncryptedStringConverter;
+import com.aicareer.platform.shared.security.EncryptedLocalDateConverter;
 import jakarta.persistence.Column;
+import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.Id;
@@ -24,28 +27,36 @@ public class Project {
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
-    @Column(nullable = false, length = 200)
+    @Convert(converter = EncryptedStringConverter.class)
+    @Column(nullable = false, columnDefinition = "text")
     private String name;
 
-    @Column(nullable = false, length = 200)
+    @Convert(converter = EncryptedStringConverter.class)
+    @Column(nullable = false, columnDefinition = "text")
     private String role;
 
-    @Column(name = "start_date")
+    @Convert(converter = EncryptedLocalDateConverter.class)
+    @Column(name = "start_date", columnDefinition = "text")
     private LocalDate startDate;
 
-    @Column(name = "end_date")
+    @Convert(converter = EncryptedLocalDateConverter.class)
+    @Column(name = "end_date", columnDefinition = "text")
     private LocalDate endDate;
 
+    @Convert(converter = EncryptedStringConverter.class)
     @Column(nullable = false, columnDefinition = "text")
     private String description;
 
-    @Column(name = "tech_stack", nullable = false, length = 1000)
+    @Convert(converter = EncryptedStringConverter.class)
+    @Column(name = "tech_stack", nullable = false, columnDefinition = "text")
     private String techStack;
 
-    @Column(name = "customer_or_domain", length = 300)
+    @Convert(converter = EncryptedStringConverter.class)
+    @Column(name = "customer_or_domain", columnDefinition = "text")
     private String customerOrDomain;
 
-    @Column(name = "repository_url", length = 2048)
+    @Convert(converter = EncryptedStringConverter.class)
+    @Column(name = "repository_url", columnDefinition = "text")
     private String repositoryUrl;
 
     @Column(name = "created_at", nullable = false)

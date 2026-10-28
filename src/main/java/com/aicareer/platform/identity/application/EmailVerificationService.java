@@ -9,6 +9,7 @@ import com.aicareer.platform.identity.domain.User;
 import com.aicareer.platform.identity.infrastructure.persistence.EmailVerificationCodeRepository;
 import com.aicareer.platform.identity.infrastructure.persistence.UserRepository;
 import com.aicareer.platform.identity.infrastructure.security.EmailVerificationCodeHasher;
+import com.aicareer.platform.shared.security.DataEncryptionService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -23,6 +24,7 @@ public class EmailVerificationService {
     private final EmailVerificationProperties properties;
     private final EmailVerificationRateLimiter rateLimiter;
     private final Clock clock;
+    private final DataEncryptionService dataEncryptionService;
 
     public EmailVerificationService(
             UserRepository userRepository,
@@ -32,7 +34,8 @@ public class EmailVerificationService {
             EmailVerificationCodeHasher codeHasher,
             EmailVerificationProperties properties,
             EmailVerificationRateLimiter rateLimiter,
-            Clock clock
+            Clock clock,
+            DataEncryptionService dataEncryptionService
     ) {
         this.userRepository = userRepository;
         this.codeRepository = codeRepository;
@@ -42,6 +45,7 @@ public class EmailVerificationService {
         this.properties = properties;
         this.rateLimiter = rateLimiter;
         this.clock = clock;
+        this.dataEncryptionService = dataEncryptionService;
     }
 
     @Transactional
@@ -58,7 +62,9 @@ public class EmailVerificationService {
             throw invalidCode();
         }
         Instant now = clock.instant();
-        User user = userRepository.findByEmailAndDeletedAtIsNullForUpdate(normalizeEmail(rawEmail))
+        User user = userRepository.findByEmailHashAndDeletedAtIsNullForUpdate(
+                        dataEncryptionService.blindIndex(normalizeEmail(rawEmail))
+                )
                 .filter(User::isEmailVerificationPending)
                 .orElseThrow(this::invalidCode);
         EmailVerificationCode verificationCode = codeRepository
@@ -84,7 +90,9 @@ public class EmailVerificationService {
             return;
         }
         Instant now = clock.instant();
-        userRepository.findByEmailAndDeletedAtIsNullForUpdate(normalizeEmail(rawEmail))
+        userRepository.findByEmailHashAndDeletedAtIsNullForUpdate(
+                        dataEncryptionService.blindIndex(normalizeEmail(rawEmail))
+                )
                 .filter(User::isEmailVerificationPending)
                 .ifPresent(user -> resendFor(user, now));
     }

@@ -4,7 +4,9 @@ import java.time.Instant;
 import java.util.UUID;
 
 import com.aicareer.platform.identity.domain.User;
+import com.aicareer.platform.shared.security.EncryptedStringConverter;
 import jakarta.persistence.Column;
+import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.Id;
@@ -23,7 +25,8 @@ public class Resume {
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
-    @Column(nullable = false, length = 200)
+    @Convert(converter = EncryptedStringConverter.class)
+    @Column(nullable = false, columnDefinition = "text")
     private String name;
 
     @Column(name = "latest_version_number", nullable = false)

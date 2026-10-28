@@ -14,6 +14,7 @@ import com.aicareer.platform.identity.infrastructure.persistence.UserRepository;
 import com.aicareer.platform.identity.infrastructure.security.JwtProperties;
 import com.aicareer.platform.identity.infrastructure.security.JwtTokenService;
 import com.aicareer.platform.identity.infrastructure.security.TokenHashing;
+import com.aicareer.platform.shared.security.DataEncryptionService;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
@@ -32,6 +33,7 @@ public class AuthenticationService {
     private final SignupPolicyProperties signupPolicyProperties;
     private final EmailVerificationProperties emailVerificationProperties;
     private final EmailVerificationService emailVerificationService;
+    private final DataEncryptionService dataEncryptionService;
 
     public AuthenticationService(
             UserRepository userRepository,
@@ -43,7 +45,8 @@ public class AuthenticationService {
             Clock clock,
             SignupPolicyProperties signupPolicyProperties,
             EmailVerificationProperties emailVerificationProperties,
-            EmailVerificationService emailVerificationService
+            EmailVerificationService emailVerificationService,
+            DataEncryptionService dataEncryptionService
     ) {
         this.userRepository = userRepository;
         this.refreshSessionRepository = refreshSessionRepository;
@@ -55,12 +58,14 @@ public class AuthenticationService {
         this.signupPolicyProperties = signupPolicyProperties;
         this.emailVerificationProperties = emailVerificationProperties;
         this.emailVerificationService = emailVerificationService;
+        this.dataEncryptionService = dataEncryptionService;
     }
 
     @Transactional
     public RegistrationResult register(String rawEmail, String rawPassword, String displayName) {
         String email = normalizeEmail(rawEmail);
-        if (userRepository.findByEmailAndDeletedAtIsNull(email)
+        String emailHash = dataEncryptionService.blindIndex(email);
+        if (userRepository.findByEmailHashAndDeletedAtIsNull(emailHash)
                 .filter(User::isEmailVerificationPending)
                 .isPresent()) {
             throw new EmailVerificationException(
@@ -68,7 +73,7 @@ public class AuthenticationService {
                     "Email verification is required for this account"
             );
         }
-        if (userRepository.existsByEmail(email)) {
+        if (userRepository.existsByEmailHash(emailHash)) {
             throw new EmailAlreadyRegisteredException();
         }
 
@@ -76,12 +81,14 @@ public class AuthenticationService {
         User user = emailVerificationProperties.enabled()
                 ? User.createPendingEmailVerification(
                         email,
+                        emailHash,
                         passwordEncoder.encode(rawPassword),
                         displayName.trim(),
                         now
                 )
                 : User.create(
                         email,
+                        emailHash,
                         passwordEncoder.encode(rawPassword),
                         displayName.trim(),
                         now
@@ -105,7 +112,9 @@ public class AuthenticationService {
 
     @Transactional
     public AuthenticationResult login(String rawEmail, String rawPassword) {
-        User user = userRepository.findByEmailAndDeletedAtIsNull(normalizeEmail(rawEmail))
+        User user = userRepository.findByEmailHashAndDeletedAtIsNull(
+                        dataEncryptionService.blindIndex(normalizeEmail(rawEmail))
+                )
                 .orElseThrow(InvalidCredentialsException::new);
 
         if (!passwordEncoder.matches(rawPassword, user.getPasswordHash())) {

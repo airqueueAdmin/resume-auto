@@ -5,7 +5,11 @@ import java.time.LocalDate;
 import java.util.UUID;
 
 import com.aicareer.platform.identity.domain.User;
+import com.aicareer.platform.shared.security.EncryptedBooleanConverter;
+import com.aicareer.platform.shared.security.EncryptedStringConverter;
+import com.aicareer.platform.shared.security.EncryptedLocalDateConverter;
 import jakarta.persistence.Column;
+import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.Id;
@@ -24,31 +28,40 @@ public class Experience {
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
-    @Column(name = "company_name", nullable = false, length = 200)
+    @Convert(converter = EncryptedStringConverter.class)
+    @Column(name = "company_name", nullable = false, columnDefinition = "text")
     private String companyName;
 
-    @Column(nullable = false, length = 200)
+    @Convert(converter = EncryptedStringConverter.class)
+    @Column(nullable = false, columnDefinition = "text")
     private String role;
 
-    @Column(length = 200)
+    @Convert(converter = EncryptedStringConverter.class)
+    @Column(columnDefinition = "text")
     private String department;
 
-    @Column(length = 200)
+    @Convert(converter = EncryptedStringConverter.class)
+    @Column(columnDefinition = "text")
     private String title;
 
-    @Column(name = "start_date")
+    @Convert(converter = EncryptedLocalDateConverter.class)
+    @Column(name = "start_date", columnDefinition = "text")
     private LocalDate startDate;
 
-    @Column(name = "end_date")
+    @Convert(converter = EncryptedLocalDateConverter.class)
+    @Column(name = "end_date", columnDefinition = "text")
     private LocalDate endDate;
 
-    @Column(name = "currently_employed", nullable = false)
+    @Convert(converter = EncryptedBooleanConverter.class)
+    @Column(name = "currently_employed", nullable = false, columnDefinition = "text")
     private boolean currentlyEmployed;
 
+    @Convert(converter = EncryptedStringConverter.class)
     @Column(nullable = false, columnDefinition = "text")
     private String description;
 
-    @Column(name = "tech_stack", length = 1000)
+    @Convert(converter = EncryptedStringConverter.class)
+    @Column(name = "tech_stack", columnDefinition = "text")
     private String techStack;
 
     @Column(name = "created_at", nullable = false)

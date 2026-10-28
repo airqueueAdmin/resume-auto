@@ -21,6 +21,8 @@ import com.aicareer.platform.identity.domain.UserStatus;
 import com.aicareer.platform.identity.infrastructure.persistence.EmailVerificationCodeRepository;
 import com.aicareer.platform.identity.infrastructure.persistence.UserRepository;
 import com.aicareer.platform.identity.infrastructure.security.EmailVerificationCodeHasher;
+import com.aicareer.platform.shared.security.DataEncryptionProperties;
+import com.aicareer.platform.shared.security.DataEncryptionService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -36,6 +38,9 @@ class EmailVerificationServiceTest {
     private final EmailVerificationProperties properties = properties();
     private final EmailVerificationCodeHasher codeHasher = new EmailVerificationCodeHasher(properties);
     private final EmailVerificationRateLimiter rateLimiter = mock(EmailVerificationRateLimiter.class);
+    private final DataEncryptionService dataEncryptionService = new DataEncryptionService(
+            new DataEncryptionProperties("REDACTED_HISTORY_VALUE")
+    );
     private final EmailVerificationService service = new EmailVerificationService(
             userRepository,
             codeRepository,
@@ -44,7 +49,8 @@ class EmailVerificationServiceTest {
             codeHasher,
             properties,
             rateLimiter,
-            Clock.fixed(NOW, ZoneOffset.UTC)
+            Clock.fixed(NOW, ZoneOffset.UTC),
+            dataEncryptionService
     );
 
     private User user;
@@ -67,7 +73,7 @@ class EmailVerificationServiceTest {
         assertThat(storedCode.getCodeHash()).isNotEqualTo(CODE).hasSize(64);
         verify(messageSender).sendVerificationCode("member@example.com", CODE, Duration.ofMinutes(5));
 
-        when(userRepository.findByEmailAndDeletedAtIsNullForUpdate("member@example.com"))
+        when(userRepository.findByEmailHashAndDeletedAtIsNullForUpdate(dataEncryptionService.blindIndex("member@example.com")))
                 .thenReturn(Optional.of(user));
         when(codeRepository.findFirstByUserIdAndConsumedAtIsNullOrderByCreatedAtDesc(user.getId()))
                 .thenReturn(Optional.of(storedCode));
@@ -84,7 +90,7 @@ class EmailVerificationServiceTest {
         ArgumentCaptor<EmailVerificationCode> codeCaptor = ArgumentCaptor.forClass(EmailVerificationCode.class);
         verify(codeRepository).saveAndFlush(codeCaptor.capture());
         EmailVerificationCode storedCode = codeCaptor.getValue();
-        when(userRepository.findByEmailAndDeletedAtIsNullForUpdate("member@example.com"))
+        when(userRepository.findByEmailHashAndDeletedAtIsNullForUpdate(dataEncryptionService.blindIndex("member@example.com")))
                 .thenReturn(Optional.of(user));
         when(codeRepository.findFirstByUserIdAndConsumedAtIsNullOrderByCreatedAtDesc(user.getId()))
                 .thenReturn(Optional.of(storedCode));
@@ -103,7 +109,7 @@ class EmailVerificationServiceTest {
         service.resend("unknown@example.com");
         verify(messageSender, never()).sendVerificationCode(any(), any(), any());
 
-        when(userRepository.findByEmailAndDeletedAtIsNullForUpdate("member@example.com"))
+        when(userRepository.findByEmailHashAndDeletedAtIsNullForUpdate(dataEncryptionService.blindIndex("member@example.com")))
                 .thenReturn(Optional.of(user));
         EmailVerificationCode currentCode = EmailVerificationCode.issue(
                 user,

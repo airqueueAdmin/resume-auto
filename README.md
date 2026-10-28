@@ -2,6 +2,8 @@
 
 Backend foundation for an AI-assisted career service.
 
+개발자 협업을 위한 기술·비즈니스 로직 요약은 [README.developers.md](README.developers.md)를 먼저 확인하세요.
+
 ## Phase records
 
 Completed design and implementation records are maintained separately from this quick-start guide:
@@ -149,7 +151,7 @@ Experience/Project/JobPosting resources, and immutable Resume versions:
 - Gemini is the default text generation provider; Ollama and OpenAI remain configurable alternatives
 - Structured Job Description analysis through `POST /api/v1/ai/analyze-job`
 - Versioned classpath prompt (`job-analysis-v1`) and strict JSON Schema output
-- Immutable PostgreSQL JSONB AI analysis artifacts with provider token usage
+- Immutable encrypted PostgreSQL AI analysis artifacts with provider token usage
 - Timeout, bounded retry for transient provider failures, and global AI error responses
 - Unit tests against a local HTTP provider stub and PostgreSQL integration coverage
 - Local Ollama `nomic-embed-text` embedding adapter with batch input and bounded transient retries
@@ -161,10 +163,10 @@ Experience/Project/JobPosting resources, and immutable Resume versions:
 - HNSW cosine index and PostgreSQL/Testcontainers verification of user isolation and source filters
 - Job Description matching against retrieved career evidence through `POST /api/v1/ai/match-job`
 - Citation-label validation that rejects model references not present in the retrieved context
-- Immutable JSONB `ai_job_matches` artifacts with resolved source snapshots and token usage
+- Immutable encrypted `ai_job_matches` artifacts with resolved source snapshots and token usage
 - Bounded RAG context size and configurable retrieval Top-K
 - Grounded resume draft generation through `POST /api/v1/ai/generate-resume-draft`
-- Immutable JSONB `ai_resume_drafts` artifacts with source snapshots and token usage
+- Immutable encrypted `ai_resume_drafts` artifacts with source snapshots and token usage
 - Server-side citation validation for every generated resume line
 - JobPosting action for grounded resume generation, explicit draft review, and automatic Resume Version 1
   creation

@@ -12,13 +12,13 @@ import org.springframework.data.repository.query.Param;
 
 public interface UserRepository extends JpaRepository<User, UUID> {
 
-    boolean existsByEmail(String email);
+    boolean existsByEmailHash(String emailHash);
 
-    Optional<User> findByEmailAndDeletedAtIsNull(String email);
+    Optional<User> findByEmailHashAndDeletedAtIsNull(String emailHash);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
-    @Query("select user from User user where user.email = :email and user.deletedAt is null")
-    Optional<User> findByEmailAndDeletedAtIsNullForUpdate(@Param("email") String email);
+    @Query("select user from User user where user.emailHash = :emailHash and user.deletedAt is null")
+    Optional<User> findByEmailHashAndDeletedAtIsNullForUpdate(@Param("emailHash") String emailHash);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select user from User user where user.id = :id and user.deletedAt is null")

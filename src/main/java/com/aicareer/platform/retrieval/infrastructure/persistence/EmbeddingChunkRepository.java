@@ -8,6 +8,7 @@ import java.util.stream.Collectors;
 
 import com.aicareer.platform.retrieval.application.EmbeddingChunkSearchResult;
 import com.aicareer.platform.retrieval.domain.SourceType;
+import com.aicareer.platform.shared.security.DataEncryptionService;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
@@ -15,9 +16,11 @@ import org.springframework.stereotype.Repository;
 public class EmbeddingChunkRepository {
 
     private final JdbcTemplate jdbcTemplate;
+    private final DataEncryptionService dataEncryptionService;
 
-    public EmbeddingChunkRepository(JdbcTemplate jdbcTemplate) {
+    public EmbeddingChunkRepository(JdbcTemplate jdbcTemplate, DataEncryptionService dataEncryptionService) {
         this.jdbcTemplate = jdbcTemplate;
+        this.dataEncryptionService = dataEncryptionService;
     }
 
     public void deleteAllForUser(UUID userId) {
@@ -53,7 +56,7 @@ public class EmbeddingChunkRepository {
                 experienceId,
                 projectId,
                 chunkIndex,
-                content,
+                dataEncryptionService.encrypt(content),
                 contentHash,
                 vectorLiteral(embedding),
                 embeddingModel,
@@ -100,7 +103,7 @@ public class EmbeddingChunkRepository {
                         SourceType.valueOf(resultSet.getString("source_type")),
                         resultSet.getObject("source_id", UUID.class),
                         resultSet.getInt("chunk_index"),
-                        resultSet.getString("content"),
+                        dataEncryptionService.decrypt(resultSet.getString("content")),
                         resultSet.getDouble("similarity"),
                         resultSet.getString("embedding_model")
                 ),
@@ -169,7 +172,7 @@ public class EmbeddingChunkRepository {
                         SourceType.valueOf(resultSet.getString("source_type")),
                         resultSet.getObject("source_id", UUID.class),
                         resultSet.getInt("chunk_index"),
-                        resultSet.getString("content"),
+                        dataEncryptionService.decrypt(resultSet.getString("content")),
                         0.0,
                         resultSet.getString("embedding_model")
                 ),

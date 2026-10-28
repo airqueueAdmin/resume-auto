@@ -6,16 +6,16 @@ import java.util.UUID;
 import com.aicareer.platform.ai.application.LlmUsage;
 import com.aicareer.platform.identity.domain.User;
 import com.aicareer.platform.job.domain.JobPosting;
+import com.aicareer.platform.shared.security.EncryptedJsonNodeConverter;
 import com.fasterxml.jackson.databind.JsonNode;
 import jakarta.persistence.Column;
+import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
-import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.type.SqlTypes;
 
 @Entity
 @Table(name = "ai_job_analyses")
@@ -44,8 +44,8 @@ public class JobAnalysis {
     @Column(name = "provider_response_id", nullable = false, length = 200)
     private String providerResponseId;
 
-    @JdbcTypeCode(SqlTypes.JSON)
-    @Column(nullable = false, columnDefinition = "jsonb")
+    @Convert(converter = EncryptedJsonNodeConverter.class)
+    @Column(nullable = false, columnDefinition = "text")
     private JsonNode analysis;
 
     @Column(name = "input_tokens", nullable = false)

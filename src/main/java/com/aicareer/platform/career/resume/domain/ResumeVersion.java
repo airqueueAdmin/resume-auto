@@ -4,6 +4,7 @@ import java.time.Instant;
 import java.util.UUID;
 
 import jakarta.persistence.Column;
+import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.Id;
@@ -11,6 +12,8 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import org.hibernate.annotations.Immutable;
+
+import com.aicareer.platform.shared.security.EncryptedStringConverter;
 
 @Entity
 @Immutable
@@ -27,6 +30,7 @@ public class ResumeVersion {
     @Column(name = "version_number", nullable = false, updatable = false)
     private int versionNumber;
 
+    @Convert(converter = EncryptedStringConverter.class)
     @Column(nullable = false, columnDefinition = "text", updatable = false)
     private String content;
 
