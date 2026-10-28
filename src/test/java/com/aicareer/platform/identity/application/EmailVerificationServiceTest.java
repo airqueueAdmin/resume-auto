@@ -39,7 +39,7 @@ class EmailVerificationServiceTest {
     private final EmailVerificationCodeHasher codeHasher = new EmailVerificationCodeHasher(properties);
     private final EmailVerificationRateLimiter rateLimiter = mock(EmailVerificationRateLimiter.class);
     private final DataEncryptionService dataEncryptionService = new DataEncryptionService(
-            new DataEncryptionProperties("REDACTED_HISTORY_VALUE")
+            new DataEncryptionProperties(Base64.getEncoder().encodeToString(new byte[32]))
     );
     private final EmailVerificationService service = new EmailVerificationService(
             userRepository,

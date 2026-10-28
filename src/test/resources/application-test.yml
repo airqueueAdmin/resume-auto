@@ -4,7 +4,7 @@ spring:
       on-profile: test
   flyway:
     placeholders:
-      data-encryption-key-base64: ${DATA_ENCRYPTION_KEY_BASE64:REDACTED_HISTORY_VALUE}
+      data-encryption-key-base64: ${DATA_ENCRYPTION_KEY_BASE64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=}
   jpa:
     show-sql: false
 
@@ -13,9 +13,12 @@ app:
     email-verification:
       enabled: false
       provider: smtp
+      code-hmac-secret-base64: ${EMAIL_VERIFICATION_HMAC_SECRET_BASE64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=}
   security:
     data-encryption:
-      key-base64: ${DATA_ENCRYPTION_KEY_BASE64:REDACTED_HISTORY_VALUE}
+      key-base64: ${DATA_ENCRYPTION_KEY_BASE64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=}
+    jwt:
+      secret-base64: ${JWT_SECRET_BASE64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=}
   ai:
     provider: openai
   rate-limit:

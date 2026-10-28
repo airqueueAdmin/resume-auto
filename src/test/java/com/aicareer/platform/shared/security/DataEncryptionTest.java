@@ -2,12 +2,14 @@ package com.aicareer.platform.shared.security;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.util.Base64;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 class DataEncryptionTest {
 
-    private static final String KEY = "REDACTED_HISTORY_VALUE";
+    private static final String KEY = Base64.getEncoder().encodeToString(new byte[32]);
 
     @BeforeEach
     void configureKey() {
