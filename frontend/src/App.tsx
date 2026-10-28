@@ -233,14 +233,14 @@ function LandingPage() {
 
     <section className="landing-hero">
       <div className="landing-hero-copy">
-        <span className="eyebrow">CAREER NOTE · YOUR NEXT MOVE</span>
-        <h1>지원할 때마다<br /><em>처음부터 쓰지 않도록.</em></h1>
-        <p>경력과 프로젝트를 한 번 정리해두면, 관심 있는 채용공고에 맞는 준비를 차근차근 이어갈 수 있어요.</p>
+        <span className="eyebrow">CAREER NOTE · JOB-FIT APPLICATION WORKSPACE</span>
+        <h1>공고마다 달라지는 지원,<br /><em>내 경험에 맞게 준비하세요.</em></h1>
+        <p>여러 채용 플랫폼의 공고를 한 곳에 모으고, 내 경력과 프로젝트를 연결해 공고에 맞는 이력서를 작성·검토한 뒤 각 플랫폼에서 제출까지 이어갈 수 있습니다.</p>
         <div className="landing-hero-actions">
-          <Link className="landing-primary-cta" to="/signup">내 커리어 정리 시작하기 <span>→</span></Link>
-          <a className="landing-text-cta" href="#how-it-works">어떻게 쓰나요?</a>
+          <Link className="landing-primary-cta" to="/signup">맞춤 지원 준비 시작하기 <span>→</span></Link>
+          <a className="landing-text-cta" href="#how-it-works">서비스 흐름 보기</a>
         </div>
-        <small className="landing-safety-note">작성한 정보는 내 작업 공간에서 직접 관리하고, 자동으로 만들어진 결과는 제출 전에 검토합니다.</small>
+        <small className="landing-safety-note">작성 결과는 제출 전에 직접 검토하고, 최종 제출은 각 채용 플랫폼에서 진행합니다.</small>
       </div>
       <div className="landing-hero-visual" aria-label="Career Note 작업 흐름 미리보기">
         <div className="landing-orbit landing-orbit-one" />
@@ -250,30 +250,39 @@ function LandingPage() {
           <div className="landing-preview-body">
             <div className="landing-preview-sidebar"><strong>AC<span>•</span></strong><b /><b /><b /><b /></div>
             <div className="landing-preview-content">
-              <small>START HERE</small>
-              <strong>다음 기회를<br /><em>차근차근 준비해요.</em></strong>
-              <div className="landing-preview-card-row"><span>경력</span><b>03</b><span>프로젝트</span><b>05</b></div>
+              <small>JOB-FIT WORKSPACE</small>
+              <strong>한 공고에<br /><em>맞는 문서 준비</em></strong>
+              <div className="landing-preview-card-row"><span>공고</span><b>01</b><span>경력</span><b>03</b><span>문서</span><b>02</b></div>
               <div className="landing-preview-line" /><div className="landing-preview-line short" />
             </div>
           </div>
         </div>
-        <span className="landing-float landing-float-career">01 · 경력 기록</span>
-        <span className="landing-float landing-float-job">03 · 공고에 맞춰 준비</span>
+        <span className="landing-float landing-float-career">공고 · 내 경험 연결</span>
+        <span className="landing-float landing-float-job">검토 후 · 플랫폼 제출</span>
+      </div>
+    </section>
+
+    <section className="landing-value" aria-label="Career Note 핵심 가치">
+      <div className="landing-value-heading"><span className="eyebrow">ONE WORKSPACE FOR EVERY APPLICATION</span><h2>공고는 달라도,<br /><em>지원 준비는 한 곳에서.</em></h2></div>
+      <div className="landing-value-grid">
+        <article><span>01</span><div><h3>여러 플랫폼의 공고를 한 곳에</h3><p>지원하려는 공고를 모아두고 회사와 직무별 준비 상태를 관리합니다.</p></div></article>
+        <article><span>02</span><div><h3>내 경험으로 공고에 맞게</h3><p>기록해둔 경력과 프로젝트를 바탕으로 필요한 내용을 골라 문서화합니다.</p></div></article>
+        <article><span>03</span><div><h3>검토한 뒤 직접 제출</h3><p>작성 결과를 확인하고 다듬은 뒤, 원하는 채용 플랫폼에서 지원을 마무리합니다.</p></div></article>
       </div>
     </section>
 
     <section className="landing-workflow" id="how-it-works">
-      <div className="landing-section-heading"><div><span className="eyebrow">HOW IT WORKS</span><h2>네 단계면 충분해요.</h2></div><p>모든 정보를 한 번에 채울 필요 없이, 지금 가진 것부터 시작하세요.</p></div>
+      <div className="landing-section-heading"><div><span className="eyebrow">HOW IT WORKS</span><h2>지원 준비를 네 단계로.</h2></div><p>공고를 저장하고, 내 경험을 연결해, 맞춤 문서로 완성합니다.</p></div>
       <div className="landing-steps">
-        <article><span>01</span><h3>경력과 프로젝트 기록</h3><p>내가 해온 일을 한 곳에 모읍니다. 나중에 언제든 수정할 수 있어요.</p></article>
-        <article><span>02</span><h3>관심 공고 저장</h3><p>지원하고 싶은 공고를 저장하면 준비해야 할 내용을 한눈에 볼 수 있어요.</p></article>
-        <article><span>03</span><h3>맞춤 결과 검토</h3><p>내가 기록한 근거를 바탕으로 준비된 초안을 직접 확인합니다.</p></article>
-        <article><span>04</span><h3>내 문서로 다듬기</h3><p>사실관계와 표현을 검토한 뒤, 원하는 형태로 정리해 사용합니다.</p></article>
+        <article><span>01</span><h3>공고 가져오기</h3><p>여러 채용 플랫폼의 공고를 URL이나 원문으로 저장합니다.</p></article>
+        <article><span>02</span><h3>내 경험 연결</h3><p>경력과 프로젝트를 기록하고 공고와 연결해 근거를 쌓습니다.</p></article>
+        <article><span>03</span><h3>맞춤 이력서 작성</h3><p>공고에 필요한 경험을 바탕으로 이력서와 지원 내용을 준비합니다.</p></article>
+        <article><span>04</span><h3>검토·내보내기·제출</h3><p>내용을 직접 확인한 뒤 문서를 내려받아 플랫폼에서 제출합니다.</p></article>
       </div>
     </section>
 
     <section className="landing-bottom-cta">
-      <div><span className="eyebrow">READY WHEN YOU ARE</span><h2>내 커리어의 다음 장면을<br /><em>오늘부터 정리해보세요.</em></h2></div>
+      <div><span className="eyebrow">READY WHEN YOU ARE</span><h2>다음 지원부터<br /><em>공고에 맞게 준비해보세요.</em></h2></div>
       <Link className="landing-primary-cta" to="/signup">무료로 시작하기 <span>↗</span></Link>
     </section>
 
