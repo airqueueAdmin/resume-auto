@@ -19,11 +19,14 @@ import com.aicareer.platform.retrieval.infrastructure.config.GeminiEmbeddingProp
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class GeminiEmbeddingClient implements EmbeddingClient {
 
     private static final String QUERY_PREFIX = "search_query: ";
     private static final String DOCUMENT_PREFIX = "search_document: ";
+    private static final Logger log = LoggerFactory.getLogger(GeminiEmbeddingClient.class);
 
     private final HttpClient httpClient;
     private final GeminiEmbeddingProperties properties;
@@ -57,6 +60,13 @@ public class GeminiEmbeddingClient implements EmbeddingClient {
                 if (response.statusCode() == 200) {
                     return parseResponse(response.body(), texts.size());
                 }
+                log.warn(
+                        "Gemini embedding request failed status={} attempt={} maxAttempts={} model={}",
+                        response.statusCode(),
+                        attempt,
+                        properties.maxAttempts(),
+                        properties.model()
+                );
                 if (isRetryableStatus(response.statusCode()) && attempt < properties.maxAttempts()) {
                     waitBeforeRetry();
                     continue;

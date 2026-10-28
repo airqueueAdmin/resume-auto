@@ -23,6 +23,11 @@ management:
       show-details: never
 
 app:
+  retrieval:
+    embedding:
+      # Render has no local Ollama process. Keep this production-safe even when
+      # the Blueprint environment variable has not been synchronized yet.
+      provider: ${RETRIEVAL_EMBEDDING_PROVIDER:gemini}
   security:
     data-encryption:
       key-base64: ${DATA_ENCRYPTION_KEY_BASE64}
