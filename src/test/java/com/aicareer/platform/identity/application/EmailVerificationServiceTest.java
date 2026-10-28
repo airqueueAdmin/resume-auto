@@ -130,10 +130,13 @@ class EmailVerificationServiceTest {
         String secret = Base64.getEncoder().encodeToString(new byte[32]);
         return new EmailVerificationProperties(
                 true,
+                "smtp",
                 Duration.ofMinutes(5),
                 Duration.ofMinutes(1),
                 5,
                 secret,
+                "https://api.resend.com/emails",
+                "resend-api-key",
                 "smtp.email.ap-seoul-1.oci.oraclecloud.com",
                 465,
                 "smtp-user",

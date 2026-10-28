@@ -15,10 +15,13 @@ class SmtpEmailVerificationSenderTest {
     void configuresGmailSubmissionWithRequiredStartTls() {
         EmailVerificationProperties properties = new EmailVerificationProperties(
                 true,
+                "smtp",
                 Duration.ofMinutes(5),
                 Duration.ofMinutes(1),
                 5,
                 Base64.getEncoder().encodeToString(new byte[32]),
+                "https://api.resend.com/emails",
+                "resend-api-key",
                 "smtp.gmail.com",
                 587,
                 "sender@example.com",

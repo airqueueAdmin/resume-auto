@@ -364,10 +364,12 @@ Configuration is externalized through environment variables:
 - `RATE_LIMIT_MAX_REQUESTS`: maximum requests per bucket per window, default `60`
 - `SIGNUP_TERMS_VERSION`: terms version recorded for new signup consent, default `2026-10-21`
 - `SIGNUP_PRIVACY_VERSION`: privacy-policy version recorded for new signup consent, default `2026-10-21`
-- `EMAIL_VERIFICATION_ENABLED`: require email-code verification before login; local and initial Render
-  deployment default `false`
+- `EMAIL_VERIFICATION_ENABLED`: require email-code verification before login; default `true`
 - `EMAIL_VERIFICATION_HMAC_SECRET_BASE64`: independent Base64-encoded secret used to HMAC verification
   codes; use at least 32 random decoded bytes outside local development
+- `EMAIL_PROVIDER`: email delivery provider, either `smtp` or `resend`; default `smtp`
+- `RESEND_API_URL`: HTTPS Resend endpoint, default `https://api.resend.com/emails`
+- `RESEND_API_KEY`: server-side Resend API key; required when `EMAIL_PROVIDER=resend`
 - `EMAIL_VERIFICATION_CODE_TTL`: verification code lifetime, default `PT5M`
 - `EMAIL_VERIFICATION_RESEND_COOLDOWN`: minimum interval between delivered codes, default `PT1M`
 - `EMAIL_VERIFICATION_MAX_ATTEMPTS`: failed code attempts before invalidation, default `5`
@@ -376,7 +378,7 @@ Configuration is externalized through environment variables:
 - `SMTP_USERNAME` / `SMTP_PASSWORD`: dedicated Gmail address and its Google app password
 - `SMTP_STARTTLS_ENABLED`: require STARTTLS, default `true`
 - `SMTP_SSL_ENABLED`: use implicit SMTP SSL instead of STARTTLS, default `false`
-- `EMAIL_FROM_ADDRESS`: sender address; with Gmail, keep it equal to `SMTP_USERNAME`
+- `EMAIL_FROM_ADDRESS`: sender address; required for both providers and must be verified by the provider
 - `EMAIL_FROM_NAME`: display name for verification mail, default `Career Note`
 - `EMAIL_VERIFICATION_MAX_CLIENT_REQUESTS`: signup/resend requests allowed per client window, default `20`
 - `EMAIL_VERIFICATION_CLIENT_RATE_LIMIT_WINDOW`: per-client request window, default `PT1H`
@@ -543,10 +545,10 @@ policy version. Password confirmation is enforced in the browser while password 
 again by the API. When email verification is enabled, the account remains
 `PENDING_EMAIL_VERIFICATION` until a six-digit code is confirmed. Only an HMAC of the code is stored;
 codes expire after five minutes, are invalidated after five failed attempts, and can be resent after
-the configured cooldown. The Render deployment can enable this flow and uses a dedicated Gmail account
-through authenticated SMTP submission on port 587 with required STARTTLS. Signup and resend requests
-are limited per client, and actual message delivery has a separate global cap below Gmail's free-account
-daily limit. These counters are local to one backend process and reset when it restarts.
+the configured cooldown. The Render Free deployment uses the Resend HTTPS API because Render blocks
+outbound SMTP ports on Free Web Services. SMTP remains available as a selectable provider for local
+or paid deployments. Signup and resend requests are limited per client, and actual message delivery
+has a separate global cap. These counters are local to one backend process and reset when it restarts.
 
 ## Career resource behavior
 

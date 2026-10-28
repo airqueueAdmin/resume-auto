@@ -31,9 +31,19 @@ services:
       - key: JWT_SECRET_BASE64
         generateValue: true
       - key: EMAIL_VERIFICATION_ENABLED
-        value: "false"
+        value: "true"
+      - key: EMAIL_PROVIDER
+        value: resend
       - key: EMAIL_VERIFICATION_HMAC_SECRET_BASE64
         generateValue: true
+      - key: RESEND_API_URL
+        value: https://api.resend.com/emails
+      - key: RESEND_API_KEY
+        sync: false
+      - key: EMAIL_FROM_ADDRESS
+        sync: false
+      - key: EMAIL_FROM_NAME
+        value: Career Note
       - key: EXTENSION_ALLOWED_ORIGIN_PATTERNS
         value: "chrome-extension://*"
       - key: AI_PROVIDER

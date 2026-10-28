@@ -8,12 +8,19 @@ import com.aicareer.platform.identity.application.EmailVerificationMessageSender
 import com.aicareer.platform.identity.application.EmailVerificationProperties;
 import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.mail.MailException;
 import org.springframework.mail.javamail.JavaMailSenderImpl;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Component;
 
 @Component
+@ConditionalOnProperty(
+        prefix = "app.identity.email-verification",
+        name = "provider",
+        havingValue = "smtp",
+        matchIfMissing = true
+)
 public class SmtpEmailVerificationSender implements EmailVerificationMessageSender {
 
     private final JavaMailSenderImpl mailSender;

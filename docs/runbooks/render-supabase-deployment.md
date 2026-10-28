@@ -70,9 +70,27 @@ Supabase PostgreSQL의 확장 권한과 Flyway 오류를 먼저 확인합니다.
 - `DB_USERNAME`
 - `DB_PASSWORD`
 - `GEMINI_API_KEY`
+- `RESEND_API_KEY`
+- `EMAIL_FROM_ADDRESS`
 
 `JWT_SECRET_BASE64`와 `EMAIL_VERIFICATION_HMAC_SECRET_BASE64`는 Blueprint의
 `generateValue`로 생성됩니다. 생성 후 값을 코드나 문서에 복사하지 않습니다.
+
+이메일 인증은 Render Free Web Service의 SMTP 포트 차단을 피하기 위해 Resend HTTPS API를 사용한다.
+Render 환경변수는 다음 값을 사용한다.
+
+```text
+EMAIL_VERIFICATION_ENABLED=true
+EMAIL_PROVIDER=resend
+RESEND_API_URL=https://api.resend.com/emails
+RESEND_API_KEY=<Resend API key>
+EMAIL_FROM_ADDRESS=<Resend에서 검증한 발신 주소>
+EMAIL_FROM_NAME=Career Note
+```
+
+Resend API Key는 frontend나 저장소에 넣지 않고 backend 서비스의 비밀 환경변수로만 등록한다.
+발신 주소 또는 도메인은 Resend에서 검증되어 있어야 한다. SMTP 환경변수는 Render Free에서는
+사용하지 않는다.
 
 Render Free Web Service는 private network 요청을 보낼 수는 있지만 다른 Free Web Service가
 private network로 받는 구성에는 제한이 있으므로, 현재 프론트엔드는 백엔드의 공개 HTTPS URL을
