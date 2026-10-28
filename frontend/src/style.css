@@ -879,3 +879,30 @@ select:focus-visible { outline-color: rgba(59, 130, 246, .38); }
   .guided-tour-card h2 { font-size: 21px; }
   .guided-tour-card p { min-height: 0; }
 }
+
+/* First login personalization. The selected persona only changes guidance and examples. */
+.role-selection-page { display: grid; min-height: 100vh; padding: 32px 20px; background: radial-gradient(circle at 86% 12%, rgba(219, 234, 254, .75), transparent 30%), #f8fafc; place-items: center; }
+.role-selection-card { width: min(100%, 860px); border: 1px solid #dbe4ef; border-radius: 22px; padding: clamp(28px, 5vw, 58px); background: rgba(255,255,255,.96); box-shadow: 0 24px 70px rgba(15, 23, 42, .1); }
+.role-selection-heading { max-width: 560px; }
+.role-selection-heading h1 { margin: 16px 0 11px; color: #172033; font: 600 clamp(32px, 5vw, 52px)/1.05 'Space Grotesk'; letter-spacing: -.065em; }
+.role-selection-heading p { margin: 0; color: #64748b; font-size: 14px; line-height: 1.7; }
+.persona-choice-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-top: 37px; }
+.persona-choice { position: relative; display: grid; min-height: 220px; align-content: start; gap: 10px; border: 1px solid #dbe4ef; border-radius: 14px; padding: 22px 20px; background: #ffffff; color: #172033; text-align: left; transition: border-color .2s, background .2s, box-shadow .2s, transform .2s; }
+.persona-choice:hover, .persona-choice:focus-visible { border-color: #93c5fd; background: #f8fbff; box-shadow: 0 12px 24px rgba(37, 99, 235, .1); transform: translateY(-3px); outline: none; }
+.persona-choice-icon { display: grid; width: 38px; height: 38px; margin-bottom: 9px; border-radius: 11px; background: #eff6ff; color: #2563eb; place-items: center; font-size: 19px; }
+.persona-choice-label { font-size: 17px; font-weight: 800; }
+.persona-choice-description { min-height: 38px; color: #64748b; font-size: 11px; line-height: 1.55; }
+.persona-choice-focus { color: #2563eb; font-size: 10px; font-weight: 700; line-height: 1.45; }
+.persona-choice-arrow { position: absolute; right: 20px; bottom: 20px; color: #2563eb; font-size: 19px; }
+.role-selection-note { margin: 24px 0 0; color: #94a3b8; font-size: 11px; text-align: center; }
+.my-page-persona-link { color: #2563eb; font-size: 10px; font-weight: 700; }
+.my-page-persona-link:hover { color: #1d4ed8; }
+
+@media (max-width: 700px) {
+  .persona-choice-grid { grid-template-columns: 1fr; }
+  .persona-choice { min-height: 0; grid-template-columns: 42px minmax(0, 1fr) auto; align-items: center; gap: 3px 12px; padding: 16px; }
+  .persona-choice-icon { grid-row: span 2; margin: 0; }
+  .persona-choice-description { min-height: 0; }
+  .persona-choice-focus { grid-column: 2 / -1; }
+  .persona-choice-arrow { right: 16px; bottom: auto; top: 50%; transform: translateY(-50%); }
+}

@@ -88,6 +88,71 @@ const jobKoreaUploadUrl = 'https://resume.jobkorea.co.kr/resume/upload'
 const extensionDownloadUrl = import.meta.env.VITE_EXTENSION_DOWNLOAD_URL ?? '/downloads/career-note-extension-v0.3.4.zip'
 const maxJobKoreaSkills = 20
 const supportedResumePhotoTypes = new Set(['image/jpeg', 'image/png', 'image/webp'])
+type PersonaKey = 'planner' | 'designer' | 'developer'
+type PersonaProfile = {
+  key: PersonaKey
+  label: string
+  icon: string
+  description: string
+  focus: string
+  heroTitle: string
+  heroEmphasis: string
+  heroDescription: string
+  primaryAction: string
+  secondaryAction: string
+  experienceRolePlaceholder: string
+  departmentPlaceholder: string
+  titlePlaceholder: string
+  techStackPlaceholder: string
+  experienceDescriptionPlaceholder: string
+  projectRolePlaceholder: string
+  projectTechStackPlaceholder: string
+  projectDomainPlaceholder: string
+  projectDescriptionPlaceholder: string
+  resumeHeadlinePlaceholder: string
+  resumeSkillsPlaceholder: string
+  questionPlaceholder: string
+  jobTitlePlaceholder: string
+  jobDescriptionPlaceholder: string
+}
+
+const personaProfiles: Record<PersonaKey, PersonaProfile> = {
+  planner: {
+    key: 'planner', label: '기획자', icon: '✦', description: '문제 정의와 사용자 관점의 성과를 중심으로 준비해요.', focus: '문제 정의 · 사용자 경험 · 성과',
+    heroTitle: '문제를 정의한 경험을', heroEmphasis: '지원 직무에 맞게 정리해요.', heroDescription: '기획 배경과 의사결정, 출시 후 성과를 기록하면 공고에 맞는 지원 문서를 더 설득력 있게 준비할 수 있습니다.',
+    primaryAction: '기획 경험 기록하기', secondaryAction: '관심 공고 저장하기', experienceRolePlaceholder: '예: 서비스 기획자', departmentPlaceholder: '예: 프로덕트팀', titlePlaceholder: '예: 주니어 PM', techStackPlaceholder: '예: Figma, GA4, Amplitude, SQL', experienceDescriptionPlaceholder: '문제 정의, 사용자 인사이트, 기획안과 출시 후 성과를 기록해주세요.', projectRolePlaceholder: '예: 요구사항 정의 및 출시 일정 관리', projectTechStackPlaceholder: '예: Figma, Notion, Jira, GA4', projectDomainPlaceholder: '예: B2C 모바일 앱 / 신규 기능 런칭', projectDescriptionPlaceholder: '문제, 가설, 의사결정, 출시 결과와 지표를 기록해주세요.', resumeHeadlinePlaceholder: '예: 데이터로 사용자의 문제를 해결하는 서비스 기획자', resumeSkillsPlaceholder: '예: Figma, GA4, SQL, Notion', questionPlaceholder: '예: 사용자 문제를 발견하고 해결한 기획 경험을 작성해주세요.', jobTitlePlaceholder: '예: 서비스 기획자 / Product Manager', jobDescriptionPlaceholder: '채용공고의 주요 과제, 담당 업무와 자격요건을 붙여 넣어주세요.',
+  },
+  designer: {
+    key: 'designer', label: '디자이너', icon: '◌', description: '사용자 경험과 결과물이 보이도록 포트폴리오를 준비해요.', focus: '사용자 경험 · 시각화 · 협업',
+    heroTitle: '사용자 경험을 만든 과정을', heroEmphasis: '지원 직무에 맞게 보여줘요.', heroDescription: '해결하려던 사용자 문제와 디자인 과정, 협업 방식과 결과물을 기록하면 나만의 강점을 선명하게 보여줄 수 있습니다.',
+    primaryAction: '디자인 경험 기록하기', secondaryAction: '관심 공고 저장하기', experienceRolePlaceholder: '예: Product Designer', departmentPlaceholder: '예: 디자인팀', titlePlaceholder: '예: 시니어 디자이너', techStackPlaceholder: '예: Figma, FigJam, Adobe Illustrator', experienceDescriptionPlaceholder: '사용자 문제, 디자인 과정, 협업 방식과 결과를 기록해주세요.', projectRolePlaceholder: '예: UX 리서치 및 UI 시스템 설계', projectTechStackPlaceholder: '예: Figma, FigJam, Photoshop, Protopie', projectDomainPlaceholder: '예: 금융 앱 / 브랜드 리뉴얼', projectDescriptionPlaceholder: '문제와 사용자, 시도한 디자인, 결과물과 사용자 영향을 기록해주세요.', resumeHeadlinePlaceholder: '예: 사용자의 행동을 바꾸는 Product Designer', resumeSkillsPlaceholder: '예: Figma, FigJam, Adobe XD, Protopie', questionPlaceholder: '예: 사용자 경험을 개선한 디자인 프로젝트를 작성해주세요.', jobTitlePlaceholder: '예: Product Designer / UX Designer', jobDescriptionPlaceholder: '채용공고의 디자인 과제, 협업 방식과 요구 역량을 붙여 넣어주세요.',
+  },
+  developer: {
+    key: 'developer', label: '개발자', icon: '⌘', description: '기술 선택과 문제 해결 결과를 중심으로 경력을 정리해요.', focus: '기술 스택 · 문제 해결 · 협업',
+    heroTitle: '기술로 만든 경험을', heroEmphasis: '지원 직무에 맞게 정리해요.', heroDescription: '사용한 기술과 해결한 문제, 성능 개선과 협업 결과를 기록하면 공고에 맞는 기술 이력서를 빠르게 준비할 수 있습니다.',
+    primaryAction: '개발 경력 기록하기', secondaryAction: '관심 공고 저장하기', experienceRolePlaceholder: '예: 백엔드 개발자', departmentPlaceholder: '예: 플랫폼개발팀', titlePlaceholder: '예: 선임 개발자', techStackPlaceholder: '예: Java, Spring Boot, PostgreSQL', experienceDescriptionPlaceholder: '담당 기능, 해결한 문제, 성능 개선과 협업 결과를 기록해주세요.', projectRolePlaceholder: '예: 백엔드 개발 및 API 설계', projectTechStackPlaceholder: '예: Kotlin, Spring, AWS, Docker', projectDomainPlaceholder: '예: 커머스 플랫폼 / 주문 처리 시스템', projectDescriptionPlaceholder: '기술적 문제, 구현 내용, 성능 개선과 결과를 기록해주세요.', resumeHeadlinePlaceholder: '예: 안정적인 서비스를 만드는 백엔드 개발자', resumeSkillsPlaceholder: '예: Java, Spring Boot, PostgreSQL, Docker', questionPlaceholder: '예: 복잡한 기술 문제를 해결한 경험을 작성해주세요.', jobTitlePlaceholder: '예: Backend Engineer / Software Engineer', jobDescriptionPlaceholder: '채용공고의 기술 스택, 담당 업무와 자격요건을 붙여 넣어주세요.',
+  },
+}
+
+const personaStoragePrefix = 'ai-career.persona.'
+
+function isPersonaKey(value: string | null): value is PersonaKey {
+  return value === 'planner' || value === 'designer' || value === 'developer'
+}
+
+function readPersona(userId: string): PersonaKey | null {
+  const value = localStorage.getItem(`${personaStoragePrefix}${userId}`)
+  return isPersonaKey(value) ? value : null
+}
+
+function savePersona(userId: string, persona: PersonaKey) {
+  localStorage.setItem(`${personaStoragePrefix}${userId}`, persona)
+}
+
+function getPersonaProfile(persona: PersonaKey | null): PersonaProfile {
+  return personaProfiles[persona ?? 'developer']
+}
+
 const koreanDateTimeFormatter = new Intl.DateTimeFormat('ko-KR', {
   timeZone: 'Asia/Seoul',
   dateStyle: 'medium',
@@ -208,14 +273,15 @@ function App() {
 
   return (
     <Routes>
-      <Route path="/" element={user ? <Dashboard user={user} onLogout={handleLogout} onDeleteAccount={handleDeleteAccount} /> : <LandingPage />} />
-      <Route path="/login" element={user ? <Navigate to="/" replace /> : <AuthPage mode="login" onAuthenticated={handleAuthenticated} />} />
-      <Route path="/signup" element={user ? <Navigate to="/" replace /> : <AuthPage mode="signup" onAuthenticated={handleAuthenticated} />} />
-      <Route path="/verify-email" element={user ? <Navigate to="/" replace /> : <EmailVerificationPage />} />
+      <Route path="/" element={user ? (readPersona(user.id) ? <Dashboard user={user} onLogout={handleLogout} onDeleteAccount={handleDeleteAccount} /> : <Navigate to="/choose-role" replace />) : <LandingPage />} />
+      <Route path="/choose-role" element={user ? <RoleSelectionPage user={user} /> : <Navigate to="/login" replace />} />
+      <Route path="/login" element={user ? <Navigate to={readPersona(user.id) ? '/' : '/choose-role'} replace /> : <AuthPage mode="login" onAuthenticated={handleAuthenticated} />} />
+      <Route path="/signup" element={user ? <Navigate to={readPersona(user.id) ? '/' : '/choose-role'} replace /> : <AuthPage mode="signup" onAuthenticated={handleAuthenticated} />} />
+      <Route path="/verify-email" element={user ? <Navigate to={readPersona(user.id) ? '/' : '/choose-role'} replace /> : <EmailVerificationPage />} />
       <Route path="/extension/connect" element={user ? <ExtensionConnectPage /> : <Navigate to="/login" replace state={{ from: '/extension/connect' }} />} />
       <Route path="/terms" element={<PolicyPage type="terms" />} />
       <Route path="/privacy" element={<PolicyPage type="privacy" />} />
-      <Route path="*" element={user ? <Dashboard user={user} onLogout={handleLogout} onDeleteAccount={handleDeleteAccount} /> : <Navigate to="/" replace />} />
+      <Route path="*" element={user ? (readPersona(user.id) ? <Dashboard user={user} onLogout={handleLogout} onDeleteAccount={handleDeleteAccount} /> : <Navigate to="/choose-role" replace />) : <Navigate to="/" replace />} />
     </Routes>
   )
 }
@@ -287,6 +353,35 @@ function LandingPage() {
     </section>
 
     <footer className="landing-footer"><span>© 2026 Career Note</span><span>작성 결과는 제출 전 반드시 직접 검토해주세요.</span><Link to="/privacy">개인정보 안내</Link></footer>
+  </main>
+}
+
+function RoleSelectionPage({ user }: { user: User }) {
+  const location = useLocation()
+  const navigate = useNavigate()
+  const queryReturnTo = new URLSearchParams(location.search).get('returnTo')
+  const stateReturnTo = (location.state as { from?: string } | null)?.from
+  const requestedReturnTo = queryReturnTo ?? stateReturnTo
+  const returnTo = requestedReturnTo && requestedReturnTo.startsWith('/') && !requestedReturnTo.startsWith('//') ? requestedReturnTo : '/'
+
+  function selectPersona(persona: PersonaKey) {
+    savePersona(user.id, persona)
+    navigate(returnTo, { replace: true })
+  }
+
+  return <main className="role-selection-page">
+    <section className="role-selection-card" aria-labelledby="role-selection-title">
+      <div className="role-selection-heading"><span className="eyebrow">PERSONALIZE YOUR WORKSPACE</span><h1 id="role-selection-title">어떤 일을 하고 계신가요?</h1><p>직군에 맞는 예시와 입력 항목으로 {user.displayName}님의 지원 준비를 시작할게요.</p></div>
+      <div className="persona-choice-grid" role="list" aria-label="직군 선택">
+        {(Object.keys(personaProfiles) as PersonaKey[]).map((key) => {
+          const persona = personaProfiles[key]
+          return <button className="persona-choice" type="button" key={persona.key} onClick={() => selectPersona(persona.key)}>
+            <span className="persona-choice-icon" aria-hidden="true">{persona.icon}</span><span className="persona-choice-label">{persona.label}</span><span className="persona-choice-description">{persona.description}</span><span className="persona-choice-focus">{persona.focus}</span><span className="persona-choice-arrow" aria-hidden="true">→</span>
+          </button>
+        })}
+      </div>
+      <p className="role-selection-note">나중에 마이페이지에서 직군을 바꿀 수 있어요.</p>
+    </section>
   </main>
 }
 
@@ -374,7 +469,7 @@ function AuthPage({ mode, onAuthenticated }: { mode: 'login' | 'signup'; onAuthe
       }
       const result = await request<AuthenticationResponse>('/v1/auth/login', { method: 'POST', body: JSON.stringify({ email: email.trim(), password }) })
       onAuthenticated(result)
-      navigate(returnTo, { replace: true })
+      navigate(readPersona(result.user.id) ? returnTo : `/choose-role?returnTo=${encodeURIComponent(returnTo)}`, { replace: true })
     } catch (submissionError) {
       const apiError = submissionError as ApiError
       setFieldErrors(apiError.fieldErrors ?? {})
@@ -526,6 +621,7 @@ function PolicyPage({ type }: { type: 'terms' | 'privacy' }) {
 function Dashboard({ user, onLogout, onDeleteAccount }: { user: User; onLogout: () => Promise<void>; onDeleteAccount: () => Promise<void> }) {
   const location = useLocation()
   const navigate = useNavigate()
+  const persona = getPersonaProfile(readPersona(user.id))
   const [isLoggingOut, setIsLoggingOut] = useState(false)
   const [isDeletingAccount, setIsDeletingAccount] = useState(false)
   const [isGuideOpen, setIsGuideOpen] = useState(false)
@@ -586,19 +682,19 @@ function Dashboard({ user, onLogout, onDeleteAccount }: { user: User; onLogout: 
         </div>
       </aside>
       <main className="main-content">
-        {careerSection ? <CareerPageContent section={careerSection} /> : location.pathname === '/resumes' ? <ResumePageContent user={user} /> : location.pathname === '/job-postings' ? <JobPostingPageContent user={user} /> : location.pathname === '/my-page' ? <MyPageContent user={user} onOpenGuide={openGuide} onDeleteAccount={deleteAccount} isDeletingAccount={isDeletingAccount} /> : <OverviewContent user={user} />}
+        {careerSection ? <CareerPageContent section={careerSection} persona={persona} /> : location.pathname === '/resumes' ? <ResumePageContent user={user} persona={persona} /> : location.pathname === '/job-postings' ? <JobPostingPageContent user={user} persona={persona} /> : location.pathname === '/my-page' ? <MyPageContent user={user} persona={persona} onOpenGuide={openGuide} onDeleteAccount={deleteAccount} isDeletingAccount={isDeletingAccount} /> : <OverviewContent user={user} persona={persona} />}
       </main>
       {isGuideOpen && <GuidedTour onClose={() => setIsGuideOpen(false)} />}
     </div>
   )
 }
 
-function MyPageContent({ user, onOpenGuide, onDeleteAccount, isDeletingAccount }: { user: User; onOpenGuide: () => void; onDeleteAccount: () => Promise<void>; isDeletingAccount: boolean }) {
+function MyPageContent({ user, persona, onOpenGuide, onDeleteAccount, isDeletingAccount }: { user: User; persona: PersonaProfile; onOpenGuide: () => void; onDeleteAccount: () => Promise<void>; isDeletingAccount: boolean }) {
   return <section className="my-page">
     <header className="page-heading my-page-heading"><div><span className="eyebrow">MY PAGE</span><h1>마이페이지</h1><p>계정과 사용 안내를 관리할 수 있어요.</p></div></header>
     <section className="my-page-account-card">
       <div className="my-page-account-summary"><span className="my-page-avatar">{user.displayName.charAt(0)}</span><div><span className="eyebrow">ACCOUNT</span><h2>{user.displayName}</h2><p>{user.email}</p></div></div>
-      <div className="my-page-account-meta"><span>계정 상태</span><strong>이용 중</strong></div>
+      <div className="my-page-account-meta"><span>맞춤 직군</span><strong>{persona.icon} {persona.label}</strong><Link to="/choose-role?returnTo=%2Fmy-page" className="my-page-persona-link">직군 변경</Link></div>
     </section>
     <section className="my-page-section">
       <div className="my-page-section-heading"><div><span className="eyebrow">HELP</span><h2>서비스 사용 안내</h2></div><p>처음 사용하는 방법과 주요 메뉴를 다시 확인할 수 있습니다.</p></div>
@@ -700,20 +796,20 @@ function resolveCareerSection(pathname: string): CareerSection | null {
   return null
 }
 
-function CareerPageContent({ section }: { section: CareerSection }) {
+function CareerPageContent({ section, persona }: { section: CareerSection; persona: PersonaProfile }) {
   return <>
     <div className="career-toolbar">
       <nav className="career-tabs" aria-label="Career data sections">
         <Link className={section === 'experiences' ? 'career-tab active' : 'career-tab'} to="/career/experiences" aria-current={section === 'experiences' ? 'page' : undefined}>경력</Link>
         <Link className={section === 'projects' ? 'career-tab active' : 'career-tab'} to="/career/projects" aria-current={section === 'projects' ? 'page' : undefined}>프로젝트</Link>
       </nav>
-      <small className="career-index-auto-help">경력·프로젝트를 저장하면 맞춤 검색 데이터가 자동으로 업데이트됩니다.</small>
+      <small className="career-index-auto-help">{persona.label}에게 중요한 {persona.focus}를 기록하면 맞춤 검색 데이터가 자동으로 업데이트됩니다.</small>
     </div>
-    {section === 'experiences' ? <ExperiencePageContent /> : <ProjectPageContent />}
+    {section === 'experiences' ? <ExperiencePageContent persona={persona} /> : <ProjectPageContent persona={persona} />}
   </>
 }
 
-function OverviewContent({ user }: { user: User }) {
+function OverviewContent({ user, persona }: { user: User; persona: PersonaProfile }) {
   const [counts, setCounts] = useState<{ experiences: number | null; projects: number | null; resumes: number | null; jobPostings: number | null }>({
     experiences: null,
     projects: null,
@@ -752,11 +848,11 @@ function OverviewContent({ user }: { user: User }) {
   const completedWorkspaceSections = Object.values(counts).filter((count) => count !== null && count > 0).length
 
   return <>
-    <header className="topbar"><div><span className="eyebrow">YOUR WORKSPACE</span><h1>안녕하세요, {user.displayName}님</h1><p className="topbar-subtitle">오늘은 어디부터 준비해볼까요?</p></div><span className="status-pill"><span />내 작업 공간</span></header>
-    <section className="hero-card"><div className="hero-card-content"><span className="eyebrow">START HERE</span><h2>다음 기회를<br /><em>차근차근 준비해요.</em></h2><p>경력을 먼저 기록하고 관심 공고를 저장하면, 공고에 맞는 초안을 알아서 준비합니다.</p><div className="hero-actions"><Link className="hero-action-primary" to="/career/experiences" data-tour="career-start">경력 기록하기 <span>→</span></Link><Link className="hero-action-secondary" to="/job-postings">공고 저장하기</Link></div></div><div className="hero-orbit" aria-hidden="true"><span>+</span><span>✦</span><span>→</span></div></section>
+    <header className="topbar"><div><span className="eyebrow">YOUR WORKSPACE · {persona.label.toUpperCase()}</span><h1>안녕하세요, {user.displayName}님</h1><p className="topbar-subtitle">{persona.label} 맞춤 화면 · {persona.focus}</p></div><span className="status-pill"><span />{persona.label} 모드</span></header>
+    <section className="hero-card"><div className="hero-card-content"><span className="eyebrow">START HERE · {persona.label.toUpperCase()}</span><h2>{persona.heroTitle}<br /><em>{persona.heroEmphasis}</em></h2><p>{persona.heroDescription}</p><div className="hero-actions"><Link className="hero-action-primary" to="/career/experiences" data-tour="career-start">{persona.primaryAction} <span>→</span></Link><Link className="hero-action-secondary" to="/job-postings">{persona.secondaryAction}</Link></div></div><div className="hero-orbit" aria-hidden="true"><span>+</span><span>✦</span><span>→</span></div></section>
     <section className="stats-grid" aria-busy={isLoading}><StatCard label="경력" value={displayCount(counts.experiences)} action="경력 추가" to="/career/experiences" /><StatCard label="프로젝트" value={displayCount(counts.projects)} action="프로젝트 추가" to="/career/projects" /><StatCard label="이력서" value={displayCount(counts.resumes)} action="이력서 만들기" to="/resumes" /><StatCard label="채용공고" value={displayCount(counts.jobPostings)} action="공고 저장" to="/job-postings" /></section>
     {loadError && <p className="overview-load-error" role="alert">{loadError} <button className="text-button" onClick={() => void loadCounts()}>다시 시도</button></p>}
-    <section className="next-section"><div><span className="eyebrow">NEXT UP</span><h2>작업 공간을 채워보세요</h2><p>처음이라면 경력 하나만 기록해도 충분합니다. 저장한 데이터는 언제든 수정할 수 있어요.</p><div className="next-actions"><Link className="text-button" to="/career/experiences">첫 경력 기록하기 ↗</Link><Link className="text-button" to="/job-postings">관심 공고 저장하기 ↗</Link></div></div><div className="progress-ring" aria-label={`완료한 작업 공간 ${completedWorkspaceSections}개, 전체 4개`}><strong>{isLoading ? '…' : completedWorkspaceSections}</strong><span>/ 4</span></div></section>
+    <section className="next-section"><div><span className="eyebrow">NEXT UP</span><h2>{persona.label}의 작업 공간을 채워보세요</h2><p>처음이라면 {persona.focus.split(' · ')[0]}이(가) 드러나는 경험 하나만 기록해도 충분합니다. 저장한 데이터는 언제든 수정할 수 있어요.</p><div className="next-actions"><Link className="text-button" to="/career/experiences">첫 경력 기록하기 ↗</Link><Link className="text-button" to="/job-postings">관심 공고 저장하기 ↗</Link></div></div><div className="progress-ring" aria-label={`완료한 작업 공간 ${completedWorkspaceSections}개, 전체 4개`}><strong>{isLoading ? '…' : completedWorkspaceSections}</strong><span>/ 4</span></div></section>
   </>
 }
 
@@ -974,7 +1070,7 @@ function JobPostingUrlImportModal({ onClose, onApply }: { onClose: () => void; o
 
 const emptyExperienceForm: ExperienceForm = { companyName: '', role: '', department: '', title: '', startDate: '', endDate: '', currentlyEmployed: false, description: '', techStack: '' }
 
-function ExperiencePageContent() {
+function ExperiencePageContent({ persona }: { persona: PersonaProfile }) {
   const location = useLocation()
   const [experiences, setExperiences] = useState<Experience[]>([])
   const [page, setPage] = useState(0)
@@ -1122,18 +1218,18 @@ function ExperiencePageContent() {
   }
 
   return <>
-    <header className="page-heading"><div><span className="eyebrow">CAREER DATA · HISTORY</span><h1>경력</h1><p>직장에서 맡았던 일과 결과를 기록해두면 채용공고와 연결할 수 있습니다.</p></div><div className="heading-actions"><button className="secondary-button compact-button" onClick={() => setIsImportOpen(true)}>TXT로 빠르게 입력</button><button className="primary-button compact-button" onClick={startCreate}>+ 경력 추가</button></div></header>
+    <header className="page-heading"><div><span className="eyebrow">CAREER DATA · {persona.label.toUpperCase()}</span><h1>경력</h1><p>{persona.label}에게 중요한 {persona.focus}를 중심으로 직장에서 맡았던 일과 결과를 기록해보세요.</p></div><div className="heading-actions"><button className="secondary-button compact-button" onClick={() => setIsImportOpen(true)}>TXT로 빠르게 입력</button><button className="primary-button compact-button" onClick={startCreate}>+ 경력 추가</button></div></header>
     <section className="experience-form-card">
-      <div className="section-title"><div><span className="eyebrow">{editingId ? 'EDIT CAREER' : 'NEW CAREER'}</span><h2>{editingId ? '경력 수정' : '새 경력 기록'}</h2><p className="form-helper">기술 스택까지 기록하면 이력서 스킬과 경력기술서에 정확하게 반영됩니다.</p></div>{editingId && <button className="text-button" onClick={startCreate}>취소</button>}</div>
+      <div className="section-title"><div><span className="eyebrow">{editingId ? 'EDIT CAREER' : 'NEW CAREER'}</span><h2>{editingId ? '경력 수정' : '새 경력 기록'}</h2><p className="form-helper">{persona.focus}가 드러나는 업무와 결과를 기록하고, 사용한 기술·도구도 함께 남겨보세요.</p></div>{editingId && <button className="text-button" onClick={startCreate}>취소</button>}</div>
       <form className="experience-form" onSubmit={submitExperience}>
         <FormField label="회사명" value={form.companyName} onChange={(value) => updateField('companyName', value)} error={fieldErrors.companyName} placeholder="예: Acme Inc." />
-        <FormField label="직무 / 역할" value={form.role} onChange={(value) => updateField('role', value)} error={fieldErrors.role} placeholder="예: Backend Developer" />
-        <FormField label="부서 (선택)" value={form.department} onChange={(value) => updateField('department', value)} error={fieldErrors.department} placeholder="예: 플랫폼개발팀" />
-        <FormField label="직급 / 직책 (선택)" value={form.title} onChange={(value) => updateField('title', value)} error={fieldErrors.title} placeholder="예: 선임 개발자" />
+        <FormField label="직무 / 역할" value={form.role} onChange={(value) => updateField('role', value)} error={fieldErrors.role} placeholder={persona.experienceRolePlaceholder} />
+        <FormField label="부서 (선택)" value={form.department} onChange={(value) => updateField('department', value)} error={fieldErrors.department} placeholder={persona.departmentPlaceholder} />
+        <FormField label="직급 / 직책 (선택)" value={form.title} onChange={(value) => updateField('title', value)} error={fieldErrors.title} placeholder={persona.titlePlaceholder} />
         <FormField label="시작일 (선택)" type="date" value={form.startDate} onChange={(value) => updateField('startDate', value)} error={fieldErrors.startDate} />
         <div className="period-end-field"><FormField label="종료일 (선택)" type="date" value={form.endDate} onChange={(value) => updateField('endDate', value)} error={fieldErrors.endDate} disabled={form.currentlyEmployed} /><label className="current-period-check"><input type="checkbox" checked={form.currentlyEmployed} onChange={(event) => setForm((current) => ({ ...current, currentlyEmployed: event.target.checked, endDate: event.target.checked ? '' : current.endDate }))} /><span>재직 중</span></label></div>
-        <FormField label="기술 스택 (선택)" value={form.techStack} onChange={(value) => updateField('techStack', value)} error={fieldErrors.techStack} placeholder="예: Java, Spring Boot, PostgreSQL" />
-        <label className="wide-field">설명<textarea value={form.description} onChange={(event) => updateField('description', event.target.value)} placeholder="담당 업무, 성과, 사용 기술을 기록해주세요." maxLength={10000} rows={4} />{fieldErrors.description && <small className="field-error">{fieldErrors.description}</small>}</label>
+        <FormField label="기술·도구 (선택)" value={form.techStack} onChange={(value) => updateField('techStack', value)} error={fieldErrors.techStack} placeholder={persona.techStackPlaceholder} />
+        <label className="wide-field">설명<textarea value={form.description} onChange={(event) => updateField('description', event.target.value)} placeholder={persona.experienceDescriptionPlaceholder} maxLength={10000} rows={4} />{fieldErrors.description && <small className="field-error">{fieldErrors.description}</small>}</label>
         {formError && <p className="form-error wide-field" role="alert">{formError}</p>}
         <div className="form-actions wide-field"><button className="primary-button compact-button" disabled={isSubmitting} type="submit">{isSubmitting ? '저장·검색 데이터 업데이트 중...' : editingId ? '변경 저장' : '경력 저장'}</button></div>
       </form>
@@ -1143,7 +1239,7 @@ function ExperiencePageContent() {
       {isLoading && <div className="list-state">경력 목록을 불러오는 중입니다...</div>}
       {!isLoading && loadError && <div className="list-state error-state" role="alert">{loadError}<button className="text-button" onClick={() => void loadExperiences(page)}>다시 시도</button></div>}
       {!isLoading && !loadError && experiences.length === 0 && <div className="list-state">아직 등록된 경력이 없습니다. 위에서 첫 경력을 기록해보세요.</div>}
-      {!isLoading && !loadError && experiences.length > 0 && <div className="experience-list">{experiences.map((experience) => { const period = formatCareerPeriod(experience.startDate, experience.endDate, experience.currentlyEmployed ? '재직 중' : null); return <article className={`experience-item${period ? '' : ' no-period'}`} key={experience.id}>{period && <div className="experience-date">{period}</div>}<div className="experience-main"><h3>{experience.role}</h3><strong>{experience.companyName}</strong>{(experience.department || experience.title) && <div className="career-meta">{[experience.department, experience.title].filter(Boolean).join(' · ')}</div>}<p>{experience.description}</p>{experience.techStack ? <div className="tech-stack">{experience.techStack}</div> : <div className="career-missing-hint">기술 스택을 추가하면 이력서에 반영됩니다.</div>}</div><div className="item-actions"><button className="text-button" onClick={() => startEdit(experience)}>수정</button><button className="text-button danger-button" onClick={() => void deleteExperience(experience.id)} disabled={deletingId === experience.id}>{deletingId === experience.id ? '삭제 중' : '삭제'}</button></div></article> })}</div>}
+      {!isLoading && !loadError && experiences.length > 0 && <div className="experience-list">{experiences.map((experience) => { const period = formatCareerPeriod(experience.startDate, experience.endDate, experience.currentlyEmployed ? '재직 중' : null); return <article className={`experience-item${period ? '' : ' no-period'}`} key={experience.id}>{period && <div className="experience-date">{period}</div>}<div className="experience-main"><h3>{experience.role}</h3><strong>{experience.companyName}</strong>{(experience.department || experience.title) && <div className="career-meta">{[experience.department, experience.title].filter(Boolean).join(' · ')}</div>}<p>{experience.description}</p>{experience.techStack ? <div className="tech-stack">{experience.techStack}</div> : <div className="career-missing-hint">{persona.label}의 {persona.focus.split(' · ')[0]}를 보여주려면 기술·도구를 추가해보세요.</div>}</div><div className="item-actions"><button className="text-button" onClick={() => startEdit(experience)}>수정</button><button className="text-button danger-button" onClick={() => void deleteExperience(experience.id)} disabled={deletingId === experience.id}>{deletingId === experience.id ? '삭제 중' : '삭제'}</button></div></article> })}</div>}
       {!isLoading && !loadError && totalPages > 1 && <div className="pagination"><button className="text-button" disabled={page === 0} onClick={() => void loadExperiences(page - 1)}>← 이전</button><span>{page + 1} / {totalPages}</span><button className="text-button" disabled={page >= totalPages - 1} onClick={() => void loadExperiences(page + 1)}>다음 →</button></div>}
     </section>
     {isImportOpen && <TxtImportModal title="경력 TXT 가져오기" template={experienceTxtTemplate} onClose={() => setIsImportOpen(false)} onApply={applyTxtImport} />}
@@ -1152,7 +1248,7 @@ function ExperiencePageContent() {
 
 const emptyProjectForm: ProjectForm = { name: '', role: '', startDate: '', endDate: '', description: '', techStack: '', customerOrDomain: '', repositoryUrl: '' }
 
-function ProjectPageContent() {
+function ProjectPageContent({ persona }: { persona: PersonaProfile }) {
   const location = useLocation()
   const [projects, setProjects] = useState<Project[]>([])
   const [page, setPage] = useState(0)
@@ -1301,18 +1397,18 @@ function ProjectPageContent() {
   }
 
   return <>
-    <header className="page-heading"><div><span className="eyebrow">CAREER DATA · PROJECT</span><h1>프로젝트</h1><p>직접 만든 결과물과 사용한 기술을 기록해두면 나만의 근거가 됩니다.</p></div><div className="heading-actions"><button className="secondary-button compact-button" onClick={() => setIsImportOpen(true)}>TXT로 빠르게 입력</button><button className="primary-button compact-button" onClick={startCreate}>+ 프로젝트 추가</button></div></header>
+    <header className="page-heading"><div><span className="eyebrow">CAREER DATA · {persona.label.toUpperCase()}</span><h1>프로젝트</h1><p>{persona.label}의 결과물과 {persona.focus.split(' · ')[0]}를 보여주는 프로젝트를 기록해보세요.</p></div><div className="heading-actions"><button className="secondary-button compact-button" onClick={() => setIsImportOpen(true)}>TXT로 빠르게 입력</button><button className="primary-button compact-button" onClick={startCreate}>+ 프로젝트 추가</button></div></header>
     <section className="experience-form-card">
-      <div className="section-title"><div><span className="eyebrow">{editingId ? 'EDIT PROJECT' : 'NEW PROJECT'}</span><h2>{editingId ? '프로젝트 수정' : '새 프로젝트 기록'}</h2><p className="form-helper">프로젝트명과 역할부터 시작하고, 나머지는 나중에 보완해도 괜찮습니다.</p></div>{editingId && <button className="text-button" onClick={startCreate}>취소</button>}</div>
+      <div className="section-title"><div><span className="eyebrow">{editingId ? 'EDIT PROJECT' : 'NEW PROJECT'}</span><h2>{editingId ? '프로젝트 수정' : '새 프로젝트 기록'}</h2><p className="form-helper">프로젝트명과 역할부터 시작하고, {persona.focus}가 드러나는 결과를 나중에 보완해도 괜찮습니다.</p></div>{editingId && <button className="text-button" onClick={startCreate}>취소</button>}</div>
       <form className="experience-form" onSubmit={submitProject}>
         <FormField label="프로젝트명" value={form.name} onChange={(value) => updateField('name', value)} error={fieldErrors.name} placeholder="예: Career Portfolio" />
-        <FormField label="역할" value={form.role} onChange={(value) => updateField('role', value)} error={fieldErrors.role} placeholder="예: Backend Developer" />
+        <FormField label="역할" value={form.role} onChange={(value) => updateField('role', value)} error={fieldErrors.role} placeholder={persona.projectRolePlaceholder} />
         <FormField label="시작일 (선택)" type="date" value={form.startDate} onChange={(value) => updateField('startDate', value)} error={fieldErrors.startDate} />
         <FormField label="종료일 (선택)" type="date" value={form.endDate} onChange={(value) => updateField('endDate', value)} error={fieldErrors.endDate} />
-        <FormField label="고객사 / 업무 도메인 (선택)" value={form.customerOrDomain} onChange={(value) => updateField('customerOrDomain', value)} error={fieldErrors.customerOrDomain} placeholder="예: 금융권 결제 플랫폼, B2B SaaS" />
-        <FormField label="기술 스택" value={form.techStack} onChange={(value) => updateField('techStack', value)} error={fieldErrors.techStack} placeholder="예: Java, Spring Boot, PostgreSQL" />
+        <FormField label="고객사 / 업무 도메인 (선택)" value={form.customerOrDomain} onChange={(value) => updateField('customerOrDomain', value)} error={fieldErrors.customerOrDomain} placeholder={persona.projectDomainPlaceholder} />
+        <FormField label="기술·도구" value={form.techStack} onChange={(value) => updateField('techStack', value)} error={fieldErrors.techStack} placeholder={persona.projectTechStackPlaceholder} />
         <FormField label="저장소 URL (선택)" value={form.repositoryUrl} onChange={(value) => updateField('repositoryUrl', value)} error={fieldErrors.repositoryUrl} placeholder="https://github.com/..." />
-        <label className="wide-field">설명<textarea value={form.description} onChange={(event) => updateField('description', event.target.value)} placeholder="문제, 구현 내용, 성과를 기록해주세요." maxLength={10000} rows={4} />{fieldErrors.description && <small className="field-error">{fieldErrors.description}</small>}</label>
+        <label className="wide-field">설명<textarea value={form.description} onChange={(event) => updateField('description', event.target.value)} placeholder={persona.projectDescriptionPlaceholder} maxLength={10000} rows={4} />{fieldErrors.description && <small className="field-error">{fieldErrors.description}</small>}</label>
         {formError && <p className="form-error wide-field" role="alert">{formError}</p>}
         <div className="form-actions wide-field"><button className="primary-button compact-button" disabled={isSubmitting} type="submit">{isSubmitting ? '저장·검색 데이터 업데이트 중...' : editingId ? '변경 저장' : '프로젝트 저장'}</button></div>
       </form>
@@ -2442,7 +2538,7 @@ function ResumeDraftReviewModal({
   </div>
 }
 
-function ResumePageContent({ user }: { user: User }) {
+function ResumePageContent({ user, persona }: { user: User; persona: PersonaProfile }) {
   const location = useLocation()
   const autoOpenExportRef = useRef(false)
   const [resumes, setResumes] = useState<Resume[]>([])
@@ -2687,13 +2783,13 @@ function ResumePageContent({ user }: { user: User }) {
             {versionEditor.skills && <section><h4>기술 및 역량</h4><div className="resume-preview-skills">{splitJobKoreaList(versionEditor.skills).map((skill) => <span key={skill}>{skill}</span>)}</div></section>}
             {!versionEditor.headline && !versionEditor.selfIntroduction && !versionEditor.careerDescription && !versionEditor.skills && <p className="resume-preview-empty">미리볼 이력서 내용을 입력해주세요.</p>}
           </article> : <><p className="version-editor-help">항목별로 내용을 확인하고 수정하세요. AI 검증에 사용된 내부 근거 번호는 편집 본문에서 자동으로 숨깁니다.</p><form className="new-version-form version-editor-form" onSubmit={saveVersion}>
-            <label><strong>희망직무</strong><small>지원하려는 직무나 이력서의 핵심 제목입니다.</small><textarea value={versionEditor.headline} onChange={(event) => setVersionEditor((current) => ({ ...current, headline: event.target.value }))} placeholder="예: 백엔드 개발자" maxLength={100000} rows={2} /></label>
+            <label><strong>희망직무</strong><small>지원하려는 직무나 이력서의 핵심 제목입니다.</small><textarea value={versionEditor.headline} onChange={(event) => setVersionEditor((current) => ({ ...current, headline: event.target.value }))} placeholder={persona.resumeHeadlinePlaceholder} maxLength={100000} rows={2} /></label>
             <label><strong>자기소개서</strong><small>핵심 역량, 문제 해결 경험과 지원 직무에 기여할 내용을 작성합니다.</small><textarea value={versionEditor.selfIntroduction} onChange={(event) => setVersionEditor((current) => ({ ...current, selfIntroduction: event.target.value }))} placeholder="자기소개서 내용을 입력하세요." maxLength={100000} rows={8} /></label>
             <label><strong>경력기술서</strong><small>경력과 프로젝트에서 맡은 역할, 수행 업무와 성과를 작성합니다.</small><textarea value={versionEditor.careerDescription} onChange={(event) => setVersionEditor((current) => ({ ...current, careerDescription: event.target.value }))} placeholder="경력 및 프로젝트 내용을 입력하세요." maxLength={100000} rows={8} /></label>
-            <label><strong>기술 및 역량</strong><small>업무에 사용한 기술 스택과 도구를 작성합니다.</small><textarea value={versionEditor.skills} onChange={(event) => setVersionEditor((current) => ({ ...current, skills: event.target.value }))} placeholder="예: Java, Spring Boot, PostgreSQL" maxLength={100000} rows={4} /></label>
+            <label><strong>기술 및 역량</strong><small>업무에 사용한 기술 스택과 도구를 작성합니다.</small><textarea value={versionEditor.skills} onChange={(event) => setVersionEditor((current) => ({ ...current, skills: event.target.value }))} placeholder={persona.resumeSkillsPlaceholder} maxLength={100000} rows={4} /></label>
             <span className="version-count">저장하면 기존 Version {displayVersionNumber}는 보존되고 Version {versions.length + 1}로 저장됩니다.</span><button className="primary-button compact-button" disabled={isSubmitting} type="submit">{isSubmitting ? '저장 중...' : `Version ${versions.length + 1} 저장`}</button>
           </form></>}</div>}
-          <ResumeApplicationQuestions key={selectedResume.id} resumeId={selectedResume.id} />
+          <ResumeApplicationQuestions key={selectedResume.id} resumeId={selectedResume.id} persona={persona} />
           {isCareerReviewOpen && selectedVersion && <CareerDataReviewModal title="JobKorea 파일 생성 전 Career 점검" continueLabel="확인하고 파일 작성하기" onClose={() => setIsCareerReviewOpen(false)} onContinue={() => { setIsCareerReviewOpen(false); setIsExportOpen(true) }} />}
           {isExportOpen && selectedVersion && <JobKoreaExportModal resumeName={selectedResume.name} version={selectedVersion} displayName={user.displayName} email={user.email} onClose={() => setIsExportOpen(false)} />}
         </>}
@@ -2702,7 +2798,7 @@ function ResumePageContent({ user }: { user: User }) {
   </>
 }
 
-function ResumeApplicationQuestions({ resumeId }: { resumeId: string }) {
+function ResumeApplicationQuestions({ resumeId, persona }: { resumeId: string; persona: PersonaProfile }) {
   const [items, setItems] = useState<ApplicationQuestionEditor[]>([])
   const [jobPostings, setJobPostings] = useState<JobPosting[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -2952,7 +3048,7 @@ function ResumeApplicationQuestions({ resumeId }: { resumeId: string }) {
     {!isLoading && <div className="application-question-list">{items.map((item, index) => <article className="application-question-item" key={item.localKey}>
       <div className="application-question-heading"><strong>질문 {index + 1}{item.id ? '' : ' · 새 항목'}</strong><button className="text-button danger-button" type="button" onClick={() => void deleteQuestion(item)} disabled={deletingId === item.localKey || savingId === item.localKey || generatingId === item.localKey}>{deletingId === item.localKey ? '삭제 중...' : '삭제'}</button></div>
       <label>연결할 기업공고<select value={item.jobPostingId} onChange={(event) => updateJobPosting(item.localKey, event.target.value)} disabled={savingId === item.localKey || generatingId === item.localKey}><option value="">기업공고 선택</option>{jobPostings.map((posting) => <option key={posting.id} value={posting.id}>{posting.companyName} · {posting.title}</option>)}</select></label>
-      <label>기업 질문<textarea value={item.question} onChange={(event) => updateItem(item.localKey, 'question', event.target.value)} disabled={savingId === item.localKey || generatingId === item.localKey} maxLength={2000} rows={3} placeholder="예: 지원동기와 입사 후 이루고 싶은 목표를 작성해주세요." /></label>
+      <label>기업 질문<textarea value={item.question} onChange={(event) => updateItem(item.localKey, 'question', event.target.value)} disabled={savingId === item.localKey || generatingId === item.localKey} maxLength={2000} rows={3} placeholder={persona.questionPlaceholder} /></label>
       {item.id && (item.question.trim() !== item.savedQuestion || item.jobPostingId !== item.savedJobPostingId) && <small className="application-question-citations">질문이나 기업공고가 변경되었습니다. 저장하면 선택한 공고를 기준으로 새 답변을 작성합니다.</small>}
       <label>답변<textarea value={item.answer} onChange={(event) => updateItem(item.localKey, 'answer', event.target.value)} disabled={!item.id || savingId === item.localKey || generatingId === item.localKey} maxLength={100000} rows={8} placeholder={item.id ? '자동으로 만든 초안을 검토하거나 직접 작성해주세요.' : '질문을 저장하면 초안이 자동으로 작성됩니다.'} /></label>
       {draftProviders[item.localKey] && <small className="application-question-citations">자동 생성 정보: {draftProviders[item.localKey].provider} · {draftProviders[item.localKey].model} · prompt {draftProviders[item.localKey].promptVersion} · 근거 청크 {draftProviders[item.localKey].retrievedChunkCount}개</small>}
@@ -2965,7 +3061,7 @@ function ResumeApplicationQuestions({ resumeId }: { resumeId: string }) {
 
 const emptyJobPostingForm: JobPostingForm = { title: '', companyName: '', description: '', sourceUrl: '' }
 
-function JobPostingPageContent({ user }: { user: User }) {
+function JobPostingPageContent({ user, persona }: { user: User; persona: PersonaProfile }) {
   const [jobPostings, setJobPostings] = useState<JobPosting[]>([])
   const [page, setPage] = useState(0)
   const [totalPages, setTotalPages] = useState(0)
@@ -3123,14 +3219,14 @@ function JobPostingPageContent({ user }: { user: User }) {
   }
 
   return <>
-    <header className="page-heading"><div><span className="eyebrow">OPPORTUNITIES</span><h1>채용공고</h1><p>관심 있는 공고를 저장하면 내 경력과 비교하고 맞춤형 이력서 초안을 만들 수 있습니다.</p></div><div className="heading-actions"><button className="secondary-button compact-button" onClick={() => setIsImportOpen(true)}>URL로 빠르게 입력</button><button className="primary-button compact-button" onClick={startCreate}>+ 공고 추가</button></div></header>
+    <header className="page-heading"><div><span className="eyebrow">OPPORTUNITIES · {persona.label.toUpperCase()}</span><h1>채용공고</h1><p>{persona.label}에게 맞는 공고를 저장하면 {persona.focus}와 연결해 이력서 초안을 만들 수 있습니다.</p></div><div className="heading-actions"><button className="secondary-button compact-button" onClick={() => setIsImportOpen(true)}>URL로 빠르게 입력</button><button className="primary-button compact-button" onClick={startCreate}>+ 공고 추가</button></div></header>
     <section className="experience-form-card">
       <div className="section-title"><div><span className="eyebrow">{editingId ? 'EDIT JOB POSTING' : 'NEW JOB POSTING'}</span><h2>{editingId ? '채용공고 수정' : '새 채용공고 기록'}</h2><p className="form-helper">URL을 가져오거나 공고 원문을 붙여 넣으면 필요한 내용을 알아서 정리합니다.</p></div>{editingId && <button className="text-button" onClick={startCreate}>취소</button>}</div>
       <form className="experience-form" onSubmit={submitJobPosting}>
-        <FormField label="공고 제목" value={form.title} onChange={(value) => updateField('title', value)} error={fieldErrors.title} placeholder="예: Senior Backend Engineer" />
+        <FormField label="공고 제목" value={form.title} onChange={(value) => updateField('title', value)} error={fieldErrors.title} placeholder={persona.jobTitlePlaceholder} />
         <FormField label="회사명" value={form.companyName} onChange={(value) => updateField('companyName', value)} error={fieldErrors.companyName} placeholder="예: Acme Inc." />
         <FormField label="원문 URL (선택)" value={form.sourceUrl} onChange={(value) => updateField('sourceUrl', value)} error={fieldErrors.sourceUrl} placeholder="https://jobs.example.com/..." />
-        <label className="wide-field">채용공고 내용<textarea value={form.description} onChange={(event) => updateField('description', event.target.value)} placeholder="채용공고 원문을 붙여 넣어주세요." maxLength={100000} rows={8} />{fieldErrors.description && <small className="field-error">{fieldErrors.description}</small>}</label>
+        <label className="wide-field">채용공고 내용<textarea value={form.description} onChange={(event) => updateField('description', event.target.value)} placeholder={persona.jobDescriptionPlaceholder} maxLength={100000} rows={8} />{fieldErrors.description && <small className="field-error">{fieldErrors.description}</small>}</label>
         {formError && <p className="form-error wide-field" role="alert">{formError}</p>}
         <div className="form-actions wide-field"><button className="primary-button compact-button" disabled={isSubmitting} type="submit">{isSubmitting ? '저장 중...' : editingId ? '변경 저장' : '공고 저장'}</button></div>
       </form>
