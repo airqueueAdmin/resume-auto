@@ -9,6 +9,9 @@ spring:
     show-sql: false
 
 app:
+  identity:
+    email-verification:
+      enabled: false
   security:
     data-encryption:
       key-base64: ${DATA_ENCRYPTION_KEY_BASE64:REDACTED_HISTORY_VALUE}

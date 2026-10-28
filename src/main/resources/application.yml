@@ -35,7 +35,7 @@ app:
       terms-version: ${SIGNUP_TERMS_VERSION:2026-10-21}
       privacy-version: ${SIGNUP_PRIVACY_VERSION:2026-10-21}
     email-verification:
-      enabled: ${EMAIL_VERIFICATION_ENABLED:false}
+      enabled: ${EMAIL_VERIFICATION_ENABLED:true}
       code-ttl: ${EMAIL_VERIFICATION_CODE_TTL:PT5M}
       resend-cooldown: ${EMAIL_VERIFICATION_RESEND_COOLDOWN:PT1M}
       max-attempts: ${EMAIL_VERIFICATION_MAX_ATTEMPTS:5}
