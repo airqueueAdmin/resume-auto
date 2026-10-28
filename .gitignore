@@ -2,6 +2,10 @@ target/
 .mvn/wrapper/maven-wrapper.jar
 *.log
 .env
+.env.*
+!.env.example
+!.env.oracle.example
+!.env.render.example
 .env.oracle
 .idea/
 *.iml
