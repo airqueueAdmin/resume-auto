@@ -12,7 +12,7 @@ $bytes = New-Object byte[] 32
 [Convert]::ToBase64String($bytes)
 ```
 
-The local Compose fallback is for development only. Production must supply its own key before the first startup that applies migration `V22` or later encryption migrations.
+The local Compose fallback is for development only. Production must supply its own key before the first startup that applies migration `V22` or later encryption migrations. A missing variable must not be passed through literally as `${DATA_ENCRYPTION_KEY_BASE64}`; startup should fail with a missing-key configuration error.
 
 ## Protected data
 

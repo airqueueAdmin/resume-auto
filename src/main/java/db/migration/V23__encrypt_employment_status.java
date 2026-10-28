@@ -34,17 +34,25 @@ public class V23__encrypt_employment_status extends BaseJavaMigration {
 
     private String resolveKey(Context context) {
         String placeholder = context.getConfiguration().getPlaceholders().get("data-encryption-key-base64");
-        if (placeholder != null && !placeholder.isBlank()) {
+        if (!isUnresolvedPlaceholder(placeholder)) {
             return placeholder;
         }
         String systemProperty = System.getProperty("DATA_ENCRYPTION_KEY_BASE64");
-        if (systemProperty != null && !systemProperty.isBlank()) {
+        if (!isUnresolvedPlaceholder(systemProperty)) {
             return systemProperty;
         }
         String environment = System.getenv("DATA_ENCRYPTION_KEY_BASE64");
-        if (environment != null && !environment.isBlank()) {
+        if (!isUnresolvedPlaceholder(environment)) {
             return environment;
         }
         throw new IllegalStateException("DATA_ENCRYPTION_KEY_BASE64 must be configured before V23");
+    }
+
+    private boolean isUnresolvedPlaceholder(String value) {
+        if (value == null || value.isBlank()) {
+            return true;
+        }
+        String trimmed = value.trim();
+        return trimmed.startsWith("${") && trimmed.endsWith("}");
     }
 }

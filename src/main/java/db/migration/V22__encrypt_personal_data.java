@@ -150,15 +150,23 @@ public class V22__encrypt_personal_data extends BaseJavaMigration {
 
     private String resolveKey(Context context) {
         String configured = context.getConfiguration().getPlaceholders().get("data-encryption-key-base64");
-        if (configured == null || configured.isBlank()) {
+        if (isUnresolvedPlaceholder(configured)) {
             configured = System.getProperty("DATA_ENCRYPTION_KEY_BASE64");
         }
-        if (configured == null || configured.isBlank()) {
+        if (isUnresolvedPlaceholder(configured)) {
             configured = System.getenv("DATA_ENCRYPTION_KEY_BASE64");
         }
-        if (configured == null || configured.isBlank()) {
+        if (isUnresolvedPlaceholder(configured)) {
             throw new IllegalStateException("DATA_ENCRYPTION_KEY_BASE64 must be configured before V22");
         }
         return configured;
+    }
+
+    private boolean isUnresolvedPlaceholder(String value) {
+        if (value == null || value.isBlank()) {
+            return true;
+        }
+        String trimmed = value.trim();
+        return trimmed.startsWith("${") && trimmed.endsWith("}");
     }
 }

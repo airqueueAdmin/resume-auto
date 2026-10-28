@@ -27,7 +27,7 @@ public final class DataEncryption {
     }
 
     public static void configure(String keyBase64) {
-        if (keyBase64 == null || keyBase64.isBlank()) {
+        if (keyBase64 == null || keyBase64.isBlank() || isUnresolvedPlaceholder(keyBase64)) {
             throw new IllegalStateException(
                     "DATA_ENCRYPTION_KEY_BASE64 must be configured with a random 32-byte Base64 key"
             );
@@ -133,6 +133,11 @@ public final class DataEncryption {
             throw new IllegalStateException("DATA_ENCRYPTION_KEY_BASE64 must decode to exactly 32 bytes");
         }
         return decoded;
+    }
+
+    private static boolean isUnresolvedPlaceholder(String value) {
+        String trimmed = value.trim();
+        return trimmed.startsWith("${") && trimmed.endsWith("}");
     }
 
     private static final class HexFormatHolder {
