@@ -88,7 +88,7 @@ const jobKoreaUploadUrl = 'https://resume.jobkorea.co.kr/resume/upload'
 const extensionDownloadUrl = import.meta.env.VITE_EXTENSION_DOWNLOAD_URL ?? '/downloads/career-note-extension-v0.3.4.zip'
 const maxJobKoreaSkills = 20
 const supportedResumePhotoTypes = new Set(['image/jpeg', 'image/png', 'image/webp'])
-type PersonaKey = 'planner' | 'designer' | 'developer'
+type PersonaKey = 'jobseeker' | 'tech' | 'product' | 'creative' | 'business' | 'professional'
 type PersonaProfile = {
   key: PersonaKey
   label: string
@@ -100,6 +100,8 @@ type PersonaProfile = {
   heroDescription: string
   primaryAction: string
   secondaryAction: string
+  experienceLabel: string
+  organizationLabel: string
   experienceRolePlaceholder: string
   departmentPlaceholder: string
   titlePlaceholder: string
@@ -117,32 +119,50 @@ type PersonaProfile = {
 }
 
 const personaProfiles: Record<PersonaKey, PersonaProfile> = {
-  planner: {
-    key: 'planner', label: '기획자', icon: '✦', description: '문제 정의와 사용자 관점의 성과를 중심으로 준비해요.', focus: '문제 정의 · 사용자 경험 · 성과',
-    heroTitle: '문제를 정의한 경험을', heroEmphasis: '지원 직무에 맞게 정리해요.', heroDescription: '기획 배경과 의사결정, 출시 후 성과를 기록하면 공고에 맞는 지원 문서를 더 설득력 있게 준비할 수 있습니다.',
-    primaryAction: '기획 경험 기록하기', secondaryAction: '관심 공고 저장하기', experienceRolePlaceholder: '예: 서비스 기획자', departmentPlaceholder: '예: 프로덕트팀', titlePlaceholder: '예: 주니어 PM', techStackPlaceholder: '예: Figma, GA4, Amplitude, SQL', experienceDescriptionPlaceholder: '문제 정의, 사용자 인사이트, 기획안과 출시 후 성과를 기록해주세요.', projectRolePlaceholder: '예: 요구사항 정의 및 출시 일정 관리', projectTechStackPlaceholder: '예: Figma, Notion, Jira, GA4', projectDomainPlaceholder: '예: B2C 모바일 앱 / 신규 기능 런칭', projectDescriptionPlaceholder: '문제, 가설, 의사결정, 출시 결과와 지표를 기록해주세요.', resumeHeadlinePlaceholder: '예: 데이터로 사용자의 문제를 해결하는 서비스 기획자', resumeSkillsPlaceholder: '예: Figma, GA4, SQL, Notion', questionPlaceholder: '예: 사용자 문제를 발견하고 해결한 기획 경험을 작성해주세요.', jobTitlePlaceholder: '예: 서비스 기획자 / Product Manager', jobDescriptionPlaceholder: '채용공고의 주요 과제, 담당 업무와 자격요건을 붙여 넣어주세요.',
+  jobseeker: {
+    key: 'jobseeker', label: '취업 준비생', icon: '↗', description: '인턴, 학업, 동아리와 개인 경험부터 차근차근 정리해요.', focus: '가능성 · 성장 경험 · 기본 역량',
+    heroTitle: '작은 경험부터 모아', heroEmphasis: '나만의 지원 근거를 만들어요.', heroDescription: '인턴, 팀 프로젝트, 동아리와 학업 경험도 충분한 근거가 됩니다. 맡은 역할과 배운 점, 만든 결과를 하나씩 기록해보세요.',
+    primaryAction: '첫 경험 기록하기', secondaryAction: '관심 공고 찾아보기', experienceLabel: '경력·활동', organizationLabel: '회사 / 기관 / 활동명', experienceRolePlaceholder: '예: 인턴 / 팀 프로젝트 리더 / 동아리 운영', departmentPlaceholder: '예: 마케팅팀 / 캡스톤디자인팀', titlePlaceholder: '예: 인턴 / 팀장 / 운영진', techStackPlaceholder: '예: Excel, Notion, Figma, Python', experienceDescriptionPlaceholder: '맡은 역할, 새롭게 배운 점과 직접 만든 결과를 기록해주세요.', projectRolePlaceholder: '예: 자료 조사 및 발표 / 기능 구현 / 행사 운영', projectTechStackPlaceholder: '예: Notion, Excel, Figma, Python', projectDomainPlaceholder: '예: 캡스톤디자인 / 공모전 / 개인 프로젝트', projectDescriptionPlaceholder: '시작한 이유, 맡은 역할, 실행 과정과 배운 점을 기록해주세요.', resumeHeadlinePlaceholder: '예: 빠르게 배우고 끝까지 실행하는 신입 지원자', resumeSkillsPlaceholder: '예: 문서 작성, 데이터 분석, Figma, 협업', questionPlaceholder: '예: 목표를 세우고 끝까지 완수한 경험을 작성해주세요.', jobTitlePlaceholder: '예: 신입 서비스 운영 / 주니어 개발자', jobDescriptionPlaceholder: '관심 공고의 담당 업무, 자격요건과 우대사항을 붙여 넣어주세요.',
   },
-  designer: {
-    key: 'designer', label: '디자이너', icon: '◌', description: '사용자 경험과 결과물이 보이도록 포트폴리오를 준비해요.', focus: '사용자 경험 · 시각화 · 협업',
-    heroTitle: '사용자 경험을 만든 과정을', heroEmphasis: '지원 직무에 맞게 보여줘요.', heroDescription: '해결하려던 사용자 문제와 디자인 과정, 협업 방식과 결과물을 기록하면 나만의 강점을 선명하게 보여줄 수 있습니다.',
-    primaryAction: '디자인 경험 기록하기', secondaryAction: '관심 공고 저장하기', experienceRolePlaceholder: '예: Product Designer', departmentPlaceholder: '예: 디자인팀', titlePlaceholder: '예: 시니어 디자이너', techStackPlaceholder: '예: Figma, FigJam, Adobe Illustrator', experienceDescriptionPlaceholder: '사용자 문제, 디자인 과정, 협업 방식과 결과를 기록해주세요.', projectRolePlaceholder: '예: UX 리서치 및 UI 시스템 설계', projectTechStackPlaceholder: '예: Figma, FigJam, Photoshop, Protopie', projectDomainPlaceholder: '예: 금융 앱 / 브랜드 리뉴얼', projectDescriptionPlaceholder: '문제와 사용자, 시도한 디자인, 결과물과 사용자 영향을 기록해주세요.', resumeHeadlinePlaceholder: '예: 사용자의 행동을 바꾸는 Product Designer', resumeSkillsPlaceholder: '예: Figma, FigJam, Adobe XD, Protopie', questionPlaceholder: '예: 사용자 경험을 개선한 디자인 프로젝트를 작성해주세요.', jobTitlePlaceholder: '예: Product Designer / UX Designer', jobDescriptionPlaceholder: '채용공고의 디자인 과제, 협업 방식과 요구 역량을 붙여 넣어주세요.',
+  tech: {
+    key: 'tech', label: '개발·데이터', icon: '⌘', description: '개발, 데이터, 인프라와 QA 경험을 기술적 결과로 정리해요.', focus: '기술 역량 · 문제 해결 · 안정성',
+    heroTitle: '기술로 해결한 경험을', heroEmphasis: '지원 직무에 맞게 정리해요.', heroDescription: '사용한 기술과 해결한 문제, 성능·품질 개선 결과를 기록하면 개발·데이터 공고에 맞는 이력서를 빠르게 준비할 수 있습니다.',
+    primaryAction: '기술 경험 기록하기', secondaryAction: '관심 공고 저장하기', experienceLabel: '경력', organizationLabel: '회사 / 기관명', experienceRolePlaceholder: '예: 백엔드 개발 / 데이터 분석 / QA', departmentPlaceholder: '예: 플랫폼개발팀 / 데이터팀', titlePlaceholder: '예: 주니어 엔지니어', techStackPlaceholder: '예: Java, Python, SQL, AWS', experienceDescriptionPlaceholder: '담당 기능, 해결한 문제, 성능·품질 개선과 협업 결과를 기록해주세요.', projectRolePlaceholder: '예: API 설계 및 데이터 파이프라인 구축', projectTechStackPlaceholder: '예: Kotlin, Spring, Python, AWS', projectDomainPlaceholder: '예: 커머스 플랫폼 / 추천 시스템', projectDescriptionPlaceholder: '기술적 문제, 구현 방식, 검증 결과와 개선 수치를 기록해주세요.', resumeHeadlinePlaceholder: '예: 안정적인 서비스를 만드는 백엔드 개발자', resumeSkillsPlaceholder: '예: Java, Spring Boot, Python, PostgreSQL', questionPlaceholder: '예: 복잡한 기술 문제를 해결한 경험을 작성해주세요.', jobTitlePlaceholder: '예: Backend Engineer / Data Analyst / QA', jobDescriptionPlaceholder: '채용공고의 기술 스택, 담당 업무와 자격요건을 붙여 넣어주세요.',
   },
-  developer: {
-    key: 'developer', label: '개발자', icon: '⌘', description: '기술 선택과 문제 해결 결과를 중심으로 경력을 정리해요.', focus: '기술 스택 · 문제 해결 · 협업',
-    heroTitle: '기술로 만든 경험을', heroEmphasis: '지원 직무에 맞게 정리해요.', heroDescription: '사용한 기술과 해결한 문제, 성능 개선과 협업 결과를 기록하면 공고에 맞는 기술 이력서를 빠르게 준비할 수 있습니다.',
-    primaryAction: '개발 경력 기록하기', secondaryAction: '관심 공고 저장하기', experienceRolePlaceholder: '예: 백엔드 개발자', departmentPlaceholder: '예: 플랫폼개발팀', titlePlaceholder: '예: 선임 개발자', techStackPlaceholder: '예: Java, Spring Boot, PostgreSQL', experienceDescriptionPlaceholder: '담당 기능, 해결한 문제, 성능 개선과 협업 결과를 기록해주세요.', projectRolePlaceholder: '예: 백엔드 개발 및 API 설계', projectTechStackPlaceholder: '예: Kotlin, Spring, AWS, Docker', projectDomainPlaceholder: '예: 커머스 플랫폼 / 주문 처리 시스템', projectDescriptionPlaceholder: '기술적 문제, 구현 내용, 성능 개선과 결과를 기록해주세요.', resumeHeadlinePlaceholder: '예: 안정적인 서비스를 만드는 백엔드 개발자', resumeSkillsPlaceholder: '예: Java, Spring Boot, PostgreSQL, Docker', questionPlaceholder: '예: 복잡한 기술 문제를 해결한 경험을 작성해주세요.', jobTitlePlaceholder: '예: Backend Engineer / Software Engineer', jobDescriptionPlaceholder: '채용공고의 기술 스택, 담당 업무와 자격요건을 붙여 넣어주세요.',
+  product: {
+    key: 'product', label: '기획·운영', icon: '✦', description: '서비스, 사업, 제품 운영 경험을 문제와 성과 중심으로 준비해요.', focus: '문제 정의 · 실행 과정 · 성과',
+    heroTitle: '문제를 실행으로 바꾼 경험을', heroEmphasis: '지원 직무에 맞게 정리해요.', heroDescription: '기획 배경과 의사결정, 운영 과정과 성과를 기록하면 다양한 기획·운영 공고에 맞는 지원 문서를 준비할 수 있습니다.',
+    primaryAction: '기획·운영 경험 기록하기', secondaryAction: '관심 공고 저장하기', experienceLabel: '경력', organizationLabel: '회사 / 기관명', experienceRolePlaceholder: '예: 서비스 기획 / 사업기획 / 서비스 운영', departmentPlaceholder: '예: 프로덕트팀 / 운영팀', titlePlaceholder: '예: PM / 운영 매니저', techStackPlaceholder: '예: Notion, Figma, GA4, Jira', experienceDescriptionPlaceholder: '문제 정의, 실행 과정, 협업 방식과 달성한 성과를 기록해주세요.', projectRolePlaceholder: '예: 요구사항 정의 및 출시·운영 관리', projectTechStackPlaceholder: '예: Notion, Figma, Jira, GA4', projectDomainPlaceholder: '예: B2C 앱 / 신규 사업 / 운영 개선', projectDescriptionPlaceholder: '문제, 가설, 의사결정, 실행 결과와 지표를 기록해주세요.', resumeHeadlinePlaceholder: '예: 사용자 문제를 실행으로 해결하는 서비스 기획자', resumeSkillsPlaceholder: '예: 서비스 기획, GA4, SQL, Notion', questionPlaceholder: '예: 문제를 정의하고 이해관계자를 설득한 경험을 작성해주세요.', jobTitlePlaceholder: '예: Product Manager / 서비스 운영', jobDescriptionPlaceholder: '채용공고의 주요 과제, 담당 업무와 요구 역량을 붙여 넣어주세요.',
+  },
+  creative: {
+    key: 'creative', label: '디자인·콘텐츠', icon: '◌', description: '디자인, 영상, 글과 브랜드 결과물을 과정과 함께 보여줘요.', focus: '사용자·독자 · 창작 과정 · 결과물',
+    heroTitle: '아이디어를 결과물로 만든 과정을', heroEmphasis: '설득력 있게 보여줘요.', heroDescription: '해결하려던 문제와 창작 과정, 협업 방식과 결과물을 기록하면 디자인·콘텐츠 직군의 강점을 선명하게 보여줄 수 있습니다.',
+    primaryAction: '창작 경험 기록하기', secondaryAction: '관심 공고 저장하기', experienceLabel: '경력', organizationLabel: '회사 / 기관명', experienceRolePlaceholder: '예: UX/UI 디자인 / 콘텐츠 제작 / 브랜드 디자인', departmentPlaceholder: '예: 디자인팀 / 콘텐츠팀', titlePlaceholder: '예: 디자이너 / 콘텐츠 에디터', techStackPlaceholder: '예: Figma, Adobe CC, Premiere Pro', experienceDescriptionPlaceholder: '대상과 문제, 창작 과정, 협업 방식과 결과를 기록해주세요.', projectRolePlaceholder: '예: UX 리서치 및 UI 설계 / 콘텐츠 기획·제작', projectTechStackPlaceholder: '예: Figma, Photoshop, Premiere Pro', projectDomainPlaceholder: '예: 금융 앱 / 브랜드 캠페인 / 영상 콘텐츠', projectDescriptionPlaceholder: '목표와 대상, 시도한 방법, 결과물과 반응을 기록해주세요.', resumeHeadlinePlaceholder: '예: 사용자의 행동을 이끄는 Product Designer', resumeSkillsPlaceholder: '예: Figma, Adobe CC, 영상 편집, 콘텐츠 기획', questionPlaceholder: '예: 사용자나 독자의 반응을 바꾼 프로젝트를 작성해주세요.', jobTitlePlaceholder: '예: Product Designer / 콘텐츠 에디터', jobDescriptionPlaceholder: '채용공고의 제작 과제, 협업 방식과 요구 역량을 붙여 넣어주세요.',
+  },
+  business: {
+    key: 'business', label: '영업·마케팅', icon: '◎', description: '고객 이해, 매출과 캠페인 성과를 수치와 사례로 준비해요.', focus: '고객 이해 · 실행력 · 매출·성과',
+    heroTitle: '고객을 움직인 경험을', heroEmphasis: '성과 중심으로 정리해요.', heroDescription: '고객을 이해한 과정과 영업·캠페인 실행, 매출과 전환 성과를 기록하면 비즈니스 직군의 강점을 구체적으로 보여줄 수 있습니다.',
+    primaryAction: '비즈니스 경험 기록하기', secondaryAction: '관심 공고 저장하기', experienceLabel: '경력', organizationLabel: '회사 / 기관명', experienceRolePlaceholder: '예: B2B 영업 / 퍼포먼스 마케팅 / MD', departmentPlaceholder: '예: 영업팀 / 마케팅팀', titlePlaceholder: '예: Account Manager / 마케터', techStackPlaceholder: '예: Excel, GA4, Salesforce, CRM', experienceDescriptionPlaceholder: '고객·시장 분석, 실행 전략, 협업 과정과 매출·전환 성과를 기록해주세요.', projectRolePlaceholder: '예: 신규 고객 발굴 / 캠페인 기획 및 운영', projectTechStackPlaceholder: '예: GA4, Meta Ads, Salesforce, Excel', projectDomainPlaceholder: '예: B2B SaaS / 이커머스 캠페인', projectDescriptionPlaceholder: '목표 고객, 실행 전략, 맡은 역할과 수치로 확인된 결과를 기록해주세요.', resumeHeadlinePlaceholder: '예: 데이터로 고객과 매출을 연결하는 마케터', resumeSkillsPlaceholder: '예: GA4, CRM, Excel, 고객 커뮤니케이션', questionPlaceholder: '예: 고객을 설득하거나 목표를 초과 달성한 경험을 작성해주세요.', jobTitlePlaceholder: '예: B2B Sales / Performance Marketer', jobDescriptionPlaceholder: '채용공고의 고객군, 목표 지표, 담당 업무와 자격요건을 붙여 넣어주세요.',
+  },
+  professional: {
+    key: 'professional', label: '경영지원·전문직', icon: '□', description: '인사, 재무, 법무, 연구와 현장 업무를 전문성과 개선 성과로 정리해요.', focus: '전문성 · 정확성 · 업무 개선',
+    heroTitle: '전문성을 발휘한 경험을', heroEmphasis: '명확한 성과로 정리해요.', heroDescription: '맡은 업무의 기준과 책임, 개선 과정과 결과를 기록하면 경영지원·전문 직군에서 필요한 신뢰와 역량을 보여줄 수 있습니다.',
+    primaryAction: '전문 경험 기록하기', secondaryAction: '관심 공고 저장하기', experienceLabel: '경력', organizationLabel: '회사 / 기관명', experienceRolePlaceholder: '예: HR / 재무회계 / 연구 / 품질관리', departmentPlaceholder: '예: 인사팀 / 재무팀 / 연구소', titlePlaceholder: '예: 매니저 / 연구원 / 담당자', techStackPlaceholder: '예: Excel, SAP, R, CAD, ERP', experienceDescriptionPlaceholder: '맡은 책임, 적용한 기준과 전문지식, 업무 개선 결과를 기록해주세요.', projectRolePlaceholder: '예: 채용 프로세스 개선 / 비용 분석 / 품질 검증', projectTechStackPlaceholder: '예: Excel, SAP, Tableau, ERP', projectDomainPlaceholder: '예: 인사제도 / 결산 / 연구과제 / 생산품질', projectDescriptionPlaceholder: '업무 목표, 판단 기준, 수행 과정과 개선 결과를 기록해주세요.', resumeHeadlinePlaceholder: '예: 정확한 분석으로 업무를 개선하는 재무 담당자', resumeSkillsPlaceholder: '예: 재무 분석, Excel, SAP, 프로세스 개선', questionPlaceholder: '예: 전문성을 활용해 업무 정확도나 효율을 높인 경험을 작성해주세요.', jobTitlePlaceholder: '예: HR Manager / 재무회계 / 연구원', jobDescriptionPlaceholder: '채용공고의 전문 업무, 필수 자격과 우대 역량을 붙여 넣어주세요.',
   },
 }
 
 const personaStoragePrefix = 'ai-career.persona.'
 
 function isPersonaKey(value: string | null): value is PersonaKey {
-  return value === 'planner' || value === 'designer' || value === 'developer'
+  return value === 'jobseeker' || value === 'tech' || value === 'product' || value === 'creative' || value === 'business' || value === 'professional'
 }
 
 function readPersona(userId: string): PersonaKey | null {
   const value = localStorage.getItem(`${personaStoragePrefix}${userId}`)
-  return isPersonaKey(value) ? value : null
+  if (isPersonaKey(value)) return value
+  const migratedPersona = value === 'developer' ? 'tech' : value === 'planner' ? 'product' : value === 'designer' ? 'creative' : null
+  if (migratedPersona) savePersona(userId, migratedPersona)
+  return migratedPersona
 }
 
 function savePersona(userId: string, persona: PersonaKey) {
@@ -150,7 +170,7 @@ function savePersona(userId: string, persona: PersonaKey) {
 }
 
 function getPersonaProfile(persona: PersonaKey | null): PersonaProfile {
-  return personaProfiles[persona ?? 'developer']
+  return personaProfiles[persona ?? 'jobseeker']
 }
 
 const koreanDateTimeFormatter = new Intl.DateTimeFormat('ko-KR', {
@@ -219,6 +239,10 @@ function clearAuthentication() {
 
 function App() {
   const [user, setUser] = useState<User | null>(readUser)
+  const [persona, setPersona] = useState<PersonaKey | null>(() => {
+    const storedUser = readUser()
+    return storedUser ? readPersona(storedUser.id) : null
+  })
   const [isRestoringSession, setIsRestoringSession] = useState(() => !readUser())
 
   useEffect(() => {
@@ -237,8 +261,10 @@ function App() {
     }).then((result) => {
       saveAuthentication(result)
       setUser(result.user)
+      setPersona(readPersona(result.user.id))
     }).catch(() => {
       clearAuthentication()
+      setPersona(null)
     }).finally(() => {
       setIsRestoringSession(false)
     })
@@ -247,6 +273,13 @@ function App() {
   function handleAuthenticated(result: AuthenticationResponse) {
     saveAuthentication(result)
     setUser(result.user)
+    setPersona(readPersona(result.user.id))
+  }
+
+  function handlePersonaSelected(selectedPersona: PersonaKey) {
+    if (!user) return
+    savePersona(user.id, selectedPersona)
+    setPersona(selectedPersona)
   }
 
   async function handleLogout() {
@@ -259,12 +292,14 @@ function App() {
     }
     clearAuthentication()
     setUser(null)
+    setPersona(null)
   }
 
   async function handleDeleteAccount() {
     await request<void>('/v1/account', { method: 'DELETE' })
     clearAuthentication()
     setUser(null)
+    setPersona(null)
   }
 
   if (isRestoringSession) {
@@ -273,15 +308,15 @@ function App() {
 
   return (
     <Routes>
-      <Route path="/" element={user ? (readPersona(user.id) ? <Dashboard user={user} onLogout={handleLogout} onDeleteAccount={handleDeleteAccount} /> : <Navigate to="/choose-role" replace />) : <LandingPage />} />
-      <Route path="/choose-role" element={user ? <RoleSelectionPage user={user} /> : <Navigate to="/login" replace />} />
-      <Route path="/login" element={user ? <Navigate to={readPersona(user.id) ? '/' : '/choose-role'} replace /> : <AuthPage mode="login" onAuthenticated={handleAuthenticated} />} />
-      <Route path="/signup" element={user ? <Navigate to={readPersona(user.id) ? '/' : '/choose-role'} replace /> : <AuthPage mode="signup" onAuthenticated={handleAuthenticated} />} />
-      <Route path="/verify-email" element={user ? <Navigate to={readPersona(user.id) ? '/' : '/choose-role'} replace /> : <EmailVerificationPage />} />
+      <Route path="/" element={user ? (persona ? <Dashboard user={user} onLogout={handleLogout} onDeleteAccount={handleDeleteAccount} /> : <Navigate to="/choose-role" replace />) : <LandingPage />} />
+      <Route path="/choose-role" element={user ? <RoleSelectionPage user={user} onSelect={handlePersonaSelected} /> : <Navigate to="/login" replace />} />
+      <Route path="/login" element={user ? <Navigate to={persona ? '/' : '/choose-role'} replace /> : <AuthPage mode="login" onAuthenticated={handleAuthenticated} />} />
+      <Route path="/signup" element={user ? <Navigate to={persona ? '/' : '/choose-role'} replace /> : <AuthPage mode="signup" onAuthenticated={handleAuthenticated} />} />
+      <Route path="/verify-email" element={user ? <Navigate to={persona ? '/' : '/choose-role'} replace /> : <EmailVerificationPage />} />
       <Route path="/extension/connect" element={user ? <ExtensionConnectPage /> : <Navigate to="/login" replace state={{ from: '/extension/connect' }} />} />
       <Route path="/terms" element={<PolicyPage type="terms" />} />
       <Route path="/privacy" element={<PolicyPage type="privacy" />} />
-      <Route path="*" element={user ? (readPersona(user.id) ? <Dashboard user={user} onLogout={handleLogout} onDeleteAccount={handleDeleteAccount} /> : <Navigate to="/choose-role" replace />) : <Navigate to="/" replace />} />
+      <Route path="*" element={user ? (persona ? <Dashboard user={user} onLogout={handleLogout} onDeleteAccount={handleDeleteAccount} /> : <Navigate to="/choose-role" replace />) : <Navigate to="/" replace />} />
     </Routes>
   )
 }
@@ -289,7 +324,7 @@ function App() {
 function LandingPage() {
   return <main className="landing-page">
     <header className="landing-header">
-      <Link className="landing-logo" to="/" aria-label="Career Note 홈">AC<span>•</span><small>CAREER NOTE</small></Link>
+      <Link className="landing-logo" to="/" aria-label="Career Note 홈">CN<span>•</span><small>CAREER NOTE</small></Link>
       <nav className="landing-nav" aria-label="서비스 안내">
         <a href="#how-it-works">이용 방법</a>
         <Link to="/login">로그인</Link>
@@ -314,7 +349,7 @@ function LandingPage() {
         <div className="landing-preview-window">
           <div className="landing-preview-top"><span>YOUR WORKSPACE</span><i /><i /><i /></div>
           <div className="landing-preview-body">
-            <div className="landing-preview-sidebar"><strong>AC<span>•</span></strong><b /><b /><b /><b /></div>
+            <div className="landing-preview-sidebar"><strong>CN<span>•</span></strong><b /><b /><b /><b /></div>
             <div className="landing-preview-content">
               <small>JOB-FIT WORKSPACE</small>
               <strong>한 공고에<br /><em>맞는 문서 준비</em></strong>
@@ -356,7 +391,7 @@ function LandingPage() {
   </main>
 }
 
-function RoleSelectionPage({ user }: { user: User }) {
+function RoleSelectionPage({ user, onSelect }: { user: User; onSelect: (persona: PersonaKey) => void }) {
   const location = useLocation()
   const navigate = useNavigate()
   const queryReturnTo = new URLSearchParams(location.search).get('returnTo')
@@ -365,7 +400,7 @@ function RoleSelectionPage({ user }: { user: User }) {
   const returnTo = requestedReturnTo && requestedReturnTo.startsWith('/') && !requestedReturnTo.startsWith('//') ? requestedReturnTo : '/'
 
   function selectPersona(persona: PersonaKey) {
-    savePersona(user.id, persona)
+    onSelect(persona)
     navigate(returnTo, { replace: true })
   }
 
@@ -665,7 +700,7 @@ function Dashboard({ user, onLogout, onDeleteAccount }: { user: User; onLogout: 
   return (
     <div className="app-shell">
       <aside className="sidebar">
-        <Link className="logo" to="/" aria-label="Career Note 홈">AC<span>•</span><small>CAREER NOTE</small></Link>
+        <Link className="logo" to="/" aria-label="Career Note 홈">CN<span>•</span><small>CAREER NOTE</small></Link>
         <div className="sidebar-label">WORKSPACE</div>
         <nav>
           <Link className={location.pathname === '/' ? 'nav-item active' : 'nav-item'} to="/" data-tour="home-nav"><span className="nav-icon">⌂</span><span className="nav-label">홈</span></Link>
@@ -800,7 +835,7 @@ function CareerPageContent({ section, persona }: { section: CareerSection; perso
   return <>
     <div className="career-toolbar">
       <nav className="career-tabs" aria-label="Career data sections">
-        <Link className={section === 'experiences' ? 'career-tab active' : 'career-tab'} to="/career/experiences" aria-current={section === 'experiences' ? 'page' : undefined}>경력</Link>
+        <Link className={section === 'experiences' ? 'career-tab active' : 'career-tab'} to="/career/experiences" aria-current={section === 'experiences' ? 'page' : undefined}>{persona.experienceLabel}</Link>
         <Link className={section === 'projects' ? 'career-tab active' : 'career-tab'} to="/career/projects" aria-current={section === 'projects' ? 'page' : undefined}>프로젝트</Link>
       </nav>
       <small className="career-index-auto-help">{persona.label}에게 중요한 {persona.focus}를 기록하면 맞춤 검색 데이터가 자동으로 업데이트됩니다.</small>
@@ -850,9 +885,9 @@ function OverviewContent({ user, persona }: { user: User; persona: PersonaProfil
   return <>
     <header className="topbar"><div><span className="eyebrow">YOUR WORKSPACE · {persona.label.toUpperCase()}</span><h1>안녕하세요, {user.displayName}님</h1><p className="topbar-subtitle">{persona.label} 맞춤 화면 · {persona.focus}</p></div><span className="status-pill"><span />{persona.label} 모드</span></header>
     <section className="hero-card"><div className="hero-card-content"><span className="eyebrow">START HERE · {persona.label.toUpperCase()}</span><h2>{persona.heroTitle}<br /><em>{persona.heroEmphasis}</em></h2><p>{persona.heroDescription}</p><div className="hero-actions"><Link className="hero-action-primary" to="/career/experiences" data-tour="career-start">{persona.primaryAction} <span>→</span></Link><Link className="hero-action-secondary" to="/job-postings">{persona.secondaryAction}</Link></div></div><div className="hero-orbit" aria-hidden="true"><span>+</span><span>✦</span><span>→</span></div></section>
-    <section className="stats-grid" aria-busy={isLoading}><StatCard label="경력" value={displayCount(counts.experiences)} action="경력 추가" to="/career/experiences" /><StatCard label="프로젝트" value={displayCount(counts.projects)} action="프로젝트 추가" to="/career/projects" /><StatCard label="이력서" value={displayCount(counts.resumes)} action="이력서 만들기" to="/resumes" /><StatCard label="채용공고" value={displayCount(counts.jobPostings)} action="공고 저장" to="/job-postings" /></section>
+    <section className="stats-grid" aria-busy={isLoading}><StatCard label={persona.experienceLabel} value={displayCount(counts.experiences)} action={`${persona.experienceLabel} 추가`} to="/career/experiences" /><StatCard label="프로젝트" value={displayCount(counts.projects)} action="프로젝트 추가" to="/career/projects" /><StatCard label="이력서" value={displayCount(counts.resumes)} action="이력서 만들기" to="/resumes" /><StatCard label="채용공고" value={displayCount(counts.jobPostings)} action="공고 저장" to="/job-postings" /></section>
     {loadError && <p className="overview-load-error" role="alert">{loadError} <button className="text-button" onClick={() => void loadCounts()}>다시 시도</button></p>}
-    <section className="next-section"><div><span className="eyebrow">NEXT UP</span><h2>{persona.label}의 작업 공간을 채워보세요</h2><p>처음이라면 {persona.focus.split(' · ')[0]}이(가) 드러나는 경험 하나만 기록해도 충분합니다. 저장한 데이터는 언제든 수정할 수 있어요.</p><div className="next-actions"><Link className="text-button" to="/career/experiences">첫 경력 기록하기 ↗</Link><Link className="text-button" to="/job-postings">관심 공고 저장하기 ↗</Link></div></div><div className="progress-ring" aria-label={`완료한 작업 공간 ${completedWorkspaceSections}개, 전체 4개`}><strong>{isLoading ? '…' : completedWorkspaceSections}</strong><span>/ 4</span></div></section>
+    <section className="next-section"><div><span className="eyebrow">NEXT UP</span><h2>{persona.label}의 작업 공간을 채워보세요</h2><p>처음이라면 {persona.focus.split(' · ')[0]}이(가) 드러나는 경험 하나만 기록해도 충분합니다. 저장한 데이터는 언제든 수정할 수 있어요.</p><div className="next-actions"><Link className="text-button" to="/career/experiences">첫 {persona.experienceLabel} 기록하기 ↗</Link><Link className="text-button" to="/job-postings">관심 공고 저장하기 ↗</Link></div></div><div className="progress-ring" aria-label={`완료한 작업 공간 ${completedWorkspaceSections}개, 전체 4개`}><strong>{isLoading ? '…' : completedWorkspaceSections}</strong><span>/ 4</span></div></section>
   </>
 }
 
@@ -1218,11 +1253,11 @@ function ExperiencePageContent({ persona }: { persona: PersonaProfile }) {
   }
 
   return <>
-    <header className="page-heading"><div><span className="eyebrow">CAREER DATA · {persona.label.toUpperCase()}</span><h1>경력</h1><p>{persona.label}에게 중요한 {persona.focus}를 중심으로 직장에서 맡았던 일과 결과를 기록해보세요.</p></div><div className="heading-actions"><button className="secondary-button compact-button" onClick={() => setIsImportOpen(true)}>TXT로 빠르게 입력</button><button className="primary-button compact-button" onClick={startCreate}>+ 경력 추가</button></div></header>
+    <header className="page-heading"><div><span className="eyebrow">CAREER DATA · {persona.label.toUpperCase()}</span><h1>{persona.experienceLabel}</h1><p>{persona.label}에게 중요한 {persona.focus}를 중심으로 맡았던 일과 결과를 기록해보세요.</p></div><div className="heading-actions"><button className="secondary-button compact-button" onClick={() => setIsImportOpen(true)}>TXT로 빠르게 입력</button><button className="primary-button compact-button" onClick={startCreate}>+ {persona.experienceLabel} 추가</button></div></header>
     <section className="experience-form-card">
-      <div className="section-title"><div><span className="eyebrow">{editingId ? 'EDIT CAREER' : 'NEW CAREER'}</span><h2>{editingId ? '경력 수정' : '새 경력 기록'}</h2><p className="form-helper">{persona.focus}가 드러나는 업무와 결과를 기록하고, 사용한 기술·도구도 함께 남겨보세요.</p></div>{editingId && <button className="text-button" onClick={startCreate}>취소</button>}</div>
+      <div className="section-title"><div><span className="eyebrow">{editingId ? 'EDIT CAREER' : 'NEW CAREER'}</span><h2>{editingId ? `${persona.experienceLabel} 수정` : `새 ${persona.experienceLabel} 기록`}</h2><p className="form-helper">{persona.focus}가 드러나는 업무와 결과를 기록하고, 사용한 기술·도구도 함께 남겨보세요.</p></div>{editingId && <button className="text-button" onClick={startCreate}>취소</button>}</div>
       <form className="experience-form" onSubmit={submitExperience}>
-        <FormField label="회사명" value={form.companyName} onChange={(value) => updateField('companyName', value)} error={fieldErrors.companyName} placeholder="예: Acme Inc." />
+        <FormField label={persona.organizationLabel} value={form.companyName} onChange={(value) => updateField('companyName', value)} error={fieldErrors.companyName} placeholder="예: Acme Inc. / 교내 창업동아리" />
         <FormField label="직무 / 역할" value={form.role} onChange={(value) => updateField('role', value)} error={fieldErrors.role} placeholder={persona.experienceRolePlaceholder} />
         <FormField label="부서 (선택)" value={form.department} onChange={(value) => updateField('department', value)} error={fieldErrors.department} placeholder={persona.departmentPlaceholder} />
         <FormField label="직급 / 직책 (선택)" value={form.title} onChange={(value) => updateField('title', value)} error={fieldErrors.title} placeholder={persona.titlePlaceholder} />
@@ -1231,14 +1266,14 @@ function ExperiencePageContent({ persona }: { persona: PersonaProfile }) {
         <FormField label="기술·도구 (선택)" value={form.techStack} onChange={(value) => updateField('techStack', value)} error={fieldErrors.techStack} placeholder={persona.techStackPlaceholder} />
         <label className="wide-field">설명<textarea value={form.description} onChange={(event) => updateField('description', event.target.value)} placeholder={persona.experienceDescriptionPlaceholder} maxLength={10000} rows={4} />{fieldErrors.description && <small className="field-error">{fieldErrors.description}</small>}</label>
         {formError && <p className="form-error wide-field" role="alert">{formError}</p>}
-        <div className="form-actions wide-field"><button className="primary-button compact-button" disabled={isSubmitting} type="submit">{isSubmitting ? '저장·검색 데이터 업데이트 중...' : editingId ? '변경 저장' : '경력 저장'}</button></div>
+        <div className="form-actions wide-field"><button className="primary-button compact-button" disabled={isSubmitting} type="submit">{isSubmitting ? '저장·검색 데이터 업데이트 중...' : editingId ? '변경 저장' : `${persona.experienceLabel} 저장`}</button></div>
       </form>
     </section>
     {indexNotice && <p className={`career-index-message career-index-notice${indexNotice.error ? ' career-index-error' : ''}`} role={indexNotice.error ? 'alert' : 'status'}>{indexNotice.message}</p>}
-    <section className="experience-list-section"><div className="list-heading"><div><span className="eyebrow">YOUR CAREER HISTORY</span><h2>{totalElements}개의 경력</h2></div><button className="text-button" onClick={() => void loadExperiences(page)}>새로고침</button></div>
-      {isLoading && <div className="list-state">경력 목록을 불러오는 중입니다...</div>}
+    <section className="experience-list-section"><div className="list-heading"><div><span className="eyebrow">YOUR CAREER HISTORY</span><h2>{totalElements}개의 {persona.experienceLabel}</h2></div><button className="text-button" onClick={() => void loadExperiences(page)}>새로고침</button></div>
+      {isLoading && <div className="list-state">{persona.experienceLabel} 목록을 불러오는 중입니다...</div>}
       {!isLoading && loadError && <div className="list-state error-state" role="alert">{loadError}<button className="text-button" onClick={() => void loadExperiences(page)}>다시 시도</button></div>}
-      {!isLoading && !loadError && experiences.length === 0 && <div className="list-state">아직 등록된 경력이 없습니다. 위에서 첫 경력을 기록해보세요.</div>}
+      {!isLoading && !loadError && experiences.length === 0 && <div className="list-state">아직 등록된 {persona.experienceLabel}이 없습니다. 위에서 첫 경험을 기록해보세요.</div>}
       {!isLoading && !loadError && experiences.length > 0 && <div className="experience-list">{experiences.map((experience) => { const period = formatCareerPeriod(experience.startDate, experience.endDate, experience.currentlyEmployed ? '재직 중' : null); return <article className={`experience-item${period ? '' : ' no-period'}`} key={experience.id}>{period && <div className="experience-date">{period}</div>}<div className="experience-main"><h3>{experience.role}</h3><strong>{experience.companyName}</strong>{(experience.department || experience.title) && <div className="career-meta">{[experience.department, experience.title].filter(Boolean).join(' · ')}</div>}<p>{experience.description}</p>{experience.techStack ? <div className="tech-stack">{experience.techStack}</div> : <div className="career-missing-hint">{persona.label}의 {persona.focus.split(' · ')[0]}를 보여주려면 기술·도구를 추가해보세요.</div>}</div><div className="item-actions"><button className="text-button" onClick={() => startEdit(experience)}>수정</button><button className="text-button danger-button" onClick={() => void deleteExperience(experience.id)} disabled={deletingId === experience.id}>{deletingId === experience.id ? '삭제 중' : '삭제'}</button></div></article> })}</div>}
       {!isLoading && !loadError && totalPages > 1 && <div className="pagination"><button className="text-button" disabled={page === 0} onClick={() => void loadExperiences(page - 1)}>← 이전</button><span>{page + 1} / {totalPages}</span><button className="text-button" disabled={page >= totalPages - 1} onClick={() => void loadExperiences(page + 1)}>다음 →</button></div>}
     </section>
@@ -1455,7 +1490,14 @@ type JobKoreaOverseasExperience = { country: string; organization: string; start
 type JobKoreaLanguage = { language: string; level: string; score: string }
 type JobKoreaPortfolio = { title: string; url: string; description: string }
 type JobKoreaSelfIntroduction = { title: string; content: string }
-const jobKoreaJobCategories = ['백엔드개발자', '웹개발자', '서버개발자', '응용프로그램개발자', '프론트엔드개발자', '데이터엔지니어', 'DevOps·인프라', '직접 입력']
+const jobKoreaJobCategoriesByPersona: Record<PersonaKey, string[]> = {
+  jobseeker: ['신입·인턴', '서비스운영', '사무보조', '개발·데이터', '영업·마케팅', '디자인·콘텐츠', '직접 입력'],
+  tech: ['백엔드개발자', '프론트엔드개발자', '데이터분석가', '데이터엔지니어', 'DevOps·인프라', 'QA·테스터', '직접 입력'],
+  product: ['서비스기획', 'Product Manager', '사업기획', '서비스운영', '프로젝트관리', '전략기획', '직접 입력'],
+  creative: ['UX·UI디자이너', '그래픽디자이너', '브랜드디자이너', '콘텐츠에디터', '영상제작', '웹디자이너', '직접 입력'],
+  business: ['B2B영업', '영업관리', '퍼포먼스마케팅', '브랜드마케팅', 'MD', '고객관리·CS', '직접 입력'],
+  professional: ['인사·채용', '재무·회계', '법무', '연구개발', '품질관리', '생산·현장관리', '직접 입력'],
+}
 type JobKoreaExportProfile = {
   name: string
   phone: string
@@ -1959,6 +2001,7 @@ function JobKoreaExportModal({
   jobTitle,
   displayName,
   email,
+  persona,
   onPersistSkills,
   onClose,
 }: {
@@ -1968,11 +2011,13 @@ function JobKoreaExportModal({
   jobTitle?: string
   displayName: string
   email: string
+  persona: PersonaProfile
   onPersistSkills?: (skills: string[]) => Promise<ResumeVersion>
   onClose: () => void
 }) {
   const previewRef = useRef<HTMLDivElement>(null)
   const parsed = parseResumeExport(version.content)
+  const jobKoreaJobCategories = jobKoreaJobCategoriesByPersona[persona.key]
   const exportTitle = jobKoreaResumeTitle(companyName, jobTitle, resumeName)
   const generatedCareerDescription = parsed.sections
     .filter((section) => ['경력기술서', '경력사항', '프로젝트'].includes(section.title))
@@ -2381,9 +2426,9 @@ function JobKoreaExportModal({
       </div></div>
 
       <div className="export-section"><div className="export-section-heading"><div><span className="eyebrow">TARGET</span><h3>희망직무 · 스킬</h3></div><button className="secondary-button compact-button" type="button" onClick={() => void loadCareerSkills()} disabled={isLoadingSkills}>{isLoadingSkills ? '스킬 찾는 중...' : '경력·프로젝트 스킬 불러오기'}</button></div><div className="export-form-grid">
-        <label className="export-profile-wide">희망직무 키워드 *<input value={profile.desiredJobKeywords} onChange={(event) => updateProfile('desiredJobKeywords', event.target.value)} placeholder="백엔드개발자, 웹개발자" /></label>
+        <label className="export-profile-wide">희망직무 키워드 *<input value={profile.desiredJobKeywords} onChange={(event) => updateProfile('desiredJobKeywords', event.target.value)} placeholder={persona.jobTitlePlaceholder} /></label>
         <p className="export-help export-profile-wide">승인된 이력서의 기술 및 역량, 프로젝트 기술 스택, 경력·프로젝트 설명에 명시된 기술을 합쳐 자동 입력합니다. 추측한 기술은 추가하지 않으며 스킬은 최대 20개입니다.</p>
-        <label className="export-profile-wide">내가 선택한 스킬<textarea value={profile.skills} onChange={(event) => updateProfile('skills', event.target.value)} placeholder="Java, Spring Boot, PostgreSQL, Docker" rows={3} /></label>
+        <label className="export-profile-wide">내가 선택한 스킬<textarea value={profile.skills} onChange={(event) => updateProfile('skills', event.target.value)} placeholder={persona.resumeSkillsPlaceholder} rows={3} /></label>
         <label className="export-profile-wide">산업 키워드<input value={profile.industryKeywords} onChange={(event) => updateProfile('industryKeywords', event.target.value)} placeholder="핀테크, SaaS, 플랫폼" /></label>
       </div></div>
 
@@ -2414,7 +2459,7 @@ function JobKoreaExportModal({
             <label className="export-checkbox"><input type="checkbox" checked={career.isCurrent} onChange={(event) => setProfile((current) => ({ ...current, careers: current.careers.map((item, itemIndex) => itemIndex === index ? { ...item, isCurrent: event.target.checked, endMonth: event.target.checked ? '' : item.endMonth } : item) }))} />재직중</label>
             <label>직급/직책<input value={career.title} onChange={(event) => updateCareer(index, 'title', event.target.value)} /></label>
             <label>담당직무 *<select value={selectedJob} onChange={(event) => updateCareer(index, 'job', event.target.value === '직접 입력' ? '' : event.target.value)}><option value="">선택하기</option>{jobKoreaJobCategories.map((job) => <option key={job} value={job}>{job}</option>)}</select></label>
-            {selectedJob === '직접 입력' && <label>담당직무 직접입력<input value={career.job} onChange={(event) => updateCareer(index, 'job', event.target.value)} placeholder="웹개발자" /></label>}
+            {selectedJob === '직접 입력' && <label>담당직무 직접입력<input value={career.job} onChange={(event) => updateCareer(index, 'job', event.target.value)} placeholder={persona.experienceRolePlaceholder} /></label>}
             <label>연봉<input value={career.salary} onChange={(event) => updateCareer(index, 'salary', event.target.value)} placeholder="예: 5,000만원" /></label>
             <label className="export-checkbox export-profile-wide" title="JobKorea 인재정보에 이 경력의 회사명을 공개하지 않습니다."><input type="checkbox" checked={career.hideCompanyName} onChange={(event) => setProfile((current) => ({ ...current, careers: current.careers.map((item, itemIndex) => itemIndex === index ? { ...item, hideCompanyName: event.target.checked } : item) }))} />인재정보에 회사명 비공개 ⓘ</label>
             <label className="export-profile-wide">담당업무<textarea value={career.duties} onChange={(event) => updateCareer(index, 'duties', event.target.value)} rows={4} placeholder="담당하신 업무와 성과에 대해 간단명료하게 적어주세요." /></label>
@@ -2441,7 +2486,7 @@ function JobKoreaExportModal({
       <div className="export-section self-introduction-section"><div className="export-section-heading"><div><span className="eyebrow">SELF INTRODUCTION</span><h3>자기소개서</h3></div><button className="secondary-button compact-button" type="button" onClick={() => setProfile((current) => ({ ...current, selfIntroductions: [...current.selfIntroductions, { title: '', content: '' }] }))}>자기소개서 항목 추가</button></div>
         <p className="export-help self-introduction-help">각 제목은 지원자를 어필하는 독립적인 주제입니다. 생성 시 3개로 시작하며 필요에 따라 항목을 추가하거나 삭제할 수 있습니다.</p>
         <div className="export-repeat-list">{profile.selfIntroductions.length === 0 && <p className="export-empty">자기소개서 항목을 추가해주세요.</p>}{profile.selfIntroductions.map((item, index) => <div className="export-repeat-item self-introduction-item" key={`self-introduction-${index}`}><div className="export-repeat-heading"><strong>자기소개서 항목 {index + 1}</strong><button className="text-button danger-button" type="button" onClick={() => setProfile((current) => ({ ...current, selfIntroductions: current.selfIntroductions.filter((_, itemIndex) => itemIndex !== index) }))}>단락삭제</button></div><div className="export-form-grid">
-          <label className="export-profile-wide">제목<input value={item.title} onChange={(event) => updateSelfIntroduction(index, 'title', event.target.value)} maxLength={50} placeholder="예: 문제 해결로 만드는 안정적인 백엔드" /><span className="export-character-count"><em>{item.title.length}</em>/50자</span></label>
+          <label className="export-profile-wide">제목<input value={item.title} onChange={(event) => updateSelfIntroduction(index, 'title', event.target.value)} maxLength={50} placeholder={persona.resumeHeadlinePlaceholder} /><span className="export-character-count"><em>{item.title.length}</em>/50자</span></label>
           <label className="export-profile-wide">내용<textarea value={item.content} onChange={(event) => updateSelfIntroduction(index, 'content', event.target.value)} rows={10} placeholder="해당 내용을 입력하세요." /><span className="export-character-count"><em>{item.content.length}</em>자</span></label>
         </div></div>)}</div>
       </div>
@@ -2791,7 +2836,7 @@ function ResumePageContent({ user, persona }: { user: User; persona: PersonaProf
           </form></>}</div>}
           <ResumeApplicationQuestions key={selectedResume.id} resumeId={selectedResume.id} persona={persona} />
           {isCareerReviewOpen && selectedVersion && <CareerDataReviewModal title="JobKorea 파일 생성 전 Career 점검" continueLabel="확인하고 파일 작성하기" onClose={() => setIsCareerReviewOpen(false)} onContinue={() => { setIsCareerReviewOpen(false); setIsExportOpen(true) }} />}
-          {isExportOpen && selectedVersion && <JobKoreaExportModal resumeName={selectedResume.name} version={selectedVersion} displayName={user.displayName} email={user.email} onClose={() => setIsExportOpen(false)} />}
+          {isExportOpen && selectedVersion && <JobKoreaExportModal resumeName={selectedResume.name} version={selectedVersion} displayName={user.displayName} email={user.email} persona={persona} onClose={() => setIsExportOpen(false)} />}
         </>}
       </section>
     </section>
@@ -3248,7 +3293,7 @@ function JobPostingPageContent({ user, persona }: { user: User; persona: Persona
     }} />}
     {preflightPosting && <CareerDataReviewModal title="이력서 생성 전 Career 점검" continueLabel="확인하고 이력서 생성" reindexBeforeContinue onClose={() => setPreflightPosting(null)} onContinue={() => { const jobPosting = preflightPosting; setPreflightPosting(null); void generateResumeDraft(jobPosting) }} />}
     {draftState && <ResumeDraftReviewModal jobPosting={draftState.jobPosting} draft={draftState.draft} isApproving={isApprovingDraft} onClose={() => setDraftState(null)} onApprove={() => void approveGeneratedDraft()} />}
-    {exportState && <JobKoreaExportModal resumeName={exportState.resumeName} version={exportState.version} companyName={exportState.companyName} jobTitle={exportState.jobTitle} displayName={user.displayName} email={user.email} onPersistSkills={persistGeneratedResumeSkills} onClose={() => setExportState(null)} />}
+    {exportState && <JobKoreaExportModal resumeName={exportState.resumeName} version={exportState.version} companyName={exportState.companyName} jobTitle={exportState.jobTitle} displayName={user.displayName} email={user.email} persona={persona} onPersistSkills={persistGeneratedResumeSkills} onClose={() => setExportState(null)} />}
   </>
 }
 
