@@ -84,6 +84,8 @@ function resumeGroupVersionCount(group: ResumeGroup) {
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? '/api'
 const refreshTokenKey = 'ai-career.refresh-token'
 const jobKoreaTemplateVersion = 'JOBKOREA_STANDARD_V2'
+const jobKoreaUploadUrl = 'https://resume.jobkorea.co.kr/resume/upload'
+const extensionDownloadUrl = import.meta.env.VITE_EXTENSION_DOWNLOAD_URL ?? '/downloads/career-note-extension-v0.3.4.zip'
 const maxJobKoreaSkills = 20
 const supportedResumePhotoTypes = new Set(['image/jpeg', 'image/png', 'image/webp'])
 const koreanDateTimeFormatter = new Intl.DateTimeFormat('ko-KR', {
@@ -206,15 +208,77 @@ function App() {
 
   return (
     <Routes>
+      <Route path="/" element={user ? <Dashboard user={user} onLogout={handleLogout} onDeleteAccount={handleDeleteAccount} /> : <LandingPage />} />
       <Route path="/login" element={user ? <Navigate to="/" replace /> : <AuthPage mode="login" onAuthenticated={handleAuthenticated} />} />
       <Route path="/signup" element={user ? <Navigate to="/" replace /> : <AuthPage mode="signup" onAuthenticated={handleAuthenticated} />} />
       <Route path="/verify-email" element={user ? <Navigate to="/" replace /> : <EmailVerificationPage />} />
       <Route path="/extension/connect" element={user ? <ExtensionConnectPage /> : <Navigate to="/login" replace state={{ from: '/extension/connect' }} />} />
       <Route path="/terms" element={<PolicyPage type="terms" />} />
       <Route path="/privacy" element={<PolicyPage type="privacy" />} />
-      <Route path="*" element={user ? <Dashboard user={user} onLogout={handleLogout} onDeleteAccount={handleDeleteAccount} /> : <Navigate to="/login" replace />} />
+      <Route path="*" element={user ? <Dashboard user={user} onLogout={handleLogout} onDeleteAccount={handleDeleteAccount} /> : <Navigate to="/" replace />} />
     </Routes>
   )
+}
+
+function LandingPage() {
+  return <main className="landing-page">
+    <header className="landing-header">
+      <Link className="landing-logo" to="/" aria-label="Career Note 홈">AC<span>•</span><small>CAREER NOTE</small></Link>
+      <nav className="landing-nav" aria-label="서비스 안내">
+        <a href="#how-it-works">이용 방법</a>
+        <Link to="/login">로그인</Link>
+        <Link className="landing-nav-cta" to="/signup">무료로 시작하기 <span>↗</span></Link>
+      </nav>
+    </header>
+
+    <section className="landing-hero">
+      <div className="landing-hero-copy">
+        <span className="eyebrow">CAREER NOTE · YOUR NEXT MOVE</span>
+        <h1>지원할 때마다<br /><em>처음부터 쓰지 않도록.</em></h1>
+        <p>경력과 프로젝트를 한 번 정리해두면, 관심 있는 채용공고에 맞는 준비를 차근차근 이어갈 수 있어요.</p>
+        <div className="landing-hero-actions">
+          <Link className="landing-primary-cta" to="/signup">내 커리어 정리 시작하기 <span>→</span></Link>
+          <a className="landing-text-cta" href="#how-it-works">어떻게 쓰나요?</a>
+        </div>
+        <small className="landing-safety-note">작성한 정보는 내 작업 공간에서 직접 관리하고, 자동으로 만들어진 결과는 제출 전에 검토합니다.</small>
+      </div>
+      <div className="landing-hero-visual" aria-label="Career Note 작업 흐름 미리보기">
+        <div className="landing-orbit landing-orbit-one" />
+        <div className="landing-orbit landing-orbit-two" />
+        <div className="landing-preview-window">
+          <div className="landing-preview-top"><span>YOUR WORKSPACE</span><i /><i /><i /></div>
+          <div className="landing-preview-body">
+            <div className="landing-preview-sidebar"><strong>AC<span>•</span></strong><b /><b /><b /><b /></div>
+            <div className="landing-preview-content">
+              <small>START HERE</small>
+              <strong>다음 기회를<br /><em>차근차근 준비해요.</em></strong>
+              <div className="landing-preview-card-row"><span>경력</span><b>03</b><span>프로젝트</span><b>05</b></div>
+              <div className="landing-preview-line" /><div className="landing-preview-line short" />
+            </div>
+          </div>
+        </div>
+        <span className="landing-float landing-float-career">01 · 경력 기록</span>
+        <span className="landing-float landing-float-job">03 · 공고에 맞춰 준비</span>
+      </div>
+    </section>
+
+    <section className="landing-workflow" id="how-it-works">
+      <div className="landing-section-heading"><div><span className="eyebrow">HOW IT WORKS</span><h2>네 단계면 충분해요.</h2></div><p>모든 정보를 한 번에 채울 필요 없이, 지금 가진 것부터 시작하세요.</p></div>
+      <div className="landing-steps">
+        <article><span>01</span><h3>경력과 프로젝트 기록</h3><p>내가 해온 일을 한 곳에 모읍니다. 나중에 언제든 수정할 수 있어요.</p></article>
+        <article><span>02</span><h3>관심 공고 저장</h3><p>지원하고 싶은 공고를 저장하면 준비해야 할 내용을 한눈에 볼 수 있어요.</p></article>
+        <article><span>03</span><h3>맞춤 결과 검토</h3><p>내가 기록한 근거를 바탕으로 준비된 초안을 직접 확인합니다.</p></article>
+        <article><span>04</span><h3>내 문서로 다듬기</h3><p>사실관계와 표현을 검토한 뒤, 원하는 형태로 정리해 사용합니다.</p></article>
+      </div>
+    </section>
+
+    <section className="landing-bottom-cta">
+      <div><span className="eyebrow">READY WHEN YOU ARE</span><h2>내 커리어의 다음 장면을<br /><em>오늘부터 정리해보세요.</em></h2></div>
+      <Link className="landing-primary-cta" to="/signup">무료로 시작하기 <span>↗</span></Link>
+    </section>
+
+    <footer className="landing-footer"><span>© 2026 Career Note</span><span>작성 결과는 제출 전 반드시 직접 검토해주세요.</span><Link to="/privacy">개인정보 안내</Link></footer>
+  </main>
 }
 
 function ExtensionConnectPage() {
@@ -455,7 +519,15 @@ function Dashboard({ user, onLogout, onDeleteAccount }: { user: User; onLogout: 
   const navigate = useNavigate()
   const [isLoggingOut, setIsLoggingOut] = useState(false)
   const [isDeletingAccount, setIsDeletingAccount] = useState(false)
+  const [isGuideOpen, setIsGuideOpen] = useState(false)
   const careerSection = resolveCareerSection(location.pathname)
+  const onboardingStorageKey = `ai-career.onboarding.${user.id}`
+
+  useEffect(() => {
+    if (location.pathname === '/' && !localStorage.getItem(onboardingStorageKey)) {
+      setIsGuideOpen(true)
+    }
+  }, [location.pathname, onboardingStorageKey])
 
   async function logout() {
     setIsLoggingOut(true)
@@ -478,29 +550,137 @@ function Dashboard({ user, onLogout, onDeleteAccount }: { user: User; onLogout: 
     }
   }
 
+  function openGuide() {
+    if (location.pathname !== '/') {
+      navigate('/')
+    }
+    setIsGuideOpen(true)
+  }
+
   return (
     <div className="app-shell">
       <aside className="sidebar">
         <Link className="logo" to="/" aria-label="Career Note 홈">AC<span>•</span><small>CAREER NOTE</small></Link>
         <div className="sidebar-label">WORKSPACE</div>
         <nav>
-          <Link className={location.pathname === '/' ? 'nav-item active' : 'nav-item'} to="/"><span className="nav-icon">⌂</span><span className="nav-label">홈</span></Link>
-          <Link className={careerSection ? 'nav-item active' : 'nav-item'} to="/career/experiences"><span className="nav-icon">↗</span><span className="nav-label">커리어</span></Link>
-          <Link className={location.pathname === '/resumes' ? 'nav-item active' : 'nav-item'} to="/resumes"><span className="nav-icon">▤</span><span className="nav-label">이력서</span></Link>
-          <Link className={location.pathname === '/job-postings' ? 'nav-item active' : 'nav-item'} to="/job-postings"><span className="nav-icon">◌</span><span className="nav-label">채용공고</span></Link>
+          <Link className={location.pathname === '/' ? 'nav-item active' : 'nav-item'} to="/" data-tour="home-nav"><span className="nav-icon">⌂</span><span className="nav-label">홈</span></Link>
+          <Link className={careerSection ? 'nav-item active' : 'nav-item'} to="/career/experiences" data-tour="career-nav"><span className="nav-icon">↗</span><span className="nav-label">커리어</span></Link>
+          <Link className={location.pathname === '/resumes' ? 'nav-item active' : 'nav-item'} to="/resumes" data-tour="resume-nav"><span className="nav-icon">▤</span><span className="nav-label">이력서</span></Link>
+          <Link className={location.pathname === '/job-postings' ? 'nav-item active' : 'nav-item'} to="/job-postings" data-tour="job-nav"><span className="nav-icon">◌</span><span className="nav-label">채용공고</span></Link>
         </nav>
         <div className="sidebar-footer">
-          <span className="avatar">{user.displayName.charAt(0)}</span>
-          <div><strong>{user.displayName}</strong><small>{user.email}</small></div>
+          <Link className={location.pathname === '/my-page' ? 'sidebar-profile active' : 'sidebar-profile'} to="/my-page" aria-label="마이페이지로 이동">
+            <span className="avatar">{user.displayName.charAt(0)}</span>
+            <div><strong>{user.displayName}</strong><small>{user.email}</small></div>
+          </Link>
           <button className="logout-button" onClick={() => void logout()} disabled={isLoggingOut || isDeletingAccount} aria-label="로그아웃"><span aria-hidden="true">↪</span><small>로그아웃</small></button>
-          <button className="account-delete-button" onClick={() => void deleteAccount()} disabled={isLoggingOut || isDeletingAccount} aria-label="회원탈퇴"><span aria-hidden="true">×</span><small>{isDeletingAccount ? '처리 중' : '회원탈퇴'}</small></button>
         </div>
       </aside>
       <main className="main-content">
-        {careerSection ? <CareerPageContent section={careerSection} /> : location.pathname === '/resumes' ? <ResumePageContent user={user} /> : location.pathname === '/job-postings' ? <JobPostingPageContent user={user} /> : <OverviewContent user={user} />}
+        {careerSection ? <CareerPageContent section={careerSection} /> : location.pathname === '/resumes' ? <ResumePageContent user={user} /> : location.pathname === '/job-postings' ? <JobPostingPageContent user={user} /> : location.pathname === '/my-page' ? <MyPageContent user={user} onOpenGuide={openGuide} onDeleteAccount={deleteAccount} isDeletingAccount={isDeletingAccount} /> : <OverviewContent user={user} />}
       </main>
+      {isGuideOpen && <GuidedTour onClose={() => setIsGuideOpen(false)} />}
     </div>
   )
+}
+
+function MyPageContent({ user, onOpenGuide, onDeleteAccount, isDeletingAccount }: { user: User; onOpenGuide: () => void; onDeleteAccount: () => Promise<void>; isDeletingAccount: boolean }) {
+  return <section className="my-page">
+    <header className="page-heading my-page-heading"><div><span className="eyebrow">MY PAGE</span><h1>마이페이지</h1><p>계정과 사용 안내를 관리할 수 있어요.</p></div></header>
+    <section className="my-page-account-card">
+      <div className="my-page-account-summary"><span className="my-page-avatar">{user.displayName.charAt(0)}</span><div><span className="eyebrow">ACCOUNT</span><h2>{user.displayName}</h2><p>{user.email}</p></div></div>
+      <div className="my-page-account-meta"><span>계정 상태</span><strong>이용 중</strong></div>
+    </section>
+    <section className="my-page-section">
+      <div className="my-page-section-heading"><div><span className="eyebrow">HELP</span><h2>서비스 사용 안내</h2></div><p>처음 사용하는 방법과 주요 메뉴를 다시 확인할 수 있습니다.</p></div>
+      <button className="secondary-button my-page-guide-button" type="button" onClick={onOpenGuide}>사용 안내 다시 보기 <span>→</span></button>
+    </section>
+    <section className="my-page-section extension-guide-section">
+      <div className="my-page-section-heading"><div><span className="eyebrow">CHROME EXTENSION</span><h2>JobKorea에서 확장 프로그램 사용하기</h2></div><p>서비스에 저장한 경력을 JobKorea 지원 페이지에서 검토용 답변과 이력서 준비에 활용합니다.</p></div>
+      <ol className="extension-guide-steps">
+        <li><span>01</span><div><strong>확장 프로그램 설치</strong><p>ZIP을 다운로드하고 압축을 푼 뒤 Chrome에 폴더를 한 번만 등록합니다.</p><a href={extensionDownloadUrl} download>설치 파일 다운로드 <span>↓</span></a><details className="extension-install-details"><summary>설치 방법 펼치기</summary><ol className="extension-install-checklist"><li><strong>다운로드</strong><span>다운로드가 진행됩니다.</span></li><li><strong>압축 풀기</strong><span>ZIP을 우클릭하고 <b>압축 풀기</b>를 선택합니다.</span></li><li><strong>Chrome 설정 열기</strong><span>주소창에 <code>chrome://extensions</code>를 입력합니다.</span></li><li><strong>확장 프로그램 등록</strong><span><b>개발자 모드</b>를 켜고 <b>압축해제된 확장 프로그램을 로드</b>를 누릅니다.</span></li><li><strong>폴더 선택</strong><span><code>manifest.json</code>이 바로 들어 있는 Career Note 폴더를 선택합니다.</span></li><li><strong>툴바에 고정</strong><span>퍼즐 아이콘에서 Career Note를 고정하면 다음부터 쉽게 열 수 있습니다.</span></li></ol><div className="extension-install-folder-note"><strong>기억할 것</strong><code>다운로드/Career Note Extension/manifest.json</code><span>Chrome에는 <b>Career Note Extension</b> 폴더를 선택합니다.</span></div></details></div></li>
+        <li><span>02</span><div><strong>서비스와 1회 연결</strong><p>확장 프로그램에서 연결을 시작한 뒤, 아래 페이지에서 1회용 연결 코드를 발급해 입력합니다.</p><Link to="/extension/connect">연결 코드 발급 페이지 열기 <span>→</span></Link></div></li>
+        <li><span>03</span><div><strong>JobKorea 지원 페이지에서 검토</strong><p>페이지 우측 하단 Career Note 패널에서 공고를 확인하고 답변 또는 이력서 초안을 검토합니다. 승인한 내용만 직접 입력할 수 있습니다.</p></div></li>
+        <li><span>04</span><div><strong>파일 업로드와 최종 제출</strong><p>서비스에서 검토한 PDF를 다운로드한 뒤 JobKorea 업로드 페이지에서 파일을 직접 선택합니다. 내용을 확인하고 최종 제출도 JobKorea에서 직접 진행합니다.</p><a href={jobKoreaUploadUrl} target="_blank" rel="noreferrer">JobKorea 업로드 페이지 열기 <span>↗</span></a></div></li>
+      </ol>
+      <div className="extension-guide-actions"><Link className="text-button" to="/career/experiences">경력·프로젝트 준비하기 ↗</Link><span>최종 제출은 JobKorea에서 직접 진행합니다.</span></div>
+      <p className="extension-guide-safety">비밀번호, 쿠키, Refresh Token, CAPTCHA를 수집하지 않으며 자동 제출도 수행하지 않습니다.</p>
+    </section>
+    <section className="my-page-danger-zone">
+      <div><span className="eyebrow">ACCOUNT</span><h2>회원탈퇴</h2><p>계정을 삭제하면 다시 로그인할 수 없고 모든 로그인 세션이 종료됩니다. 삭제 요청 후 데이터 처리 방식은 서비스 운영 정책을 따릅니다.</p></div>
+      <button className="my-page-danger-button" type="button" onClick={() => void onDeleteAccount()} disabled={isDeletingAccount}>{isDeletingAccount ? '처리 중...' : '회원탈퇴 진행'}</button>
+    </section>
+  </section>
+}
+
+type GuidedTourStep = { selector: string; title: string; description: string; eyebrow: string }
+
+const guidedTourSteps: GuidedTourStep[] = [
+  { selector: '[data-tour="career-start"]', eyebrow: 'STEP 1 · START HERE', title: '먼저 내 경력을 기록해요.', description: '홈의 이 버튼을 누르면 지금까지 해온 일을 입력할 수 있어요. 완벽하게 정리하지 않아도 괜찮습니다.', },
+  { selector: '[data-tour="career-nav"]', eyebrow: 'STEP 2 · CAREER', title: '커리어 메뉴에서 근거를 쌓아요.', description: '경력과 프로젝트를 나눠 기록해두면, 나중에 공고에 맞는 준비를 할 때 내 경험을 다시 찾기 쉬워집니다.', },
+  { selector: '[data-tour="job-nav"]', eyebrow: 'STEP 3 · JOB POSTINGS', title: '관심 공고를 저장해요.', description: '지원하고 싶은 공고를 저장하면 내 경력과 연결해 살펴볼 수 있어요. 페이지에서 직접 가져오거나 내용을 붙여넣을 수도 있습니다.', },
+  { selector: '[data-tour="resume-nav"]', eyebrow: 'STEP 4 · RESUME', title: '검토한 내용을 내 문서로 정리해요.', description: '이력서 메뉴에서 버전을 나눠 관리할 수 있습니다. 자동으로 준비된 내용도 제출 전에는 꼭 직접 확인해주세요.', },
+]
+
+function GuidedTour({ onClose }: { onClose: () => void }) {
+  const [stepIndex, setStepIndex] = useState(0)
+  const [targetRect, setTargetRect] = useState<{ top: number; left: number; width: number; height: number } | null>(null)
+  const step = guidedTourSteps[stepIndex]
+
+  useEffect(() => {
+    const updateTarget = () => {
+      const target = document.querySelector(step.selector)
+      if (!target) {
+        setTargetRect(null)
+        return
+      }
+      const rect = target.getBoundingClientRect()
+      setTargetRect({ top: rect.top, left: rect.left, width: rect.width, height: rect.height })
+    }
+    updateTarget()
+    window.addEventListener('resize', updateTarget)
+    window.addEventListener('scroll', updateTarget, true)
+    const closeOnEscape = (event: KeyboardEvent) => { if (event.key === 'Escape') onClose() }
+    window.addEventListener('keydown', closeOnEscape)
+    return () => {
+      window.removeEventListener('resize', updateTarget)
+      window.removeEventListener('scroll', updateTarget, true)
+      window.removeEventListener('keydown', closeOnEscape)
+    }
+  }, [onClose, step.selector])
+
+  function finish() {
+    const currentUser = readUser()
+    if (currentUser) localStorage.setItem(`ai-career.onboarding.${currentUser.id}`, 'completed')
+    onClose()
+  }
+
+  function moveNext() {
+    if (stepIndex === guidedTourSteps.length - 1) {
+      finish()
+      return
+    }
+    setStepIndex((current) => current + 1)
+  }
+
+  const cardWidth = 360
+  const cardHeight = 250
+  let cardLeft = targetRect ? targetRect.left : Math.max(16, (window.innerWidth - cardWidth) / 2)
+  let cardTop = targetRect ? targetRect.top + targetRect.height + 18 : Math.max(24, (window.innerHeight - cardHeight) / 2)
+  if (targetRect && cardLeft + cardWidth > window.innerWidth - 16) cardLeft = window.innerWidth - cardWidth - 16
+  if (targetRect && cardLeft < 16) cardLeft = 16
+  if (targetRect && cardTop + cardHeight > window.innerHeight - 16) cardTop = Math.max(16, targetRect.top - cardHeight - 18)
+
+  return <div className="guided-tour-layer">
+    {targetRect ? <div className="guided-tour-spotlight" style={{ top: targetRect.top - 8, left: targetRect.left - 8, width: targetRect.width + 16, height: targetRect.height + 16 }} aria-hidden="true" /> : <div className="guided-tour-backdrop" aria-hidden="true" />}
+    <section className="guided-tour-card" style={{ top: cardTop, left: cardLeft }} role="dialog" aria-modal="true" aria-labelledby="guided-tour-title">
+      <div className="guided-tour-card-heading"><span className="eyebrow">{step.eyebrow}</span><button className="guided-tour-close" onClick={finish} aria-label="사용 안내 닫기">×</button></div>
+      <div className="guided-tour-progress" aria-label={`${stepIndex + 1}단계 / ${guidedTourSteps.length}단계`}>{guidedTourSteps.map((tourStep, index) => <span key={tourStep.selector} className={index <= stepIndex ? 'active' : ''} />)}</div>
+      <h2 id="guided-tour-title">{step.title}</h2>
+      <p>{step.description}</p>
+      <footer><button className="guided-tour-skip" onClick={finish}>건너뛰기</button><button className="primary-button guided-tour-next" onClick={moveNext}>{stepIndex === guidedTourSteps.length - 1 ? '홈에서 시작하기' : '다음'} <span>→</span></button></footer>
+    </section>
+  </div>
 }
 
 type CareerSection = 'experiences' | 'projects'
@@ -564,7 +744,7 @@ function OverviewContent({ user }: { user: User }) {
 
   return <>
     <header className="topbar"><div><span className="eyebrow">YOUR WORKSPACE</span><h1>안녕하세요, {user.displayName}님</h1><p className="topbar-subtitle">오늘은 어디부터 준비해볼까요?</p></div><span className="status-pill"><span />내 작업 공간</span></header>
-    <section className="hero-card"><div className="hero-card-content"><span className="eyebrow">START HERE</span><h2>다음 기회를<br /><em>차근차근 준비해요.</em></h2><p>경력을 먼저 기록하고 관심 공고를 저장하면, 공고에 맞는 초안을 알아서 준비합니다.</p><div className="hero-actions"><Link className="hero-action-primary" to="/career/experiences">경력 기록하기 <span>→</span></Link><Link className="hero-action-secondary" to="/job-postings">공고 저장하기</Link></div></div><div className="hero-orbit" aria-hidden="true"><span>+</span><span>✦</span><span>→</span></div></section>
+    <section className="hero-card"><div className="hero-card-content"><span className="eyebrow">START HERE</span><h2>다음 기회를<br /><em>차근차근 준비해요.</em></h2><p>경력을 먼저 기록하고 관심 공고를 저장하면, 공고에 맞는 초안을 알아서 준비합니다.</p><div className="hero-actions"><Link className="hero-action-primary" to="/career/experiences" data-tour="career-start">경력 기록하기 <span>→</span></Link><Link className="hero-action-secondary" to="/job-postings">공고 저장하기</Link></div></div><div className="hero-orbit" aria-hidden="true"><span>+</span><span>✦</span><span>→</span></div></section>
     <section className="stats-grid" aria-busy={isLoading}><StatCard label="경력" value={displayCount(counts.experiences)} action="경력 추가" to="/career/experiences" /><StatCard label="프로젝트" value={displayCount(counts.projects)} action="프로젝트 추가" to="/career/projects" /><StatCard label="이력서" value={displayCount(counts.resumes)} action="이력서 만들기" to="/resumes" /><StatCard label="채용공고" value={displayCount(counts.jobPostings)} action="공고 저장" to="/job-postings" /></section>
     {loadError && <p className="overview-load-error" role="alert">{loadError} <button className="text-button" onClick={() => void loadCounts()}>다시 시도</button></p>}
     <section className="next-section"><div><span className="eyebrow">NEXT UP</span><h2>작업 공간을 채워보세요</h2><p>처음이라면 경력 하나만 기록해도 충분합니다. 저장한 데이터는 언제든 수정할 수 있어요.</p><div className="next-actions"><Link className="text-button" to="/career/experiences">첫 경력 기록하기 ↗</Link><Link className="text-button" to="/job-postings">관심 공고 저장하기 ↗</Link></div></div><div className="progress-ring" aria-label={`완료한 작업 공간 ${completedWorkspaceSections}개, 전체 4개`}><strong>{isLoading ? '…' : completedWorkspaceSections}</strong><span>/ 4</span></div></section>
@@ -1735,6 +1915,7 @@ function JobKoreaExportModal({
   const [isLoadingSkills, setIsLoadingSkills] = useState(false)
   const [isGeneratingCareerDescription, setIsGeneratingCareerDescription] = useState(false)
   const [reviewConfirmed, setReviewConfirmed] = useState(false)
+  const [generatedFileName, setGeneratedFileName] = useState('')
 
   useEffect(() => { void loadCareerSkills(false) }, [])
 
@@ -2045,9 +2226,11 @@ function JobKoreaExportModal({
       const downloadUrl = URL.createObjectURL(blob)
       const link = document.createElement('a')
       link.href = downloadUrl
-      link.download = safeResumeFileName(exportTitle, savedVersion.versionNumber)
+      const fileName = safeResumeFileName(exportTitle, savedVersion.versionNumber)
+      link.download = fileName
       link.click()
       URL.revokeObjectURL(downloadUrl)
+      setGeneratedFileName(fileName)
       await recordExportAudit('DOWNLOAD_TRIGGERED', blob.size, savedVersion.id).catch(() => undefined)
       setStatus(onPersistSkills && savedVersion.id !== version.id
         ? `선택한 스킬을 이력서 Version ${savedVersion.versionNumber}에 저장하고 PDF를 다운로드했습니다.`
@@ -2197,7 +2380,8 @@ function JobKoreaExportModal({
         <footer style={{ paddingTop: '18px', color: '#8b958c', fontSize: '9px' }}>JOBKOREA_STANDARD_V2 · 사용자가 검토한 ResumeVersion과 입력한 프로필에서 생성된 업로드용 파일입니다.</footer>
       </div></div>
       {status && <p className="export-status" role="status">{status}</p>}
-      <div className="modal-actions"><button className="text-button" onClick={onClose}>취소</button><button className="secondary-button compact-button" onClick={() => window.open('https://resume.jobkorea.co.kr/resume/upload', '_blank', 'noopener,noreferrer')}>JobKorea 업로드 페이지 열기</button><button className="primary-button compact-button" onClick={() => void downloadPdf()} disabled={isGenerating || !reviewConfirmed}>{isGenerating ? 'PDF 생성 중...' : onPersistSkills ? '검토 완료 · 이력서 저장 및 PDF 다운로드' : '검토 완료 · PDF 다운로드'}</button></div>
+      {generatedFileName && <div className="export-upload-handoff"><div><span className="eyebrow">NEXT · JOBKOREA UPLOAD</span><h3>PDF가 준비됐습니다.</h3><p><strong>{generatedFileName}</strong> 파일을 다운로드 폴더에서 확인한 뒤 JobKorea 업로드 페이지에서 직접 선택해주세요.</p><ol><li>JobKorea 로그인</li><li>파일 선택 및 업로드</li><li>내용 확인 후 직접 제출</li></ol></div><a className="primary-button compact-button" href={jobKoreaUploadUrl} target="_blank" rel="noreferrer">업로드 페이지 열기 <span>↗</span></a></div>}
+      <div className="modal-actions"><button className="text-button" onClick={onClose}>취소</button><button className="secondary-button compact-button" onClick={() => window.open(jobKoreaUploadUrl, '_blank', 'noopener,noreferrer')} disabled={!generatedFileName}>{generatedFileName ? 'JobKorea 업로드 페이지 열기' : 'PDF 생성 후 업로드'}</button><button className="primary-button compact-button" onClick={() => void downloadPdf()} disabled={isGenerating || !reviewConfirmed}>{isGenerating ? 'PDF 생성 중...' : onPersistSkills ? '검토 완료 · 이력서 저장 및 PDF 다운로드' : '검토 완료 · PDF 다운로드'}</button></div>
     </section>
   </div>
 }
