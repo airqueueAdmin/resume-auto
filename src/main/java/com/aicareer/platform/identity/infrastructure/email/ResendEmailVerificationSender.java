@@ -12,6 +12,7 @@ import com.aicareer.platform.identity.application.EmailVerificationMessageSender
 import com.aicareer.platform.identity.application.EmailVerificationProperties;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -32,6 +33,7 @@ public class ResendEmailVerificationSender implements EmailVerificationMessageSe
     private final ObjectMapper objectMapper;
     private final HttpClient httpClient;
 
+    @Autowired
     public ResendEmailVerificationSender(
             EmailVerificationProperties properties,
             ObjectMapper objectMapper

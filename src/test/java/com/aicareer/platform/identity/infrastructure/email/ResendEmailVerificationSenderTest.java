@@ -9,12 +9,41 @@ import java.util.Base64;
 import com.aicareer.platform.identity.application.EmailVerificationProperties;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
+import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 
 class ResendEmailVerificationSenderTest {
 
     @Test
+    void springCanConstructTheProductionSender() {
+        try (AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext()) {
+            context.getBeanFactory().registerSingleton("emailVerificationProperties", properties());
+            context.getBeanFactory().registerSingleton("objectMapper", new ObjectMapper());
+
+            assertThat(context.getBeanFactory().createBean(ResendEmailVerificationSender.class)).isNotNull();
+        }
+    }
+
+    @Test
     void buildsHttpsRequestWithoutPuttingApiKeyInRequestBody() throws Exception {
-        EmailVerificationProperties properties = new EmailVerificationProperties(
+        EmailVerificationProperties properties = properties();
+        ResendEmailVerificationSender sender = new ResendEmailVerificationSender(
+                properties,
+                new ObjectMapper(),
+                HttpClient.newHttpClient()
+        );
+
+        var request = sender.buildRequest("member@example.com", "123456", Duration.ofMinutes(5));
+
+        assertThat(request.uri()).isEqualTo(java.net.URI.create("https://api.resend.com/emails"));
+        assertThat(request.headers().firstValue("Authorization")).hasValue("Bearer resend-api-key");
+        String body = sender.buildRequestBody("member@example.com", "123456", Duration.ofMinutes(5));
+        assertThat(body)
+                .contains("member@example.com", "123456", "Career Note 이메일 인증 코드")
+                .doesNotContain("resend-api-key");
+    }
+
+    private static EmailVerificationProperties properties() {
+        return new EmailVerificationProperties(
                 true,
                 "resend",
                 Duration.ofMinutes(5),
@@ -32,19 +61,5 @@ class ResendEmailVerificationSenderTest {
                 "noreply@example.com",
                 "Career Note"
         );
-        ResendEmailVerificationSender sender = new ResendEmailVerificationSender(
-                properties,
-                new ObjectMapper(),
-                HttpClient.newHttpClient()
-        );
-
-        var request = sender.buildRequest("member@example.com", "123456", Duration.ofMinutes(5));
-
-        assertThat(request.uri()).isEqualTo(java.net.URI.create("https://api.resend.com/emails"));
-        assertThat(request.headers().firstValue("Authorization")).hasValue("Bearer resend-api-key");
-        String body = sender.buildRequestBody("member@example.com", "123456", Duration.ofMinutes(5));
-        assertThat(body)
-                .contains("member@example.com", "123456", "Career Note 이메일 인증 코드")
-                .doesNotContain("resend-api-key");
     }
 }
