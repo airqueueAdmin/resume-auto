@@ -319,7 +319,7 @@ function App() {
   return (
     <Routes>
       <Route path="/" element={user ? (persona ? <Dashboard user={user} onLogout={handleLogout} onDeleteAccount={handleDeleteAccount} /> : <Navigate to="/choose-role" replace />) : <LandingPage />} />
-      <Route path="/choose-role" element={user ? <RoleSelectionPage user={user} onSelect={handlePersonaSelected} /> : <Navigate to="/login" replace />} />
+      <Route path="/choose-role" element={user ? <RoleSelectionPage user={user} selectedPersona={persona} onSelect={handlePersonaSelected} /> : <Navigate to="/login" replace />} />
       <Route path="/login" element={user ? <Navigate to={persona ? '/' : '/choose-role'} replace /> : <AuthPage mode="login" onAuthenticated={handleAuthenticated} />} />
       <Route path="/signup" element={user ? <Navigate to={persona ? '/' : '/choose-role'} replace /> : <AuthPage mode="signup" onAuthenticated={handleAuthenticated} />} />
       <Route path="/verify-email" element={user ? <Navigate to={persona ? '/' : '/choose-role'} replace /> : <EmailVerificationPage />} />
@@ -401,13 +401,19 @@ function LandingPage() {
   </main>
 }
 
-function RoleSelectionPage({ user, onSelect }: { user: User; onSelect: (persona: PersonaKey) => void }) {
+function RoleSelectionPage({ user, selectedPersona, onSelect }: { user: User; selectedPersona: PersonaKey | null; onSelect: (persona: PersonaKey) => void }) {
   const location = useLocation()
   const navigate = useNavigate()
-  const queryReturnTo = new URLSearchParams(location.search).get('returnTo')
+  const searchParams = new URLSearchParams(location.search)
+  const queryReturnTo = searchParams.get('returnTo')
   const stateReturnTo = (location.state as { from?: string } | null)?.from
   const requestedReturnTo = queryReturnTo ?? stateReturnTo
   const returnTo = requestedReturnTo && requestedReturnTo.startsWith('/') && !requestedReturnTo.startsWith('//') ? requestedReturnTo : '/'
+  const isChangeRequested = searchParams.get('mode') === 'change'
+
+  if (selectedPersona && !isChangeRequested) {
+    return <Navigate to={returnTo} replace />
+  }
 
   function selectPersona(persona: PersonaKey) {
     onSelect(persona)
@@ -671,13 +677,6 @@ function Dashboard({ user, onLogout, onDeleteAccount }: { user: User; onLogout: 
   const [isDeletingAccount, setIsDeletingAccount] = useState(false)
   const [isGuideOpen, setIsGuideOpen] = useState(false)
   const careerSection = resolveCareerSection(location.pathname)
-  const onboardingStorageKey = `ai-career.onboarding.${user.id}`
-
-  useEffect(() => {
-    if (location.pathname === '/' && !localStorage.getItem(onboardingStorageKey)) {
-      setIsGuideOpen(true)
-    }
-  }, [location.pathname, onboardingStorageKey])
 
   async function logout() {
     setIsLoggingOut(true)
@@ -739,11 +738,11 @@ function MyPageContent({ user, persona, onOpenGuide, onDeleteAccount, isDeleting
     <header className="page-heading my-page-heading"><div><span className="eyebrow">MY PAGE</span><h1>마이페이지</h1><p>계정과 사용 안내를 관리할 수 있어요.</p></div></header>
     <section className="my-page-account-card">
       <div className="my-page-account-summary"><span className="my-page-avatar">{user.displayName.charAt(0)}</span><div><span className="eyebrow">ACCOUNT</span><h2>{user.displayName}</h2><p>{user.email}</p></div></div>
-      <div className="my-page-account-meta"><span>맞춤 직군</span><strong>{persona.icon} {persona.label}</strong><Link to="/choose-role?returnTo=%2Fmy-page" className="my-page-persona-link">직군 변경</Link></div>
+      <div className="my-page-account-meta"><span>맞춤 직군</span><strong>{persona.icon} {persona.label}</strong><Link to="/choose-role?mode=change&amp;returnTo=%2Fmy-page" className="my-page-persona-link">직군 변경</Link></div>
     </section>
     <section className="my-page-section">
       <div className="my-page-section-heading"><div><span className="eyebrow">HELP</span><h2>서비스 사용 안내</h2></div><p>처음 사용하는 방법과 주요 메뉴를 다시 확인할 수 있습니다.</p></div>
-      <button className="secondary-button my-page-guide-button" type="button" onClick={onOpenGuide}>사용 안내 다시 보기 <span>→</span></button>
+      <button className="secondary-button my-page-guide-button" type="button" onClick={onOpenGuide}>사용 안내 보기 <span>→</span></button>
     </section>
     <section className="my-page-section extension-guide-section">
       <div className="my-page-section-heading"><div><span className="eyebrow">CHROME EXTENSION</span><h2>JobKorea에서 확장 프로그램 사용하기</h2></div><p>서비스에 저장한 경력을 JobKorea 지원 페이지에서 검토용 답변과 이력서 준비에 활용합니다.</p></div>
@@ -871,14 +870,14 @@ function OverviewContent({ user, persona }: { user: User; persona: PersonaProfil
     const [experiences, projects, resumes, jobPostings] = await Promise.allSettled([
       request<PageResponse<Experience>>('/v1/experiences?page=0&size=1'),
       request<PageResponse<Project>>('/v1/projects?page=0&size=1'),
-      request<PageResponse<Resume>>('/v1/resumes?page=0&size=1'),
+      requestAllPages<Resume>('/v1/resumes'),
       request<PageResponse<JobPosting>>('/v1/job-postings?page=0&size=1'),
     ])
 
     setCounts({
       experiences: experiences.status === 'fulfilled' ? experiences.value.totalElements : null,
       projects: projects.status === 'fulfilled' ? projects.value.totalElements : null,
-      resumes: resumes.status === 'fulfilled' ? resumes.value.totalElements : null,
+      resumes: resumes.status === 'fulfilled' ? groupResumes(resumes.value).length : null,
       jobPostings: jobPostings.status === 'fulfilled' ? jobPostings.value.totalElements : null,
     })
     if ([experiences, projects, resumes, jobPostings].some((result) => result.status === 'rejected')) {
@@ -2618,10 +2617,10 @@ function ResumePageContent({ user, persona }: { user: User; persona: PersonaProf
     setIsLoading(true)
     setLoadError('')
     try {
-      const result = await request<PageResponse<Resume>>('/v1/resumes?page=0&size=20')
-      setResumes(result.content)
+      const result = await requestAllPages<Resume>('/v1/resumes')
+      setResumes(result)
       setLatestVersions({})
-      const previewEntries = await Promise.all(result.content.map(async (resume) => {
+      const previewEntries = await Promise.all(result.map(async (resume) => {
         try {
           const versions = await request<PageResponse<ResumeVersion>>(`/v1/resumes/${resume.id}/versions?page=0&size=1`)
           return [resume.id, versions.content[0] ?? null] as const
@@ -2630,7 +2629,7 @@ function ResumePageContent({ user, persona }: { user: User; persona: PersonaProf
         }
       }))
       setLatestVersions(Object.fromEntries(previewEntries))
-      const groupedResumes = groupResumes(result.content)
+      const groupedResumes = groupResumes(result)
       const preferredGroup = preferredId
         ? groupedResumes.find((group) => group.resumes.some((resume) => resume.id === preferredId))
         : undefined
