@@ -95,7 +95,7 @@ class SelfIntroductionAnswerApiTests {
 
             assertThat(response.statusCode()).as(response.body()).isEqualTo(200);
             JsonNode draft = MAPPER.readTree(response.body());
-            assertThat(draft.path("answer").asText()).isEqualTo("Java API를 개발했습니다 [C1].");
+            assertThat(draft.path("answer").asText()).isEqualTo("Java API를 개발했습니다.");
             assertThat(draft.path("provider").asText()).isEqualTo("ollama");
             assertThat(draft.path("model").asText()).isEqualTo("test-llama");
             assertThat(draft.path("promptVersion").asText()).isEqualTo("self-introduction-v5");

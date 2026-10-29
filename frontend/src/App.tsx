@@ -892,7 +892,7 @@ function OverviewContent({ user, persona }: { user: User; persona: PersonaProfil
   const completedWorkspaceSections = Object.values(counts).filter((count) => count !== null && count > 0).length
 
   return <>
-    <header className="topbar"><div><span className="eyebrow">YOUR WORKSPACE · {persona.label.toUpperCase()}</span><h1>안녕하세요, {user.displayName}님</h1><p className="topbar-subtitle">{persona.label} 맞춤 화면 · {persona.focus}</p></div><span className="status-pill"><span />{persona.label} 모드</span></header>
+    <header className="topbar"><div><span className="eyebrow">YOUR WORKSPACE · {persona.label.toUpperCase()}</span><h1>안녕하세요, {user.displayName}님</h1><p className="topbar-subtitle">{persona.label} 맞춤 화면 · {persona.focus}</p></div><span className="status-pill"><span />{persona.label}</span></header>
     <section className="hero-card"><div className="hero-card-content"><span className="eyebrow">START HERE · {persona.label.toUpperCase()}</span><h2>{persona.heroTitle}<br /><em>{persona.heroEmphasis}</em></h2><p>{persona.heroDescription}</p><div className="hero-actions"><Link className="hero-action-primary" to="/career/experiences" data-tour="career-start">{persona.primaryAction} <span>→</span></Link><Link className="hero-action-secondary" to="/job-postings">{persona.secondaryAction}</Link></div></div><div className="hero-orbit" aria-hidden="true"><span>+</span><span>✦</span><span>→</span></div></section>
     <section className="stats-grid" aria-busy={isLoading}><StatCard label={persona.experienceLabel} value={displayCount(counts.experiences)} action={`${persona.experienceLabel} 추가`} to="/career/experiences" /><StatCard label="프로젝트" value={displayCount(counts.projects)} action="프로젝트 추가" to="/career/projects" /><StatCard label="이력서" value={displayCount(counts.resumes)} action="이력서 만들기" to="/resumes" /><StatCard label="채용공고" value={displayCount(counts.jobPostings)} action="공고 저장" to="/job-postings" /></section>
     {loadError && <p className="overview-load-error" role="alert">{loadError} <button className="text-button" onClick={() => void loadCounts()}>다시 시도</button></p>}
@@ -1561,7 +1561,11 @@ const resumeExportSectionAliases: Record<string, string> = {
 }
 
 function stripResumeCitation(value: string) {
-  return value.replace(/\s+\[C\d+(?:\s*,\s*C\d+)*\]\s*$/, '').trim()
+  return value
+    .replace(/\s*\[\s*c\d+(?:\s*,\s*c\d+)*\s*\]/gi, '')
+    .replace(/\s+([.!?。！？,])/g, '$1')
+    .replace(/[ \t]{2,}/g, ' ')
+    .trim()
 }
 
 function parseResumeExport(content: string): ParsedResumeExport {
@@ -2560,7 +2564,9 @@ function ResumeDraftReviewModal({
 }) {
   function DraftLine({ line }: { line: ResumeDraftLine | null }) {
     if (!line?.text) return null
-    return <li><span>{line.text}</span><small>{line.citations.map((citation) => citation.citationId).join(', ')}</small></li>
+    const text = stripResumeCitation(line.text)
+    if (!text) return null
+    return <li><span>{text}</span><small>Career 근거 {line.citations.length}개</small></li>
   }
 
   function DraftSection({ title, lines }: { title: string; lines: ResumeDraftLine[] }) {
@@ -2572,7 +2578,7 @@ function ResumeDraftReviewModal({
   function DraftSelfIntroduction({ sections, summary }: { sections: ResumeDraftSection[]; summary: ResumeDraftLine | null }) {
     const visibleSections = (sections ?? []).filter((section) => section?.title && section?.content)
     if (visibleSections.length === 0) return <DraftSection title="자기소개서" lines={summary ? [summary] : []} />
-    return <section className="draft-review-section"><div className="draft-review-section-heading"><h3>자기소개서</h3><span>{visibleSections.length}개 어필 주제</span></div><div className="draft-topic-list">{visibleSections.map((section, index) => <article className="draft-topic" key={`self-introduction-${index}`}><h4>{section.title}</h4><p>{section.content}</p><small>{section.citations.map((citation) => citation.citationId).join(', ')}</small></article>)}</div></section>
+    return <section className="draft-review-section"><div className="draft-review-section-heading"><h3>자기소개서</h3><span>{visibleSections.length}개 어필 주제</span></div><div className="draft-topic-list">{visibleSections.map((section, index) => <article className="draft-topic" key={`self-introduction-${index}`}><h4>{stripResumeCitation(section.title)}</h4><p>{stripResumeCitation(section.content)}</p><small>Career 근거 {section.citations.length}개</small></article>)}</div></section>
   }
 
   return <div className="modal-backdrop" role="presentation">
@@ -2880,8 +2886,8 @@ function ResumeApplicationQuestions({ resumeId, persona }: { resumeId: string; p
         savedJobPostingId: item.jobPostingId ?? '',
         question: item.question,
         savedQuestion: item.question,
-        answer: item.answer,
-        savedAnswer: item.answer,
+        answer: stripResumeCitation(item.answer),
+        savedAnswer: stripResumeCitation(item.answer),
       })))
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : '자기소개서 질문을 불러오지 못했습니다.')
@@ -2987,7 +2993,7 @@ function ResumeApplicationQuestions({ resumeId, persona }: { resumeId: string; p
         method: 'POST',
         body: JSON.stringify({ resumeId, questionId: saved.id }),
       })
-      updateItem(item.localKey, 'answer', result.answer)
+      updateItem(item.localKey, 'answer', stripResumeCitation(result.answer))
       setDraftCitations((current) => ({ ...current, [item.localKey]: result.citations }))
       setDraftProviders((current) => {
         const next = { ...current }
@@ -3040,7 +3046,7 @@ function ResumeApplicationQuestions({ resumeId, persona }: { resumeId: string; p
     try {
       const saved = await request<ResumeApplicationQuestion>(`/v1/resumes/${resumeId}/application-questions/${item.id}`, {
         method: 'PUT',
-        body: JSON.stringify({ jobPostingId: item.jobPostingId, question: item.savedQuestion, answer: item.answer }),
+        body: JSON.stringify({ jobPostingId: item.jobPostingId, question: item.savedQuestion, answer: stripResumeCitation(item.answer) }),
       })
       setItems((current) => current.map((currentItem) => currentItem.localKey === item.localKey
         ? {
@@ -3106,7 +3112,7 @@ function ResumeApplicationQuestions({ resumeId, persona }: { resumeId: string; p
       {item.id && (item.question.trim() !== item.savedQuestion || item.jobPostingId !== item.savedJobPostingId) && <small className="application-question-citations">질문이나 기업공고가 변경되었습니다. 저장하면 선택한 공고를 기준으로 새 답변을 작성합니다.</small>}
       <label>답변<textarea value={item.answer} onChange={(event) => updateItem(item.localKey, 'answer', event.target.value)} disabled={!item.id || savingId === item.localKey || generatingId === item.localKey} maxLength={100000} rows={8} placeholder={item.id ? '자동으로 만든 초안을 검토하거나 직접 작성해주세요.' : '질문을 저장하면 초안이 자동으로 작성됩니다.'} /></label>
       {draftProviders[item.localKey] && <small className="application-question-citations">자동 생성 정보: {draftProviders[item.localKey].provider} · {draftProviders[item.localKey].model} · prompt {draftProviders[item.localKey].promptVersion} · 근거 청크 {draftProviders[item.localKey].retrievedChunkCount}개</small>}
-      {draftCitations[item.localKey]?.length > 0 && <details className="application-question-evidence"><summary>문장 인용 [C1]과 Career 근거 {draftCitations[item.localKey].length}개 대조하기</summary><p>답변의 각 [C#] 표시와 아래 원문을 대조해 사실이 맞는지 검토하세요. 인용 자체가 주장의 정확성을 보증하지는 않습니다.</p>{draftCitations[item.localKey].map((citation) => <div className="application-question-evidence-item" key={citation.citationId}><strong>{citation.citationId} · {citation.sourceType}</strong><pre>{citation.content}</pre></div>)}</details>}
+      {draftCitations[item.localKey]?.length > 0 && <details className="application-question-evidence"><summary>자동 작성에 사용된 Career 근거 {draftCitations[item.localKey].length}개 확인하기</summary><p>아래 원문과 자동 작성된 답변을 대조해 사실이 맞는지 검토하세요. 근거 연결 자체가 주장의 정확성을 보증하지는 않습니다.</p>{draftCitations[item.localKey].map((citation) => <div className="application-question-evidence-item" key={citation.citationId}><strong>{citation.sourceType}</strong><pre>{citation.content}</pre></div>)}</details>}
       <div className="application-question-actions"><button className="secondary-button compact-button" type="button" onClick={() => void saveQuestionAndGenerate(item)} disabled={savingId === item.localKey || generatingId === item.localKey || jobPostings.length === 0}>{savingId === item.localKey ? '질문 저장 중...' : generatingId === item.localKey ? '답변 작성 중...' : '질문 저장 · 답변 자동 작성'}</button>{item.id && <button className="primary-button compact-button" type="button" onClick={() => void saveAnswer(item)} disabled={savingId === item.localKey || generatingId === item.localKey || item.question.trim() !== item.savedQuestion || item.jobPostingId !== item.savedJobPostingId}>{savingId === item.localKey ? '저장 중...' : '답변 저장'}</button>}</div>
     </article>)}</div>}
     {!isLoading && <div className="application-question-add"><button className="secondary-button compact-button" type="button" onClick={addQuestion}>+ 자기소개서 항목 추가</button></div>}

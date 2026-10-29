@@ -50,7 +50,7 @@ class SelfIntroductionAnswerServiceTest {
                 .thenReturn(new LlmSelfIntroductionAnswerCompletion(
                         new SelfIntroductionAnswerDocument(List.of(
                                 new SelfIntroductionAnswerDocument.Sentence(
-                                        "Java API 경험을 바탕으로 기여하겠습니다.",
+                                        "Java API 경험을 바탕으로 [C1] 기여하겠습니다 [c1].",
                                         List.of("C1")
                                 )
                         )),
@@ -64,7 +64,7 @@ class SelfIntroductionAnswerServiceTest {
         SelfIntroductionAnswerOutcome outcome = service(questionService, jobPostingService, searchService, llmClient)
                 .generate(USER_ID, RESUME_ID, QUESTION_ID);
 
-        assertThat(outcome.answer()).isEqualTo("Java API 경험을 바탕으로 기여하겠습니다 [C1].");
+        assertThat(outcome.answer()).isEqualTo("Java API 경험을 바탕으로 기여하겠습니다.");
         assertThat(outcome.citations()).singleElement().satisfies(citation -> {
             assertThat(citation.citationId()).isEqualTo("C1");
             assertThat(citation.sourceType()).isEqualTo(SourceType.EXPERIENCE);
@@ -192,7 +192,7 @@ class SelfIntroductionAnswerServiceTest {
         var outcome = service(questionService, jobPostingService, searchService, llmClient)
                 .generate(USER_ID, RESUME_ID, QUESTION_ID);
 
-        assertThat(outcome.answer()).isEqualTo("Java API를 개발했습니다 [C1]. PostgreSQL 서비스도 개발했습니다 [C1].");
+        assertThat(outcome.answer()).isEqualTo("Java API를 개발했습니다. PostgreSQL 서비스도 개발했습니다.");
         assertThat(outcome.citations()).singleElement().satisfies(citation ->
                 assertThat(citation.citationId()).isEqualTo("C1"));
     }

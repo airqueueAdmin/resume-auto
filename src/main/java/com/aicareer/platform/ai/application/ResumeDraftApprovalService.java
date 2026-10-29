@@ -3,7 +3,7 @@ package com.aicareer.platform.ai.application;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
-import java.util.stream.Collectors;
+import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
 import com.aicareer.platform.ai.domain.ResumeDraft;
@@ -24,6 +24,10 @@ import org.springframework.transaction.annotation.Transactional;
 public class ResumeDraftApprovalService {
 
     private static final int MAX_RESUME_CONTENT_CHARACTERS = 100_000;
+    private static final Pattern INLINE_CITATION = Pattern.compile(
+            "\\s*\\[\\s*C\\d+(?:\\s*,\\s*C\\d+)*\\s*]",
+            Pattern.CASE_INSENSITIVE
+    );
 
     private final ResumeDraftRepository resumeDraftRepository;
     private final ResumeService resumeService;
@@ -123,12 +127,12 @@ public class ResumeDraftApprovalService {
             if (citationIds.isEmpty()) {
                 throw GroundingValidationException.uncitedFinding();
             }
-            appendCitedText(
+            appendPlainText(
                     content,
                     "[자기소개서 " + (index + 1) + "] " + section.title().strip(),
                     citationIds
             );
-            appendCitedText(content, section.content().strip(), citationIds);
+            appendPlainText(content, section.content().strip(), citationIds);
         }
     }
 
@@ -164,7 +168,7 @@ public class ResumeDraftApprovalService {
         }
         String prefix = bullet ? "- " : label + ": ";
         content.append(prefix);
-        appendCitedText(content, line.text().strip(), citationIds);
+        appendPlainText(content, line.text().strip(), citationIds);
     }
 
     private List<String> citationIds(List<SourceCitation> citations) {
@@ -178,10 +182,17 @@ public class ResumeDraftApprovalService {
                         .toList();
     }
 
-    private void appendCitedText(StringBuilder content, String text, List<String> citationIds) {
-        content.append(text)
-                .append(" [")
-                .append(citationIds.stream().collect(Collectors.joining(", ")))
-                .append("]\n");
+    private void appendPlainText(StringBuilder content, String text, List<String> citationIds) {
+        if (citationIds.isEmpty()) {
+            throw GroundingValidationException.uncitedFinding();
+        }
+        String cleanText = INLINE_CITATION.matcher(text).replaceAll("")
+                .replaceAll("\\s+([.!?。！？,])", "$1")
+                .replaceAll("[ \\t]{2,}", " ")
+                .strip();
+        if (cleanText.isBlank()) {
+            throw GroundingValidationException.invalidFinding();
+        }
+        content.append(cleanText).append('\n');
     }
 }

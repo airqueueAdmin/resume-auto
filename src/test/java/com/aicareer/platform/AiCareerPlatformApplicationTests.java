@@ -352,14 +352,16 @@ class AiCareerPlatformApplicationTests {
         assertThat(invalidApproval.body()).contains("VALIDATION_ERROR", "resumeId");
         assertThat(approved.statusCode()).isEqualTo(201);
         assertThat(approved.body())
-                .contains("Built Java APIs", "[C1]", "\"versionNumber\":2");
+                .contains("Built Java APIs", "\"versionNumber\":2")
+                .doesNotContain("[C1]");
         assertThat(autoCreatedResume.statusCode()).isEqualTo(201);
         assertThat(autoCreatedResume.body())
                 .contains("Example Corp - Backend 이력서", "\"latestVersionNumber\":1");
         assertThat(autoCreatedCrossUser.statusCode()).isEqualTo(404);
         assertThat(autoCreatedVersions.statusCode()).isEqualTo(200);
         assertThat(autoCreatedVersions.body())
-                .contains("\"totalElements\":1", "Built Java APIs", "[C1]");
+                .contains("\"totalElements\":1", "Built Java APIs")
+                .doesNotContain("[C1]");
         assertThat(versions.statusCode()).isEqualTo(200);
         assertThat(versions.body()).contains("\"totalElements\":2", "Initial resume content");
         assertThat(attemptedUpdate.statusCode()).isEqualTo(405);

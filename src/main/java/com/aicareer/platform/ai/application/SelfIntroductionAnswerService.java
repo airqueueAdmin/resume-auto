@@ -131,14 +131,12 @@ public class SelfIntroductionAnswerService {
         List<String> renderedSentences = new ArrayList<>();
         LinkedHashSet<String> usedCitationIds = new LinkedHashSet<>();
         for (SelfIntroductionAnswerDocument.Sentence sentence : completion.answer().sentences()) {
-            LinkedHashSet<String> sentenceCitationIds = new LinkedHashSet<>();
             for (String citationId : sentence.citationIds()) {
                 citation(byCitationId, citationId);
-                sentenceCitationIds.add(citationId);
                 usedCitationIds.add(citationId);
             }
             for (String sentenceText : SelfIntroductionAnswerValidator.sentenceTexts(sentence.text())) {
-                renderedSentences.add(renderSentence(sentenceText, sentenceCitationIds));
+                renderedSentences.add(renderSentence(sentenceText));
             }
         }
 
@@ -267,16 +265,12 @@ public class SelfIntroductionAnswerService {
         );
     }
 
-    private String renderSentence(String text, LinkedHashSet<String> citationIds) {
+    private String renderSentence(String text) {
         String normalized = text.strip();
-        String markers = citationIds.stream()
-                .map(citationId -> "[" + citationId + "]")
-                .collect(java.util.stream.Collectors.joining(" "));
         char lastCharacter = normalized.charAt(normalized.length() - 1);
         if (".!?。！？".indexOf(lastCharacter) >= 0) {
-            return normalized.substring(0, normalized.length() - 1).stripTrailing()
-                    + " " + markers + lastCharacter;
+            return normalized;
         }
-        return normalized + " " + markers + ".";
+        return normalized + ".";
     }
 }

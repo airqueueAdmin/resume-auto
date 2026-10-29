@@ -33,7 +33,7 @@ class ResumeDraftApprovalServiceTest {
     private static final UUID RESUME_ID = UUID.randomUUID();
 
     @Test
-    void formatsStoredGroundedDraftAndCreatesNewVersionWithCitationLabels() {
+    void formatsStoredGroundedDraftAndCreatesNewVersionWithoutCitationLabels() {
         ResumeDraftRepository repository = org.mockito.Mockito.mock(ResumeDraftRepository.class);
         ResumeService resumeService = org.mockito.Mockito.mock(ResumeService.class);
         ResumeVersionService versionService = org.mockito.Mockito.mock(ResumeVersionService.class);
@@ -52,13 +52,14 @@ class ResumeDraftApprovalServiceTest {
                 content.capture()
         );
         assertThat(content.getValue())
-                .contains("희망직무: Backend Developer [C1]")
-                .contains("자기소개서:\n요약: Built production APIs [C1]")
-                .contains("[자기소개서 1] 문제 해결 방식 [C1]")
-                .contains("[자기소개서 2] 협업과 책임감 [C2]")
-                .contains("[자기소개서 3] 직무 기여 방향 [C1, C2]")
-                .contains("경력기술서:\n- Designed Java services [C1]\n- Career platform [C2]")
-                .contains("스킬:\n- Java [C1, C2]");
+                .contains("희망직무: Backend Developer")
+                .contains("자기소개서:\n요약: Built production APIs")
+                .contains("[자기소개서 1] 문제 해결 방식")
+                .contains("[자기소개서 2] 협업과 책임감")
+                .contains("[자기소개서 3] 직무 기여 방향")
+                .contains("경력기술서:\n- Designed Java services\n- Career platform")
+                .contains("스킬:\n- Java")
+                .doesNotContain("[C1]", "[C2]");
     }
 
     @Test
@@ -79,8 +80,9 @@ class ResumeDraftApprovalServiceTest {
         verify(resumeService).create(org.mockito.ArgumentMatchers.eq(USER_ID), request.capture());
         assertThat(request.getValue().name()).isEqualTo("Example Corp - Backend 이력서");
         assertThat(request.getValue().content())
-                .contains("희망직무: Backend Developer [C1]")
-                .contains("[자기소개서 3] 직무 기여 방향 [C1, C2]");
+                .contains("희망직무: Backend Developer")
+                .contains("[자기소개서 3] 직무 기여 방향")
+                .doesNotContain("[C1]", "[C2]");
         verify(versionService, never()).createFromContent(any(), any(), any());
     }
 
@@ -137,7 +139,7 @@ class ResumeDraftApprovalServiceTest {
         );
         SourceCitation c1 = citation("C1");
         SourceCitation c2 = citation("C2");
-        GroundedResumeDraftLine headline = line("Backend Developer", c1);
+        GroundedResumeDraftLine headline = line("Backend Developer [C1] [c2]", c1);
         GroundedResumeDraftLine summary = line("Built production APIs", c1);
         List<GroundedResumeDraftSection> selfIntroductionSections = List.of(
                 section("문제 해결 방식", "복잡한 문제를 작은 단위로 나누고 핵심 원인을 먼저 확인했습니다. 구현 전 검증 기준을 세워 불필요한 재작업을 줄였고, 결과적으로 운영 가능한 API를 완성했습니다.", c1),

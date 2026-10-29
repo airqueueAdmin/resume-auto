@@ -8,7 +8,10 @@ import java.util.stream.Collectors;
 /** Applies the same grounding contract before accepting either provider's answer. */
 public final class SelfIntroductionAnswerValidator {
 
-    private static final Pattern INLINE_CITATION = Pattern.compile("\\s*\\[(C\\d+)]");
+    private static final Pattern INLINE_CITATION = Pattern.compile(
+            "\\s*\\[((?:C\\d+)(?:\\s*,\\s*C\\d+)*)]",
+            Pattern.CASE_INSENSITIVE
+    );
     private static final Pattern SENTENCE_BOUNDARY = Pattern.compile("(?<=[.!?。！？])(?=\\s|$)");
 
     private SelfIntroductionAnswerValidator() {
@@ -40,8 +43,10 @@ public final class SelfIntroductionAnswerValidator {
             }
             var inline = INLINE_CITATION.matcher(sentence.text());
             while (inline.find()) {
-                if (!sentence.citationIds().contains(inline.group(1))) {
-                    throw GroundingValidationException.uncitedFinding();
+                for (String inlineId : inline.group(1).split(",")) {
+                    if (!sentence.citationIds().contains(inlineId.strip().toUpperCase(java.util.Locale.ROOT))) {
+                        throw GroundingValidationException.uncitedFinding();
+                    }
                 }
             }
         }
