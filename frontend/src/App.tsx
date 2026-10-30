@@ -993,7 +993,9 @@ function normalizeImportedDate(value: string, allowCurrent: boolean): string | n
   return `${match[1]}-${match[2].padStart(2, '0')}-${match[3].padStart(2, '0')}`
 }
 
-function TxtImportModal({ title, template, onClose, onApply }: { title: string; template: string; onClose: () => void; onApply: (text: string) => string | null }) {
+type TxtImportMode = 'labeled' | 'description'
+
+function TxtImportModal({ title, template, onClose, onApply }: { title: string; template: string; onClose: () => void; onApply: (text: string, mode: TxtImportMode) => string | null }) {
   const [text, setText] = useState('')
   const [error, setError] = useState('')
 
@@ -1026,8 +1028,8 @@ function TxtImportModal({ title, template, onClose, onApply }: { title: string; 
     }
   }
 
-  function apply() {
-    const applyError = onApply(text)
+  function apply(mode: TxtImportMode) {
+    const applyError = onApply(text, mode)
     if (applyError) {
       setError(applyError)
       return
@@ -1038,14 +1040,14 @@ function TxtImportModal({ title, template, onClose, onApply }: { title: string; 
   return <div className="modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose() }}>
     <section className="txt-import-modal" role="dialog" aria-modal="true" aria-labelledby="txt-import-title">
       <header className="modal-heading"><div><span className="eyebrow">TXT IMPORT</span><h2 id="txt-import-title">{title}</h2></div><button className="modal-close" onClick={onClose} aria-label="닫기">×</button></header>
-      <p className="modal-description">아래 형식의 내용을 붙여넣거나 UTF-8 TXT 파일을 선택하세요. 인식된 값은 폼에만 채워지며 자동 저장되지 않습니다.</p>
+      <p className="modal-description">기존 내용을 그대로 옮기려면 설명으로 적용하고, 항목명이 포함된 내용은 아래 형식으로 자동 분류할 수 있습니다. 적용된 값은 폼에서 검토하며 자동 저장되지 않습니다.</p>
       <div className="txt-import-grid">
         <div className="txt-template"><strong>입력 형식 예시</strong><pre>{template}</pre></div>
-        <label className="txt-input-label">가져올 내용<textarea value={text} onChange={(event) => { setText(event.target.value); setError('') }} rows={12} autoFocus placeholder="항목명: 값을 붙여넣으세요." /></label>
+        <label className="txt-input-label">가져올 내용<textarea value={text} onChange={(event) => { setText(event.target.value); setError('') }} rows={12} autoFocus placeholder="기존에 작성한 내용을 그대로 붙여넣으세요." /></label>
       </div>
       <div className="file-input-row"><label className="secondary-button compact-button">TXT 파일 선택<input type="file" accept=".txt,text/plain" onChange={(event) => void readTxtFile(event.target.files?.[0])} /></label><span>최대 1MB · UTF-8</span></div>
       {error && <p className="form-error modal-error" role="alert">{error}</p>}
-      <footer className="modal-actions"><button className="text-button" onClick={onClose}>취소</button><button className="primary-button compact-button" onClick={apply} disabled={!text.trim()}>폼에 적용</button></footer>
+      <footer className="modal-actions"><button className="text-button" onClick={onClose}>취소</button><button className="secondary-button compact-button" onClick={() => apply('description')} disabled={!text.trim()}>전체 내용을 설명에 적용</button><button className="primary-button compact-button" onClick={() => apply('labeled')} disabled={!text.trim()}>항목별로 자동 분류</button></footer>
     </section>
   </div>
 }
@@ -1177,7 +1179,14 @@ function ExperiencePageContent({ persona }: { persona: PersonaProfile }) {
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
-  function applyTxtImport(text: string) {
+  function applyTxtImport(text: string, mode: TxtImportMode) {
+    if (mode === 'description') {
+      setForm((current) => ({ ...current, description: text.replace(/^\uFEFF/, '').trim() }))
+      setFieldErrors((current) => ({ ...current, description: '' }))
+      setFormError('')
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+      return null
+    }
     const { values, matchedFields } = parseLabeledTxt(text, experienceTxtFields)
     if (matchedFields === 0) return '인식할 수 있는 항목이 없습니다. 예시처럼 “항목명: 값” 형식으로 입력해주세요.'
     if (values.startDate !== undefined) {
@@ -1355,7 +1364,14 @@ function ProjectPageContent({ persona }: { persona: PersonaProfile }) {
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
-  function applyTxtImport(text: string) {
+  function applyTxtImport(text: string, mode: TxtImportMode) {
+    if (mode === 'description') {
+      setForm((current) => ({ ...current, description: text.replace(/^\uFEFF/, '').trim() }))
+      setFieldErrors((current) => ({ ...current, description: '' }))
+      setFormError('')
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+      return null
+    }
     const { values, matchedFields } = parseLabeledTxt(text, projectTxtFields)
     if (matchedFields === 0) return '인식할 수 있는 항목이 없습니다. 예시처럼 “항목명: 값” 형식으로 입력해주세요.'
     if (values.startDate !== undefined) {

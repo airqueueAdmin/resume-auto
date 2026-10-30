@@ -99,7 +99,7 @@ https://career-note-web-sg.onrender.com
 4. Career Note에 로그인하고 1회용 연결 코드를 발급합니다.
 5. 확장 프로그램에 코드를 입력하고 **확장 프로그램 연결**을 클릭합니다.
 
-서비스 주소에는 백엔드 주소인 `https://career-note.onrender.com`을 입력하지 않습니다. 확장
+서비스 주소에는 백엔드 주소인 `https://career-note-uzyo.onrender.com`을 입력하지 않습니다. 확장
 프로그램은 프론트엔드 주소의 `/api` 프록시를 사용합니다.
 
 ## 5. 사용 순서
