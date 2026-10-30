@@ -666,6 +666,11 @@ select:focus-visible { outline-color: rgba(59, 130, 246, .38); }
 .my-page-guide-button { margin-top: 24px; padding: 11px 14px; font-size: 12px; }
 .my-page-guide-button span { margin-left: 8px; font-size: 15px; }
 .extension-guide-section { margin-top: 16px; }
+.extension-guide-label { display: flex; align-items: center; gap: 8px; }
+.extension-demo-badge { border: 1px solid #f59e0b; border-radius: 999px; padding: 3px 7px; background: #fffbeb; color: #b45309; font: 700 9px 'DM Mono'; letter-spacing: .08em; }
+.extension-demo-notice { margin-top: 21px; border: 1px solid #fde68a; border-radius: 9px; padding: 13px 15px; background: #fffbeb; }
+.extension-demo-notice strong { display: block; color: #92400e; font-size: 12px; }
+.extension-demo-notice p { margin: 6px 0 0; color: #786047; font-size: 11px; line-height: 1.65; }
 .extension-guide-steps { display: grid; gap: 0; margin: 27px 0 0; padding: 0; list-style: none; }
 .extension-guide-steps > li { display: grid; grid-template-columns: 34px minmax(0, 1fr); gap: 13px; border-top: 1px solid #edf1f5; padding: 17px 0; }
 .extension-guide-steps > li > span { color: #2563eb; font: 500 10px 'DM Mono'; }
