@@ -355,7 +355,7 @@ public class GlobalExceptionHandler {
         return error(
                 HttpStatus.UNAUTHORIZED,
                 "AUTHENTICATION_FAILED",
-                "Authentication failed",
+                "인증 정보가 올바르지 않거나 만료되었습니다.",
                 request,
                 Map.of()
         );

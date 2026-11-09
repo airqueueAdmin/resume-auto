@@ -983,7 +983,7 @@ class AiCareerPlatformApplicationTests {
         HttpResponse<String> unauthenticated = get("/api/v1/users/me", null);
 
         assertThat(invalidLogin.statusCode()).isEqualTo(401);
-        assertThat(invalidLogin.body()).contains("AUTHENTICATION_FAILED");
+        assertThat(invalidLogin.body()).contains("AUTHENTICATION_FAILED", "인증 정보가 올바르지 않거나 만료되었습니다.");
         assertThat(unauthenticated.statusCode()).isEqualTo(401);
         assertThat(unauthenticated.body()).contains("AUTHENTICATION_REQUIRED");
     }

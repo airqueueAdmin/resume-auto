@@ -195,7 +195,12 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const response = await fetch(`${apiBaseUrl}${path}`, { ...options, headers })
   if (!response.ok) {
     const body = await response.json().catch(() => null) as { code?: string; detail?: string; fieldErrors?: Record<string, string> } | null
-    const error = new Error(body?.detail ?? '요청을 처리하지 못했습니다.') as ApiError
+    const localizedDetail = body?.code === 'AUTHENTICATION_FAILED'
+      ? '인증 정보가 올바르지 않거나 만료되었습니다.'
+      : body?.code === 'AUTHENTICATION_REQUIRED'
+        ? '로그인이 필요합니다.'
+        : body?.detail
+    const error = new Error(localizedDetail ?? '요청을 처리하지 못했습니다.') as ApiError
     error.code = body?.code
     error.fieldErrors = body?.fieldErrors
     throw error
@@ -555,6 +560,8 @@ function AuthPage({ mode, onAuthenticated }: { mode: 'login' | 'signup'; onAuthe
       }
       setError(apiError.code === 'EMAIL_ALREADY_REGISTERED'
         ? '이미 가입된 이메일입니다. 로그인해 주세요.'
+        : apiError.code === 'AUTHENTICATION_FAILED'
+          ? '이메일 또는 비밀번호를 확인해주세요.'
         : apiError.code === 'RATE_LIMIT_EXCEEDED'
           ? '요청이 많습니다. 잠시 후 다시 시도해 주세요.'
           : apiError.message || '인증에 실패했습니다.')
