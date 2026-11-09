@@ -1,5 +1,6 @@
-const defaultServiceBaseUrl = 'https://career-note-web-sg.onrender.com'
+const defaultServiceBaseUrl = 'https://career-note-web-sg-cjdv.onrender.com'
 const legacyLocalServiceBaseUrls = new Set(['http://localhost:5173', 'http://127.0.0.1:5173'])
+const obsoleteProductionServiceBaseUrls = new Set(['https://career-note-web-sg.onrender.com'])
 const serviceBaseUrlMigrationKey = 'career-note.service-base-url-production-migrated'
 
 function isProductionService() {
@@ -874,7 +875,8 @@ chrome.runtime.onMessage.addListener((message) => {
 
 chrome.storage.local.get(['career-note.service-base-url', serviceBaseUrlMigrationKey]).then((saved) => {
   const savedValue = String(saved['career-note.service-base-url'] || '').replace(/\/$/, '')
-  const value = savedValue && !(legacyLocalServiceBaseUrls.has(savedValue) && !saved[serviceBaseUrlMigrationKey])
+  const value = savedValue && !obsoleteProductionServiceBaseUrls.has(savedValue)
+    && !(legacyLocalServiceBaseUrls.has(savedValue) && !saved[serviceBaseUrlMigrationKey])
     ? savedValue
     : defaultServiceBaseUrl
   serviceUrl.value = value

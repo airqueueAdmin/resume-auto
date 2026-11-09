@@ -77,3 +77,5 @@ services:
     envVars:
       - key: BACKEND_BASE_URL
         sync: false
+      - key: GA_MEASUREMENT_ID
+        sync: false

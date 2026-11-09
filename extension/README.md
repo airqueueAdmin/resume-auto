@@ -39,7 +39,7 @@ posting currently open in the tab is temporary request context and is not saved 
 2. Open `chrome://extensions`, enable Developer mode, and choose **Load unpacked**.
 3. Select the `extension` directory. After code changes, click the extension's **Reload** button.
 4. Refresh the JobKorea page. The **Career Note** button should appear in the bottom-right corner.
-5. The default service address is `https://career-note-web-sg.onrender.com`. For local Docker testing,
+5. The default service address is `https://career-note-web-sg-cjdv.onrender.com`. For local Docker testing,
    replace it with `http://localhost:5173`.
 6. Choose **연결 코드 발급**, sign in to the service tab if requested, and issue the one-time code.
 7. Enter the code in the bottom-right panel and choose **확장 프로그램 연결**.
@@ -74,4 +74,4 @@ saved-JobPosting selection popup.
 The backend permits extension API calls from Chrome extension origins and the local web service origins
 `http://localhost:5173` and `http://127.0.0.1:5173`. The Render backend should keep
 `EXTENSION_ALLOWED_ORIGIN_PATTERNS` configured with `chrome-extension://*`; the extension's production
-requests go through `https://career-note-web-sg.onrender.com` and its Nginx `/api` proxy.
+requests go through `https://career-note-web-sg-cjdv.onrender.com` and its Nginx `/api` proxy.

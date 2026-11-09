@@ -6,7 +6,7 @@
   <text x="74" y="92" fill="#172033" font-family="Arial, sans-serif" font-size="26" font-weight="700">4. Career Note 서비스 연결</text>
   <rect x="74" y="130" width="752" height="76" rx="12" fill="#f8fafc" stroke="#e2e8f0"/>
   <text x="100" y="160" fill="#64748b" font-family="Arial, sans-serif" font-size="14">서비스 주소</text>
-  <text x="100" y="188" fill="#172033" font-family="Consolas, monospace" font-size="19">https://career-note-web-sg.onrender.com</text>
+  <text x="100" y="188" fill="#172033" font-family="Consolas, monospace" font-size="19">https://career-note-web-sg-cjdv.onrender.com</text>
   <rect x="74" y="235" width="310" height="56" rx="10" fill="#172033"/>
   <text x="108" y="270" fill="#ffffff" font-family="Arial, sans-serif" font-size="17" font-weight="700">서비스에서 연결 코드 발급</text>
   <path d="M414 263 L492 263" stroke="#2563eb" stroke-width="5" stroke-linecap="round"/>

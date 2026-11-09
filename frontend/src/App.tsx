@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react'
 import type { ChangeEvent, FormEvent, ReactNode } from 'react'
 import { Link, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import { jsPDF } from 'jspdf'
+import { initializeAnalytics, isAnalyticsConfigured, readAnalyticsConsent, saveAnalyticsConsent, trackPageView } from './analytics'
+import type { AnalyticsConsent } from './analytics'
 
 type User = { id: string; email: string; displayName: string }
 type AuthenticationResponse = { user: User; accessToken: string; refreshToken: string }
@@ -85,7 +87,7 @@ const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? '/api'
 const refreshTokenKey = 'ai-career.refresh-token'
 const jobKoreaTemplateVersion = 'JOBKOREA_STANDARD_V2'
 const jobKoreaUploadUrl = 'https://resume.jobkorea.co.kr/resume/upload'
-const extensionDownloadUrl = import.meta.env.VITE_EXTENSION_DOWNLOAD_URL ?? '/downloads/career-note-extension-v0.3.4.zip'
+const extensionDownloadUrl = import.meta.env.VITE_EXTENSION_DOWNLOAD_URL ?? '/downloads/career-note-extension-v0.3.5.zip'
 const maxJobKoreaSkills = 20
 const supportedResumePhotoTypes = new Set(['image/jpeg', 'image/png', 'image/webp'])
 type PersonaKey = 'jobseeker' | 'tech' | 'product' | 'creative' | 'business' | 'professional'
@@ -248,12 +250,25 @@ function clearAuthentication() {
 }
 
 function App() {
+  const location = useLocation()
   const [user, setUser] = useState<User | null>(readUser)
   const [persona, setPersona] = useState<PersonaKey | null>(() => {
     const storedUser = readUser()
     return storedUser ? readPersona(storedUser.id) : null
   })
   const [isRestoringSession, setIsRestoringSession] = useState(() => !readUser())
+  const [analyticsConsent, setAnalyticsConsent] = useState<AnalyticsConsent | null>(readAnalyticsConsent)
+
+  useEffect(() => {
+    if (analyticsConsent !== 'granted') return
+    initializeAnalytics()
+    trackPageView(location.pathname)
+  }, [analyticsConsent, location.pathname])
+
+  function handleAnalyticsConsent(consent: AnalyticsConsent) {
+    saveAnalyticsConsent(consent)
+    setAnalyticsConsent(consent)
+  }
 
   useEffect(() => {
     if (user) {
@@ -317,18 +332,28 @@ function App() {
   }
 
   return (
-    <Routes>
-      <Route path="/" element={user ? (persona ? <Dashboard user={user} onLogout={handleLogout} onDeleteAccount={handleDeleteAccount} /> : <Navigate to="/choose-role" replace />) : <LandingPage />} />
-      <Route path="/choose-role" element={user ? <RoleSelectionPage user={user} selectedPersona={persona} onSelect={handlePersonaSelected} /> : <Navigate to="/login" replace />} />
-      <Route path="/login" element={user ? <Navigate to={persona ? '/' : '/choose-role'} replace /> : <AuthPage mode="login" onAuthenticated={handleAuthenticated} />} />
-      <Route path="/signup" element={user ? <Navigate to={persona ? '/' : '/choose-role'} replace /> : <AuthPage mode="signup" onAuthenticated={handleAuthenticated} />} />
-      <Route path="/verify-email" element={user ? <Navigate to={persona ? '/' : '/choose-role'} replace /> : <EmailVerificationPage />} />
-      <Route path="/extension/connect" element={user ? <ExtensionConnectPage /> : <Navigate to="/login" replace state={{ from: '/extension/connect' }} />} />
-      <Route path="/terms" element={<PolicyPage type="terms" />} />
-      <Route path="/privacy" element={<PolicyPage type="privacy" />} />
-      <Route path="*" element={user ? (persona ? <Dashboard user={user} onLogout={handleLogout} onDeleteAccount={handleDeleteAccount} /> : <Navigate to="/choose-role" replace />) : <Navigate to="/" replace />} />
-    </Routes>
+    <>
+      <Routes>
+        <Route path="/" element={user ? (persona ? <Dashboard user={user} onLogout={handleLogout} onDeleteAccount={handleDeleteAccount} /> : <Navigate to="/choose-role" replace />) : <LandingPage />} />
+        <Route path="/choose-role" element={user ? <RoleSelectionPage user={user} selectedPersona={persona} onSelect={handlePersonaSelected} /> : <Navigate to="/login" replace />} />
+        <Route path="/login" element={user ? <Navigate to={persona ? '/' : '/choose-role'} replace /> : <AuthPage mode="login" onAuthenticated={handleAuthenticated} />} />
+        <Route path="/signup" element={user ? <Navigate to={persona ? '/' : '/choose-role'} replace /> : <AuthPage mode="signup" onAuthenticated={handleAuthenticated} />} />
+        <Route path="/verify-email" element={user ? <Navigate to={persona ? '/' : '/choose-role'} replace /> : <EmailVerificationPage />} />
+        <Route path="/extension/connect" element={user ? <ExtensionConnectPage /> : <Navigate to="/login" replace state={{ from: '/extension/connect' }} />} />
+        <Route path="/terms" element={<PolicyPage type="terms" analyticsConsent={analyticsConsent} onAnalyticsConsent={handleAnalyticsConsent} />} />
+        <Route path="/privacy" element={<PolicyPage type="privacy" analyticsConsent={analyticsConsent} onAnalyticsConsent={handleAnalyticsConsent} />} />
+        <Route path="*" element={user ? (persona ? <Dashboard user={user} onLogout={handleLogout} onDeleteAccount={handleDeleteAccount} /> : <Navigate to="/choose-role" replace />) : <Navigate to="/" replace />} />
+      </Routes>
+      {isAnalyticsConfigured() && analyticsConsent === null && <AnalyticsConsentBanner onChoose={handleAnalyticsConsent} />}
+    </>
   )
+}
+
+function AnalyticsConsentBanner({ onChoose }: { onChoose: (consent: AnalyticsConsent) => void }) {
+  return <aside className="analytics-consent" aria-label="서비스 분석 데이터 수집 선택">
+    <div><strong>서비스 이용 분석 안내</strong><p>서비스 개선을 위해 Google Analytics로 페이지 방문 경로만 수집합니다. 경력·이력서 내용과 이메일은 전송하지 않으며, 동의하지 않아도 서비스를 이용할 수 있습니다.</p><Link to="/privacy">자세히 보기</Link></div>
+    <div className="analytics-consent-actions"><button type="button" className="secondary" onClick={() => onChoose('denied')}>거부</button><button type="button" onClick={() => onChoose('granted')}>허용</button></div>
+  </aside>
 }
 
 function LandingPage() {
@@ -653,9 +678,9 @@ function EmailVerificationPage() {
   </section></main>
 }
 
-function PolicyPage({ type }: { type: 'terms' | 'privacy' }) {
+function PolicyPage({ type, analyticsConsent, onAnalyticsConsent }: { type: 'terms' | 'privacy'; analyticsConsent: AnalyticsConsent | null; onAnalyticsConsent: (consent: AnalyticsConsent) => void }) {
   const isTerms = type === 'terms'
-  return <main className="policy-page"><article className="policy-card"><Link className="policy-back" to="/signup">← 회원가입으로 돌아가기</Link><span className="eyebrow">SERVICE POLICY</span><h1>{isTerms ? '이용약관' : '개인정보 수집·이용 안내'}</h1><p className="policy-effective">시행일: 2026년 10월 21일</p>{isTerms ? <>
+  return <main className="policy-page"><article className="policy-card"><Link className="policy-back" to="/signup">← 회원가입으로 돌아가기</Link><span className="eyebrow">SERVICE POLICY</span><h1>{isTerms ? '이용약관' : '개인정보 수집·이용 안내'}</h1><p className="policy-effective">시행일: {isTerms ? '2026년 10월 21일' : '2026년 11월 9일'}</p>{isTerms ? <>
     <section><h2>1. 서비스 목적</h2><p>사용자가 경력, 프로젝트, 이력서와 채용공고를 정리하고 지원 문서 초안을 준비할 수 있는 작업 공간을 제공합니다.</p></section>
     <section><h2>2. 계정과 이용 책임</h2><p>사용자는 정확한 정보를 입력하고 계정 접근 정보를 안전하게 관리해야 합니다. 타인의 계정 사용, 서비스 방해, 불법적인 자동 접근은 허용되지 않습니다.</p></section>
     <section><h2>3. 작성 결과 검토</h2><p>자동으로 준비된 문서는 참고용 초안입니다. 제출 전 사실관계, 표현, 개인정보 포함 여부를 사용자가 직접 확인해야 합니다.</p></section>
@@ -666,6 +691,7 @@ function PolicyPage({ type }: { type: 'terms' | 'privacy' }) {
     <section><h2>3. 외부 처리</h2><p>이메일 확인 과정에서는 가입 이메일 주소가 메일 발송 제공업체에 전달됩니다. 사용자가 자동 작성 기능을 실행하면 필요한 입력 일부가 설정된 문서 작성 제공업체에 전달될 수 있습니다. 비밀번호와 로그인 토큰은 전달하지 않습니다.</p></section>
     <section><h2>4. 보유와 삭제</h2><p>계정과 입력 데이터는 서비스 이용 기간 동안 보관하며, 삭제 요청 시 법령 또는 보안상 보존 의무가 있는 항목을 제외하고 처리 목적에 따라 삭제합니다.</p></section>
     <section><h2>5. 사용자 권리</h2><p>사용자는 본인 데이터의 조회, 수정, 삭제를 요청할 수 있습니다. 정식 배포 전 운영자 정보와 개인정보 문의 채널을 배포 환경에 맞게 최종 고지해야 합니다.</p></section>
+    <section><h2>6. 서비스 이용 분석</h2><p>사용자가 허용한 경우에만 Google Analytics를 로드해 쿼리 문자열을 제외한 페이지 경로와 방문 시각 등 이용 통계를 처리합니다. 경력, 프로젝트, 이력서, 채용공고, 이메일과 사용자 ID는 분석 이벤트로 전송하지 않습니다. 광고 저장소와 개인 맞춤 광고 신호는 사용하지 않습니다.</p><div className="analytics-policy-actions"><span>현재 설정: {analyticsConsent === 'granted' ? '허용' : analyticsConsent === 'denied' ? '거부' : '선택 전'}</span><button type="button" className="secondary" onClick={() => onAnalyticsConsent('denied')}>분석 수집 철회</button><button type="button" onClick={() => onAnalyticsConsent('granted')}>분석 수집 허용</button></div></section>
   </>}</article></main>
 }
 

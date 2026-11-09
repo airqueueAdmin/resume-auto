@@ -15,8 +15,9 @@ const generateAnswerButton = document.querySelector('#generate-answer')
 const contextElement = document.querySelector('#context')
 
 const localSettingsKey = 'career-note.service-base-url'
-const defaultServiceBaseUrl = 'https://career-note-web-sg.onrender.com'
+const defaultServiceBaseUrl = 'https://career-note-web-sg-cjdv.onrender.com'
 const legacyLocalServiceBaseUrls = new Set(['http://localhost:5173', 'http://127.0.0.1:5173'])
+const obsoleteProductionServiceBaseUrls = new Set(['https://career-note-web-sg.onrender.com'])
 const serviceBaseUrlMigrationKey = 'career-note.service-base-url-production-migrated'
 const accessTokenKey = 'career-note.access-token'
 const accessTokenExpiresAtKey = 'career-note.access-token-expires-at'
@@ -55,7 +56,8 @@ async function serviceBaseUrl() {
   }
   const saved = await chrome.storage.local.get([localSettingsKey, serviceBaseUrlMigrationKey])
   const savedValue = normalizeServiceBaseUrl(saved[localSettingsKey] || '')
-  const value = savedValue && !(legacyLocalServiceBaseUrls.has(savedValue) && !saved[serviceBaseUrlMigrationKey])
+  const value = savedValue && !obsoleteProductionServiceBaseUrls.has(savedValue)
+    && !(legacyLocalServiceBaseUrls.has(savedValue) && !saved[serviceBaseUrlMigrationKey])
     ? savedValue
     : defaultServiceBaseUrl
   await chrome.storage.local.set({ [localSettingsKey]: value, [serviceBaseUrlMigrationKey]: true })
@@ -436,7 +438,8 @@ function fillVisibleField(index, value) {
 async function initialize() {
   const saved = await chrome.storage.local.get([localSettingsKey, serviceBaseUrlMigrationKey])
   const savedValue = normalizeServiceBaseUrl(saved[localSettingsKey] || '')
-  const value = savedValue && !(legacyLocalServiceBaseUrls.has(savedValue) && !saved[serviceBaseUrlMigrationKey])
+  const value = savedValue && !obsoleteProductionServiceBaseUrls.has(savedValue)
+    && !(legacyLocalServiceBaseUrls.has(savedValue) && !saved[serviceBaseUrlMigrationKey])
     ? savedValue
     : defaultServiceBaseUrl
   serviceBaseUrlElement.value = value

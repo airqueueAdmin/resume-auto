@@ -15,7 +15,7 @@ Career Note 서비스가 제공하는 확장 프로그램 전용 ZIP을 다운�
 파일명은 다음과 같은 형태입니다.
 
 ```text
-career-note-extension-v0.3.4.zip
+career-note-extension-v0.3.5.zip
 ```
 
 이 ZIP은 저장소 전체가 아니라 확장 프로그램 실행에 필요한 파일만 포함합니다. ZIP을 받은 뒤
@@ -32,7 +32,7 @@ career-note-extension-v0.3.4.zip
 되어야 합니다.
 
 ```text
-career-note-extension-v0.3.4/
+career-note-extension-v0.3.5/
 ├── manifest.json
 ├── background.js
 ├── content.js
@@ -74,7 +74,7 @@ Chrome 데스크톱 브라우저에서 다음 순서로 진행합니다.
 1. 주소창에 `chrome://extensions` 입력
 2. 우측 상단 **개발자 모드** 활성화
 3. **압축해제된 확장 프로그램을 로드** 클릭
-4. 압축 해제한 `career-note-extension-v0.3.4` 폴더 선택
+4. 압축 해제한 `career-note-extension-v0.3.5` 폴더 선택
 
 설치 후 Chrome 오른쪽 위 퍼즐 모양 **확장 프로그램** 아이콘을 누르고 Career Note 옆의
 고정 아이콘을 선택하면 브라우저 툴바에서 바로 열 수 있습니다.
@@ -88,7 +88,7 @@ Chrome 데스크톱 브라우저에서 다음 순서로 진행합니다.
 확장 프로그램을 처음 열면 서비스 주소가 다음과 같이 설정되어 있어야 합니다.
 
 ```text
-https://career-note-web-sg.onrender.com
+https://career-note-web-sg-cjdv.onrender.com
 ```
 
 ![Production 서비스 연결](../assets/extension/04-connect-production.svg)
@@ -148,7 +148,7 @@ resume-auto-master/extension
 확장 프로그램 패널의 서비스 주소를 아래 값으로 바꾸고 저장합니다.
 
 ```text
-https://career-note-web-sg.onrender.com
+https://career-note-web-sg-cjdv.onrender.com
 ```
 
 ### 패널이 보이지 않는 경우
@@ -169,5 +169,5 @@ http://localhost:5173
 운영 사용자는 항상 다음 Production 주소를 사용합니다.
 
 ```text
-https://career-note-web-sg.onrender.com
+https://career-note-web-sg-cjdv.onrender.com
 ```

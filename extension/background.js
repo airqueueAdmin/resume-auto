@@ -1,5 +1,6 @@
-const defaultServiceBaseUrl = 'https://career-note-web-sg.onrender.com'
+const defaultServiceBaseUrl = 'https://career-note-web-sg-cjdv.onrender.com'
 const legacyLocalServiceBaseUrls = new Set(['http://localhost:5173', 'http://127.0.0.1:5173'])
+const obsoleteProductionServiceBaseUrls = new Set(['https://career-note-web-sg.onrender.com'])
 const serviceBaseUrlKey = 'career-note.service-base-url'
 const serviceBaseUrlMigrationKey = 'career-note.service-base-url-production-migrated'
 const accessTokenKey = 'career-note.access-token'
@@ -8,7 +9,7 @@ const accessTokenExpiresAtKey = 'career-note.access-token-expires-at'
 async function serviceBaseUrl() {
   const saved = await chrome.storage.local.get([serviceBaseUrlKey, serviceBaseUrlMigrationKey])
   const value = String(saved[serviceBaseUrlKey] || '').replace(/\/$/, '')
-  if (!value || (legacyLocalServiceBaseUrls.has(value) && !saved[serviceBaseUrlMigrationKey])) {
+  if (!value || obsoleteProductionServiceBaseUrls.has(value) || (legacyLocalServiceBaseUrls.has(value) && !saved[serviceBaseUrlMigrationKey])) {
     await chrome.storage.local.set({
       [serviceBaseUrlKey]: defaultServiceBaseUrl,
       [serviceBaseUrlMigrationKey]: true,

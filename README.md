@@ -363,7 +363,8 @@ Configuration is externalized through environment variables:
 - `RATE_LIMIT_WINDOW`: rate-limit window duration, default `PT1M`
 - `RATE_LIMIT_MAX_REQUESTS`: maximum requests per bucket per window, default `60`
 - `SIGNUP_TERMS_VERSION`: terms version recorded for new signup consent, default `2026-10-21`
-- `SIGNUP_PRIVACY_VERSION`: privacy-policy version recorded for new signup consent, default `2026-10-21`
+- `SIGNUP_PRIVACY_VERSION`: privacy-policy version recorded for new signup consent, default `2026-11-09`
+- `GA_MEASUREMENT_ID`: optional GA4 measurement ID (`G-...`) injected into the frontend container at runtime; analytics remains disabled when empty and the Google tag loads only after explicit user consent
 - `EMAIL_VERIFICATION_ENABLED`: require email-code verification before login; default `true`
 - `EMAIL_VERIFICATION_HMAC_SECRET_BASE64`: independent Base64-encoded secret used to HMAC verification
   codes; use at least 32 random decoded bytes outside local development
@@ -509,6 +510,11 @@ docker compose ps
 Open `http://localhost:5173`. Nginx preserves React deep links such as `/login` and proxies API calls to
 the backend. Backend readiness is available directly at `http://localhost:8080/actuator/health/readiness`
 and through the frontend proxy at `http://localhost:5173/actuator/health/readiness`.
+
+To enable consent-based GA4 page-view measurement for the containerized frontend, set
+`GA_MEASUREMENT_ID=G-...` before starting Compose. Leave it empty to keep analytics disabled. For Vite
+development, set `VITE_GA_MEASUREMENT_ID` in `frontend/.env.local`. The Google tag is loaded only after
+the user explicitly allows service analytics, and tracked URLs exclude query parameters.
 
 When Ollama runs on the host, Compose uses `host.docker.internal`. Override
 `COMPOSE_OLLAMA_CHAT_URL` and `COMPOSE_OLLAMA_EMBEDDING_URL` when the model server runs elsewhere.

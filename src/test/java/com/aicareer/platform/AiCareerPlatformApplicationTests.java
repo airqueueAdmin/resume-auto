@@ -903,7 +903,7 @@ class AiCareerPlatformApplicationTests {
         assertThat(signupPolicy.statusCode()).isEqualTo(200);
         assertThat(signupPolicy.body()).contains(
                 "\"termsVersion\":\"2026-10-21\"",
-                "\"privacyVersion\":\"2026-10-21\"",
+                "\"privacyVersion\":\"2026-11-09\"",
                 "\"emailVerificationRequired\":false"
         );
 
@@ -914,7 +914,7 @@ class AiCareerPlatformApplicationTests {
                         join users user_account on user_account.id = consent.user_id
                         where user_account.email_hash = ?
                           and consent.terms_version = '2026-10-21'
-                          and consent.privacy_version = '2026-10-21'
+                          and consent.privacy_version = '2026-11-09'
                         """)) {
             statement.setString(1, DataEncryption.blindIndex(email));
             try (ResultSet resultSet = statement.executeQuery()) {

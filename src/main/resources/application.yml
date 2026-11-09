@@ -33,7 +33,7 @@ app:
   identity:
     signup:
       terms-version: ${SIGNUP_TERMS_VERSION:2026-10-21}
-      privacy-version: ${SIGNUP_PRIVACY_VERSION:2026-10-21}
+      privacy-version: ${SIGNUP_PRIVACY_VERSION:2026-11-09}
     email-verification:
       enabled: ${EMAIL_VERIFICATION_ENABLED:true}
       provider: ${EMAIL_PROVIDER:smtp}
