@@ -23,10 +23,10 @@ shadowRoot.innerHTML = `
       position: fixed; right: 22px; bottom: 108px; z-index: 2147483647;
       display: grid; place-items: center; width: 58px; height: 58px; padding: 0;
       border: 0; border-radius: 50%;
-      background: #2563eb; color: #fff; box-shadow: 0 10px 30px rgba(37, 99, 235, .38);
+      background: #496b3e; color: #fff; box-shadow: 0 10px 30px rgba(73, 107, 62, .38);
       cursor: pointer; font: 700 13px/1.2 Arial, sans-serif;
     }
-    .toggle:hover { background: #1d4ed8; }
+    .toggle:hover { background: #385c34; }
     .toggle svg { width: 29px; height: 29px; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 2; }
     .toggle-dot { position: absolute; top: 2px; right: 1px; width: 11px; height: 11px; border: 2px solid #fff; border-radius: 50%; background: #22c55e; }
     .panel {
@@ -41,7 +41,7 @@ shadowRoot.innerHTML = `
     .header h1 { margin: 0; color: #172033; font-size: 16px; }
     .header p { margin: 4px 0 0; color: #64748b; font-size: 11px; }
     .close { flex: 0 0 32px; width: 32px; height: 32px; display: grid; place-items: center; border: 1px solid #dbe4f0; border-radius: 8px; padding: 0; background: #fff; color: #475569; cursor: pointer; font-size: 22px; line-height: 1; }
-    .close:hover { border-color: #bfdbfe; background: #eff6ff; color: #1d4ed8; }
+    .close:hover { border-color: #c9dfbb; background: #edf5e9; color: #496b3e; }
     .section { margin: 12px; padding: 13px; border: 1px solid #e5ebf3; border-radius: 11px; background: #fff; }
     .section h2 { margin: 0 0 9px; color: #334155; font-size: 12px; }
     label { display: grid; gap: 5px; margin-top: 9px; color: #475569; font-size: 11px; font-weight: 700; }
@@ -54,19 +54,19 @@ shadowRoot.innerHTML = `
     .secondary:hover { background: #dce7f3; }
     .actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; margin-top: 9px; }
     .actions.single { grid-template-columns: minmax(0, 1fr); }
-    .status { margin: 8px 0 0; color: #2563eb; font-size: 11px; }
+    .status { margin: 8px 0 0; color: #496b3e; font-size: 11px; }
     .muted { color: #64748b; font-size: 11px; }
     .notice { margin: 9px 0 0; color: #94a3b8; font-size: 10px; line-height: 1.45; }
     .field-list { display: grid; gap: 7px; max-height: 190px; overflow: auto; margin: 9px 0 0; padding: 0; list-style: none; }
-    .field-guide { margin: 9px 0 0; padding: 9px; border-radius: 8px; background: #eff6ff; color: #475569; font-size: 10px; line-height: 1.55; }
-    .field-guide strong { color: #1e40af; }
+    .field-guide { margin: 9px 0 0; padding: 9px; border-radius: 8px; background: #edf5e9; color: #475569; font-size: 10px; line-height: 1.55; }
+    .field-guide strong { color: #3f6135; }
     .field-guide p { margin: 3px 0 0; }
     .field-item { padding: 9px; border: 1px solid #dbe4f0; border-radius: 8px; background: #f8fafc; }
     .field-item.not-answerable { border-color: #e2e8f0; background: #f8fafc; }
     .field-label { display: block; overflow: hidden; color: #334155; font-size: 11px; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
     .field-description { margin: 6px 0 0; color: #64748b; font-size: 10px; line-height: 1.45; }
     .field-meta { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 5px; }
-    .badge { border-radius: 999px; padding: 3px 6px; background: #eff6ff; color: #1d4ed8; font-size: 10px; }
+    .badge { border-radius: 999px; padding: 3px 6px; background: #edf5e9; color: #496b3e; font-size: 10px; }
     .badge.muted-badge { background: #f1f5f9; color: #64748b; }
     .field-item button { margin-top: 7px; width: 100%; }
     .result { margin-top: 10px; padding-top: 10px; border-top: 1px solid #e5ebf3; }
@@ -80,7 +80,7 @@ shadowRoot.innerHTML = `
     .posting-read-status { margin-top: 7px; color: #166534; font-size: 10px; font-weight: 700; }
     .posting-read-warning { margin-top: 4px; color: #9a3412; font-size: 10px; line-height: 1.45; }
     .posting-card details { margin-top: 8px; border-top: 1px solid #e2e8f0; padding-top: 7px; }
-    .posting-card summary { color: #1d4ed8; cursor: pointer; font-size: 10px; font-weight: 700; }
+    .posting-card summary { color: #496b3e; cursor: pointer; font-size: 10px; font-weight: 700; }
     .posting-card pre { max-height: 240px; overflow: auto; margin: 7px 0 0; white-space: pre-wrap; color: #475569; font: 10px/1.5 Arial, sans-serif; }
     .readiness-card.ready { border-color: #bbf7d0; background: #f0fdf4; }
     .readiness-card.blocked { border-color: #fed7aa; background: #fff7ed; }
